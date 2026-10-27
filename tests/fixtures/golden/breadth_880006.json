@@ -1,0 +1,736 @@
+{
+ "meta": {
+  "name": "breadth_880006",
+  "cmd": "HQServ.PBFXT",
+  "ctl": 14,
+  "api": "Client.get_breadth('880006', count=30)",
+  "params": {
+   "code": "880006",
+   "count": 30
+  },
+  "fetched_at": "2026-10-27T17:48:24+08:00",
+  "server_time": "2026-10-27 15:30:03",
+  "sha256": "7147d80f0cc7230e6df4eae290a2328ffde26d51b492d2297f814345fff2d064",
+  "base_dir": "F:\\TDX_stock_data\\tdxdata\\tests\\fixtures\\golden",
+  "python": "3.14.2",
+  "tdxdata_version": "0.2.0",
+  "git_head": "04463f31e6081e4578feb97c5ccf625887f6f514",
+  "wire_calls": [
+   {
+    "cmd": "HQServ.PBFXT",
+    "ctl": 14,
+    "n": 1
+   }
+  ],
+  "frames": [
+   58
+  ],
+  "ctl_note": "即 cmd 那一帧的 ctl 字节"
+ },
+ "payload": {
+  "outcome": "ok",
+  "kind": "Table",
+  "value": {
+   "cols": [
+    "date",
+    "series",
+    "series_name",
+    "limit_up_count",
+    "limit_down_count",
+    "provisional"
+   ],
+   "rows": [
+    {
+     "date": "20260908",
+     "series": "880006",
+     "series_name": "停板家数",
+     "limit_up_count": 74.0,
+     "limit_down_count": 0.01,
+     "provisional": false,
+     "raw": {
+      "Data": "20260908",
+      "Second": "0",
+      "Open": "0.010000",
+      "High": "82.000000",
+      "Low": "1.000000",
+      "Close": "74.000000",
+      "Amount": "1978248986624.000000",
+      "VolInStock": "1978248986624.000000",
+      "Volume": "1183235072.000000",
+      "Settle": "0.000000",
+      "up": "2742.000000",
+      "down": "1770.000000"
+     }
+    },
+    {
+     "date": "20260909",
+     "series": "880006",
+     "series_name": "停板家数",
+     "limit_up_count": 49.0,
+     "limit_down_count": 7.0,
+     "provisional": false,
+     "raw": {
+      "Data": "20260909",
+      "Second": "0",
+      "Open": "7.000000",
+      "High": "50.000000",
+      "Low": "1.000000",
+      "Close": "49.000000",
+      "Amount": "1873081925632.000000",
+      "VolInStock": "1873081925632.000000",
+      "Volume": "1128997376.000000",
+      "Settle": "0.000000",
+      "up": "1444.000000",
+      "down": "3193.000000"
+     }
+    },
+    {
+     "date": "20260910",
+     "series": "880006",
+     "series_name": "停板家数",
+     "limit_up_count": 40.0,
+     "limit_down_count": 13.0,
+     "provisional": false,
+     "raw": {
+      "Data": "20260910",
+      "Second": "0",
+      "Open": "13.000000",
+      "High": "41.000000",
+      "Low": "1.000000",
+      "Close": "40.000000",
+      "Amount": "1662365204480.000000",
+      "VolInStock": "1662365204480.000000",
+      "Volume": "1051265408.000000",
+      "Settle": "0.000000",
+      "up": "762.000000",
+      "down": "3625.000000"
+     }
+    },
+    {
+     "date": "20260911",
+     "series": "880006",
+     "series_name": "停板家数",
+     "limit_up_count": 40.0,
+     "limit_down_count": 21.0,
+     "provisional": false,
+     "raw": {
+      "Data": "20260911",
+      "Second": "0",
+      "Open": "21.000000",
+      "High": "41.000000",
+      "Low": "2.000000",
+      "Close": "40.000000",
+      "Amount": "1986990309376.000000",
+      "VolInStock": "1986990309376.000000",
+      "Volume": "1222442240.000000",
+      "Settle": "0.000000",
+      "up": "432.000000",
+      "down": "3323.000000"
+     }
+    },
+    {
+     "date": "20260914",
+     "series": "880006",
+     "series_name": "停板家数",
+     "limit_up_count": 56.0,
+     "limit_down_count": 18.0,
+     "provisional": false,
+     "raw": {
+      "Data": "20260914",
+      "Second": "0",
+      "Open": "18.000000",
+      "High": "59.000000",
+      "Low": "7.000000",
+      "Close": "56.000000",
+      "Amount": "1643034443776.000000",
+      "VolInStock": "1643034443776.000000",
+      "Volume": "974087168.000000",
+      "Settle": "0.000000",
+      "up": "2514.000000",
+      "down": "1926.000000"
+     }
+    },
+    {
+     "date": "20260915",
+     "series": "880006",
+     "series_name": "停板家数",
+     "limit_up_count": 32.0,
+     "limit_down_count": 33.0,
+     "provisional": false,
+     "raw": {
+      "Data": "20260915",
+      "Second": "0",
+      "Open": "33.000000",
+      "High": "33.000000",
+      "Low": "1.000000",
+      "Close": "32.000000",
+      "Amount": "1625282838528.000000",
+      "VolInStock": "1625282838528.000000",
+      "Volume": "977371136.000000",
+      "Settle": "0.000000",
+      "up": "869.000000",
+      "down": "3249.000000"
+     }
+    },
+    {
+     "date": "20260916",
+     "series": "880006",
+     "series_name": "停板家数",
+     "limit_up_count": 91.0,
+     "limit_down_count": 4.0,
+     "provisional": false,
+     "raw": {
+      "Data": "20260916",
+      "Second": "0",
+      "Open": "4.000000",
+      "High": "92.000000",
+      "Low": "3.000000",
+      "Close": "91.000000",
+      "Amount": "1852535603200.000000",
+      "VolInStock": "1852535603200.000000",
+      "Volume": "995679488.000000",
+      "Settle": "0.000000",
+      "up": "3217.000000",
+      "down": "1086.000000"
+     }
+    },
+    {
+     "date": "20260917",
+     "series": "880006",
+     "series_name": "停板家数",
+     "limit_up_count": 49.0,
+     "limit_down_count": 2.0,
+     "provisional": false,
+     "raw": {
+      "Data": "20260917",
+      "Second": "0",
+      "Open": "2.000000",
+      "High": "50.000000",
+      "Low": "0.010000",
+      "Close": "49.000000",
+      "Amount": "1836537085952.000000",
+      "VolInStock": "1836537085952.000000",
+      "Volume": "1017248256.000000",
+      "Settle": "0.000000",
+      "up": "2139.000000",
+      "down": "2553.000000"
+     }
+    },
+    {
+     "date": "20260918",
+     "series": "880006",
+     "series_name": "停板家数",
+     "limit_up_count": 79.0,
+     "limit_down_count": 1.0,
+     "provisional": false,
+     "raw": {
+      "Data": "20260918",
+      "Second": "0",
+      "Open": "1.000000",
+      "High": "81.000000",
+      "Low": "1.000000",
+      "Close": "79.000000",
+      "Amount": "2092914835456.000000",
+      "VolInStock": "2092914835456.000000",
+      "Volume": "1089382784.000000",
+      "Settle": "0.000000",
+      "up": "3239.000000",
+      "down": "1103.000000"
+     }
+    },
+    {
+     "date": "20260921",
+     "series": "880006",
+     "series_name": "停板家数",
+     "limit_up_count": 105.0,
+     "limit_down_count": 2.0,
+     "provisional": false,
+     "raw": {
+      "Data": "20260921",
+      "Second": "0",
+      "Open": "2.000000",
+      "High": "106.000000",
+      "Low": "0.010000",
+      "Close": "105.000000",
+      "Amount": "2048151126016.000000",
+      "VolInStock": "2048151126016.000000",
+      "Volume": "1141512448.000000",
+      "Settle": "0.000000",
+      "up": "3172.000000",
+      "down": "834.000000"
+     }
+    },
+    {
+     "date": "20260922",
+     "series": "880006",
+     "series_name": "停板家数",
+     "limit_up_count": 64.0,
+     "limit_down_count": 5.0,
+     "provisional": false,
+     "raw": {
+      "Data": "20260922",
+      "Second": "0",
+      "Open": "5.000000",
+      "High": "65.000000",
+      "Low": "1.000000",
+      "Close": "64.000000",
+      "Amount": "2153663299584.000000",
+      "VolInStock": "2153663299584.000000",
+      "Volume": "1159930240.000000",
+      "Settle": "0.000000",
+      "up": "1902.000000",
+      "down": "2814.000000"
+     }
+    },
+    {
+     "date": "20260923",
+     "series": "880006",
+     "series_name": "停板家数",
+     "limit_up_count": 51.0,
+     "limit_down_count": 14.0,
+     "provisional": false,
+     "raw": {
+      "Data": "20260923",
+      "Second": "0",
+      "Open": "14.000000",
+      "High": "53.000000",
+      "Low": "4.000000",
+      "Close": "51.000000",
+      "Amount": "1783128260608.000000",
+      "VolInStock": "1783128260608.000000",
+      "Volume": "1059868800.000000",
+      "Settle": "0.000000",
+      "up": "1458.000000",
+      "down": "3018.000000"
+     }
+    },
+    {
+     "date": "20260924",
+     "series": "880006",
+     "series_name": "停板家数",
+     "limit_up_count": 52.0,
+     "limit_down_count": 15.0,
+     "provisional": false,
+     "raw": {
+      "Data": "20260924",
+      "Second": "0",
+      "Open": "15.000000",
+      "High": "53.000000",
+      "Low": "1.000000",
+      "Close": "52.000000",
+      "Amount": "1669112266752.000000",
+      "VolInStock": "1669112266752.000000",
+      "Volume": "971566528.000000",
+      "Settle": "0.000000",
+      "up": "896.000000",
+      "down": "3276.000000"
+     }
+    },
+    {
+     "date": "20260928",
+     "series": "880006",
+     "series_name": "停板家数",
+     "limit_up_count": 35.0,
+     "limit_down_count": 57.0,
+     "provisional": false,
+     "raw": {
+      "Data": "20260928",
+      "Second": "0",
+      "Open": "57.000000",
+      "High": "64.000000",
+      "Low": "1.000000",
+      "Close": "35.000000",
+      "Amount": "1716713029632.000000",
+      "VolInStock": "1716713029632.000000",
+      "Volume": "998483072.000000",
+      "Settle": "0.000000",
+      "up": "722.000000",
+      "down": "2729.000000"
+     }
+    },
+    {
+     "date": "20260929",
+     "series": "880006",
+     "series_name": "停板家数",
+     "limit_up_count": 57.0,
+     "limit_down_count": 11.0,
+     "provisional": false,
+     "raw": {
+      "Data": "20260929",
+      "Second": "0",
+      "Open": "11.000000",
+      "High": "57.000000",
+      "Low": "0.010000",
+      "Close": "57.000000",
+      "Amount": "1421597474816.000000",
+      "VolInStock": "1421597474816.000000",
+      "Volume": "887855872.000000",
+      "Settle": "0.000000",
+      "up": "2929.000000",
+      "down": "1740.000000"
+     }
+    },
+    {
+     "date": "20260930",
+     "series": "880006",
+     "series_name": "停板家数",
+     "limit_up_count": 56.0,
+     "limit_down_count": 12.0,
+     "provisional": false,
+     "raw": {
+      "Data": "20260930",
+      "Second": "0",
+      "Open": "12.000000",
+      "High": "57.000000",
+      "Low": "3.000000",
+      "Close": "56.000000",
+      "Amount": "1450089512960.000000",
+      "VolInStock": "1450089512960.000000",
+      "Volume": "914976960.000000",
+      "Settle": "0.000000",
+      "up": "2187.000000",
+      "down": "2309.000000"
+     }
+    },
+    {
+     "date": "20261008",
+     "series": "880006",
+     "series_name": "停板家数",
+     "limit_up_count": 45.0,
+     "limit_down_count": 15.0,
+     "provisional": false,
+     "raw": {
+      "Data": "20261008",
+      "Second": "0",
+      "Open": "15.000000",
+      "High": "53.000000",
+      "Low": "2.000000",
+      "Close": "45.000000",
+      "Amount": "1694291197952.000000",
+      "VolInStock": "1694291197952.000000",
+      "Volume": "1021252800.000000",
+      "Settle": "0.000000",
+      "up": "1345.000000",
+      "down": "2592.000000"
+     }
+    },
+    {
+     "date": "20261009",
+     "series": "880006",
+     "series_name": "停板家数",
+     "limit_up_count": 72.0,
+     "limit_down_count": 10.0,
+     "provisional": false,
+     "raw": {
+      "Data": "20261009",
+      "Second": "0",
+      "Open": "10.000000",
+      "High": "72.000000",
+      "Low": "3.000000",
+      "Close": "72.000000",
+      "Amount": "1916708585472.000000",
+      "VolInStock": "1916708585472.000000",
+      "Volume": "1175820800.000000",
+      "Settle": "0.000000",
+      "up": "2494.000000",
+      "down": "1658.000000"
+     }
+    },
+    {
+     "date": "20261012",
+     "series": "880006",
+     "series_name": "停板家数",
+     "limit_up_count": 48.0,
+     "limit_down_count": 22.0,
+     "provisional": false,
+     "raw": {
+      "Data": "20261012",
+      "Second": "0",
+      "Open": "22.000000",
+      "High": "51.000000",
+      "Low": "2.000000",
+      "Close": "48.000000",
+      "Amount": "1550768275456.000000",
+      "VolInStock": "1550768275456.000000",
+      "Volume": "1004258560.000000",
+      "Settle": "0.000000",
+      "up": "935.000000",
+      "down": "2823.000000"
+     }
+    },
+    {
+     "date": "20261013",
+     "series": "880006",
+     "series_name": "停板家数",
+     "limit_up_count": 70.0,
+     "limit_down_count": 10.0,
+     "provisional": false,
+     "raw": {
+      "Data": "20261013",
+      "Second": "0",
+      "Open": "10.000000",
+      "High": "76.000000",
+      "Low": "7.000000",
+      "Close": "70.000000",
+      "Amount": "1688912920576.000000",
+      "VolInStock": "1688912920576.000000",
+      "Volume": "1051661248.000000",
+      "Settle": "0.000000",
+      "up": "2377.000000",
+      "down": "2200.000000"
+     }
+    },
+    {
+     "date": "20261014",
+     "series": "880006",
+     "series_name": "停板家数",
+     "limit_up_count": 39.0,
+     "limit_down_count": 11.0,
+     "provisional": false,
+     "raw": {
+      "Data": "20261014",
+      "Second": "0",
+      "Open": "11.000000",
+      "High": "46.000000",
+      "Low": "1.000000",
+      "Close": "39.000000",
+      "Amount": "1426401263616.000000",
+      "VolInStock": "1426401263616.000000",
+      "Volume": "941213952.000000",
+      "Settle": "0.000000",
+      "up": "778.000000",
+      "down": "2883.000000"
+     }
+    },
+    {
+     "date": "20261015",
+     "series": "880006",
+     "series_name": "停板家数",
+     "limit_up_count": 36.0,
+     "limit_down_count": 26.0,
+     "provisional": false,
+     "raw": {
+      "Data": "20261015",
+      "Second": "0",
+      "Open": "26.000000",
+      "High": "36.000000",
+      "Low": "1.000000",
+      "Close": "36.000000",
+      "Amount": "1645719584768.000000",
+      "VolInStock": "1645719584768.000000",
+      "Volume": "1067756416.000000",
+      "Settle": "0.000000",
+      "up": "296.000000",
+      "down": "2271.000000"
+     }
+    },
+    {
+     "date": "20261016",
+     "series": "880006",
+     "series_name": "停板家数",
+     "limit_up_count": 61.0,
+     "limit_down_count": 11.0,
+     "provisional": false,
+     "raw": {
+      "Data": "20261016",
+      "Second": "0",
+      "Open": "11.000000",
+      "High": "87.000000",
+      "Low": "1.000000",
+      "Close": "61.000000",
+      "Amount": "1569066057728.000000",
+      "VolInStock": "1569066057728.000000",
+      "Volume": "1030371328.000000",
+      "Settle": "0.000000",
+      "up": "2721.000000",
+      "down": "1739.000000"
+     }
+    },
+    {
+     "date": "20261019",
+     "series": "880006",
+     "series_name": "停板家数",
+     "limit_up_count": 49.0,
+     "limit_down_count": 25.0,
+     "provisional": false,
+     "raw": {
+      "Data": "20261019",
+      "Second": "0",
+      "Open": "25.000000",
+      "High": "50.000000",
+      "Low": "2.000000",
+      "Close": "49.000000",
+      "Amount": "1448798978048.000000",
+      "VolInStock": "1448798978048.000000",
+      "Volume": "917217408.000000",
+      "Settle": "0.000000",
+      "up": "1826.000000",
+      "down": "2543.000000"
+     }
+    },
+    {
+     "date": "20261020",
+     "series": "880006",
+     "series_name": "停板家数",
+     "limit_up_count": 56.0,
+     "limit_down_count": 7.0,
+     "provisional": false,
+     "raw": {
+      "Data": "20261020",
+      "Second": "0",
+      "Open": "7.000000",
+      "High": "60.000000",
+      "Low": "1.000000",
+      "Close": "56.000000",
+      "Amount": "1471542722560.000000",
+      "VolInStock": "1471542722560.000000",
+      "Volume": "886318208.000000",
+      "Settle": "0.000000",
+      "up": "2724.000000",
+      "down": "1493.000000"
+     }
+    },
+    {
+     "date": "20261021",
+     "series": "880006",
+     "series_name": "停板家数",
+     "limit_up_count": 50.0,
+     "limit_down_count": 5.0,
+     "provisional": false,
+     "raw": {
+      "Data": "20261021",
+      "Second": "0",
+      "Open": "5.000000",
+      "High": "50.000000",
+      "Low": "0.010000",
+      "Close": "50.000000",
+      "Amount": "1442067775488.000000",
+      "VolInStock": "1442067775488.000000",
+      "Volume": "855554176.000000",
+      "Settle": "0.000000",
+      "up": "1621.000000",
+      "down": "3020.000000"
+     }
+    },
+    {
+     "date": "20261022",
+     "series": "880006",
+     "series_name": "停板家数",
+     "limit_up_count": 33.0,
+     "limit_down_count": 55.0,
+     "provisional": false,
+     "raw": {
+      "Data": "20261022",
+      "Second": "0",
+      "Open": "55.000000",
+      "High": "58.000000",
+      "Low": "0.010000",
+      "Close": "33.000000",
+      "Amount": "1541863899136.000000",
+      "VolInStock": "1541863899136.000000",
+      "Volume": "969664256.000000",
+      "Settle": "0.000000",
+      "up": "401.000000",
+      "down": "2731.000000"
+     }
+    },
+    {
+     "date": "20261023",
+     "series": "880006",
+     "series_name": "停板家数",
+     "limit_up_count": 84.0,
+     "limit_down_count": 7.0,
+     "provisional": false,
+     "raw": {
+      "Data": "20261023",
+      "Second": "0",
+      "Open": "7.000000",
+      "High": "85.000000",
+      "Low": "0.010000",
+      "Close": "84.000000",
+      "Amount": "1972854849536.000000",
+      "VolInStock": "1972854849536.000000",
+      "Volume": "1251397120.000000",
+      "Settle": "0.000000",
+      "up": "3133.000000",
+      "down": "717.000000"
+     }
+    },
+    {
+     "date": "20261026",
+     "series": "880006",
+     "series_name": "停板家数",
+     "limit_up_count": 59.0,
+     "limit_down_count": 27.0,
+     "provisional": false,
+     "raw": {
+      "Data": "20261026",
+      "Second": "0",
+      "Open": "27.000000",
+      "High": "63.000000",
+      "Low": "0.010000",
+      "Close": "59.000000",
+      "Amount": "1623091838976.000000",
+      "VolInStock": "1623091838976.000000",
+      "Volume": "982169344.000000",
+      "Settle": "0.000000",
+      "up": "1833.000000",
+      "down": "2158.000000"
+     }
+    },
+    {
+     "date": "20261027",
+     "series": "880006",
+     "series_name": "停板家数",
+     "limit_up_count": 42.0,
+     "limit_down_count": 23.0,
+     "provisional": false,
+     "raw": {
+      "Data": "20261027",
+      "Second": "0",
+      "Open": "23.000000",
+      "High": "53.000000",
+      "Low": "3.000000",
+      "Close": "42.000000",
+      "Amount": "1472907051008.000000",
+      "VolInStock": "1472907051008.000000",
+      "Volume": "945838720.000000",
+      "Settle": "0.000000",
+      "up": "435.000000",
+      "down": "2163.000000"
+     }
+    }
+   ],
+   "cmd": "HQServ.PBFXT",
+   "domain": "",
+   "meta": {
+    "fetched_at": "2026-10-27 17:48:24",
+    "source": {
+     "host": "124.223.177.105",
+     "cmd": "HQServ.PBFXT",
+     "ctl": 14,
+     "clock": "hybrid",
+     "cached": false
+    },
+    "elapsed": 2.2035,
+    "fetch_clock": "hybrid",
+    "as_of": "2026-10-27",
+    "status": "final",
+    "as_of_note": "as_of 取末根 bar 的日期/时间（服务端数据自带），不是取数时刻；取数时刻见 fetched_at",
+    "provisional": false,
+    "series": "880006",
+    "series_name": "停板家数",
+    "field_map": {
+     "close": "limit_up_count",
+     "open": "limit_down_count"
+    },
+    "note": "其余字段无定义（high/low 不是「最高/最低停板家数」，只是占位）",
+    "unavailable": [
+     "high",
+     "low"
+    ],
+    "period": "day"
+   }
+  }
+ }
+}

@@ -1,0 +1,41 @@
+{
+ "meta": {
+  "name": "err_bars_000300",
+  "cmd": "HQServ.PBFXT",
+  "ctl": 14,
+  "api": "Client.get_bars('000300') —— 错误现场",
+  "params": {
+   "symbol": "000300",
+   "period": "day",
+   "count": 5
+  },
+  "fetched_at": "2026-10-27T16:49:16+08:00",
+  "server_time": "2026-10-27 15:30:03",
+  "sha256": "f7cc1b283ad339ec2aa8cb882fe2fbe1823265aef7270ab317e120a8872462a3",
+  "base_dir": "F:\\TDX_stock_data\\tdxdata\\tests\\fixtures\\golden",
+  "python": "3.14.2",
+  "tdxdata_version": "0.2.0",
+  "git_head": "04463f31e6081e4578feb97c5ccf625887f6f514",
+  "wire_calls": [
+   {
+    "cmd": "HQServ.PBFXT",
+    "ctl": 14,
+    "n": 1
+   }
+  ],
+  "frames": [
+   53
+  ],
+  "ctl_note": "即 cmd 那一帧的 ctl 字节"
+ },
+ "payload": {
+  "outcome": "error",
+  "exc_type": "tdxdata.errors.EmptyResult",
+  "exc_msg": "000300 day K线无数据",
+  "exc_bases": [
+   "tdxdata.errors.TdxError",
+   "builtins.Exception",
+   "builtins.BaseException"
+  ]
+ }
+}

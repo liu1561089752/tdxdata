@@ -765,7 +765,10 @@ def test_get_universe_rejects_bad_max_pages():
 def test_get_market_page_validates_params():
     """参数自检：market 必须在映射表里、offset ≥ 0、cols 非空。"""
     c = _bare_client()
-    for kw, needle in (({"market": 9}, "market"),
+    # 阶段 3 授权改动：原来这一例用 `market: 9`（当时 9 **未登记**）。
+    # 9 现已按 2026-10-27 实网证据登记为「ETF/基金」域，它变成**合法**参数，
+    # 所以"未登记 → ValueError"的实例换成真正未登记的 999 —— 判据强度不变。
+    for kw, needle in (({"market": 999}, "market"),
                        ({"offset": -1}, "offset"),
                        ({"cols": []}, "cols")):
         try:
@@ -838,6 +841,7 @@ def test_get_ticks_now_works_and_pages_by_span_start():
     assert ts[0].price == 1349.13 and ts[0].vol == 2.0        # price 元 / vol 手
     assert ts[0].symbol == "sh600519"
     assert ts[0].raw["InOutFlag"] == "1", "未定名字段留 raw，不许编成属性"
+    # 阶段 4：`trade_count` / `bs_flag` 均为「声明式不可用」（models.UNPROVIDED_TICK_FIELDS）。
     assert all(x.trade_count is None and x.bs_flag is None for x in ts), \
         "服务端没有 trade_count / bs_flag → 必须 None（不许填 0 或 2 冒充）"
 

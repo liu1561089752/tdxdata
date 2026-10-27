@@ -36,12 +36,21 @@ get_board_members(client, board) -> Table   # code/name/market/price/change_pct
 | `area` | ✅ 32 行 | `PBMultiHQ(field4=10006)`；2026-10-26 实网 32 行 |
 | `index` | ❌ `NotSupportedError` | 唯一带"板块指数"字样的 `qh_hqpd_bkzs` 是**期货**板块指数，`code` 是 `T006` 这类占位码，映射不到 A 股板块名 |
 
-⚠️ **两个 kind 都没有"涨跌幅"列**：`app_bklist_ag` 的 9 列里没有涨跌幅
-（`N004` 全 128 行恒为 1，已实网排除）；概念走 `PBMultiHQ` 时原始列里有 `20ZAF`，
-但「20」这个前缀未定论（可能是周期不是序号），**不许硬造涨跌幅**，只留 raw。
-按红线「拿不到的列不要硬造」，`change_pct` 字段**保留但恒为 `None`**，
-并写进 `Table.meta["unavailable"]` / `meta["why"]`。要行业涨跌幅请用
-`flow.get_market_stat(kind="industry")`（走 `hyfx_sy` 模式 2，逐一级行业码）。
+`change_pct` 从哪来（阶段 4 修正，**不是**硬造）
+------------------------------------------------
+* `PBMultiHQ` 系列（concept/style/area/industry1-3）的回包**本来就有** `CLOSE`（昨收）
+  与 `NOW`（现价），所以涨跌幅是 `(now / close - 1) * 100`，来源写在
+  `meta["change_pct_method"] = "PBMultiHQ.NOW/CLOSE"`。
+* **`industry` 支路例外**：`app_bklist_ag` 的 9 列里确实**没有价格**
+  （`N004` 全 128 行恒为 1，实网已排除，不是涨跌幅）。这一支路用**同码**
+  去 `industry2`（`PBMultiHQ field4=10001`）取 `CLOSE`/`NOW` 回填
+  （2026-10-27 实网 **128/128 同码**都能对上），`meta["change_pct_method"] = "industry2 回填"`。
+  回填不到的单条**不许猜**：留 `None`，代码记进 `meta["change_pct_unavailable"]`。
+* 分母保护：`close <= 0` / `now <= 0` / 任一为 `None` → `None`（**绝不把未知变成 0**）。
+
+⚠️ 历史坑：这里曾经**无条件**写 `row["change_pct"] = None`，把上游已经拿到的
+`CLOSE`/`NOW` 白扔了两列 —— "没有涨跌幅**列**"是真的，"没有**价格**"是假的，
+当时把两件事混成了一件。
 
 **板块名 → 成分 为什么要两次调用**
 `zttz_xggp` 的 `p2` 只认**板块代码**（`880703` 这种），不认板块名；而调用方通常给名字。
@@ -58,7 +67,7 @@ from __future__ import annotations
 import re
 from typing import Any
 
-from ..errors import NotSupportedError
+from ..errors import EmptyResult, NotSupportedError
 from ..models import Table
 
 __all__ = ["get_boards", "get_board_members", "BOARD_KINDS"]
@@ -150,6 +159,10 @@ _TDXRB_BLOCK_MAP: tuple[tuple[str, str, str], ...] = (
 _MULTIHQ_BOARD_MAP: tuple[tuple[str, str, str], ...] = (
     ("Code", "board_code", "text"),        # 880xxx 板块指数代码
     ("Name", "board_name", "text"),        # 板块名 水产品
+    # 2026-10-27 实网复核：这两列 100% 非空（269 个概念板块逐个都有值），
+    # 所以涨跌幅可以**现算**，不需要任何外部补数。
+    ("NOW", "now", "num"),                 # 板块指数现价（板块点位，不是元）
+    ("CLOSE", "close", "num"),             # 板块指数昨收
 )
 _CMD_MULTIHQ = "HQServ.PBMultiHQ"
 _CTL_MULTIHQ = 0x12
@@ -194,8 +207,10 @@ _ZTTZ_XGGP_MAP: tuple[tuple[str, str, str], ...] = (
 )
 
 # 板块清单的**标准列顺序**
-# 契约要求的最低字段在前；`change_pct` 恒 None（两条通道都没有涨跌幅列）
-_BOARD_COLS_BASE = ("board_code", "board_name", "board_type", "change_pct")
+# 契约要求的最低字段在前。`now`/`close` 紧跟 `change_pct`：它们是涨跌幅的**两个输入**，
+# 不一起给出来，用户就没法复核 `change_pct`（"这个数怎么算的"必须能当场验）。
+_BOARD_COLS_BASE = ("board_code", "board_name", "board_type", "change_pct",
+                    "now", "close")
 # industry 额外给「三级行业码 + 一级行业归属」（实网确义），便于按一级行业聚合
 _BOARD_COLS_INDUSTRY = _BOARD_COLS_BASE + ("industry_code", "level1_code", "level1_name")
 _BOARD_COLS_CONCEPT = _BOARD_COLS_BASE
@@ -323,7 +338,137 @@ def _shape(src: Table, spec: tuple[tuple[str, str, str], ...], *,
         out["raw"] = _row_dict(src, src_row)   # 红线：原始列一个都不许丢
         rows.append(out)
 
-    return Table(cols=cols, rows=rows, cmd=cmd, domain=domain, meta=dict(meta or {}))
+    # ⚠️ **必须继承 `src.meta`**：这张表是"重建"出来的（换标准列名 + 补 raw），
+    # 若从空 meta 开始，上游 `client.call()` 刚盖上的
+    # as_of / status / fetched_at / elapsed / source(5 键 dict) 就全丢了
+    # —— 这正是复核者判的那条阻断。用 `inherit_meta` 单点继承，别在每个调用点手工 copy。
+    return Table(cols=cols, rows=rows, cmd=cmd,
+                 domain=domain).inherit_meta(src, **(meta or {}))
+
+
+def _pct(now, close) -> float | None:
+    """涨跌幅（百分数）= `(now / close - 1) * 100`；拿不准一律 `None`。
+
+    **红线：不许把未知变成 0。** 三种情况必须返回 `None` 而不是 0：
+      * 任一为 `None`（还没开盘 / 停牌 / 该行没价格）；
+      * `close <= 0`（除零或脏数据，例如某些板块指数报 0）；
+      * `now <= 0`（同上）。
+    "0%" 是一个**断言**（"今天没涨没跌"），不是"我不知道"的占位符。
+    """
+    if now is None or close is None:
+        return None
+    try:
+        n, c = float(now), float(close)
+    except (TypeError, ValueError):
+        return None
+    if n <= 0 or c <= 0:
+        return None
+    return (n / c - 1.0) * 100.0
+
+
+#: `change_pct` 的算法口径（写进 `meta["change_pct_method"]`，让用户知道数怎么来的）
+_METHOD_MULTIHQ = "PBMultiHQ.NOW/CLOSE"
+_METHOD_INDUSTRY = "industry2 回填"
+
+
+def _note_change_pct(table: Table, method: str, *, note: str | None = None) -> Table:
+    """把「涨跌幅怎么算的 / 哪几条没算出来」写进 `meta`（**只加不改行**）。"""
+    table.meta["change_pct_method"] = method
+    lacking = [r.get("board_code") for r in table.rows if r.get("change_pct") is None]
+    if lacking:
+        table.meta["unavailable"] = ["change_pct"]
+        table.meta["change_pct_unavailable"] = lacking
+        table.meta["change_pct_note"] = note or (
+            "这些板块取不到涨跌幅（源头缺 `CLOSE`/`NOW` 或值为 0）—— 留 None，"
+            "不猜、不填 0。代码清单见 `change_pct_unavailable`。")
+    else:
+        table.meta["unavailable"] = []
+        # 回填成功后必须把**上一次**记账清掉：industry 支路先在建表时记过一次
+        # "全缺"，回填把它修好以后，那两条就成了假陈述（留着 = 骗人）。
+        table.meta.pop("change_pct_unavailable", None)
+        table.meta.pop("change_pct_note", None)
+    table.meta["why"] = (
+        "涨跌幅 `change_pct` 由 `(now / close - 1) * 100` 现算"
+        "（口径见 `change_pct_method`）；`now`/`close` 是分子分母，**都给了**，"
+        "可就地复核。任一价格缺失或 ≤0 → None（不把未知当 0）。")
+    if not table.meta["why"]:
+        pass
+    return table
+
+
+def _drop_empty_cols(table: Table, *, protect: tuple[str, ...] = ()) -> Table:
+    """**丢掉 100% 为 `None` 的列**，并把丢了哪些记进 `meta["dropped_empty_cols"]`。
+
+    用途：不留「看起来有、实际永远空」的假列。调用方一看到 `cols` 里有 `price`
+    就会以为取到了价格，用到下游才发现整列是 `None` —— 这种"假列"比缺列更坏。
+
+    ⚠️ **作用域严格**：只用于 `get_boards(...)` 全部 kind 与
+    `get_market_stat('industry'/'updown'/'sentiment')`。
+    ⛔ **绝不能用在 ztqd 清单那类表上**：那里的整列 `None` 是「当日样本不完整」的
+    **数据信号**（`N029`/`N025` 盘中全空 = 当日清单还没长全），丢了就等于把
+    "数据不全"藏起来。那类表用 `_flag_all_null_cols`（只标记、不删）。
+
+    `protect`：**契约列**（`cols` 里向调用方承诺过的那几个）。它们即使整列为空也
+    **不删** —— 因为本库自己的规矩是「拿不到就填 `None`，而不是让列缺席，这样
+    调用方能区分『没有这一列』和『这次没有值』」（见 `get_board_members`）。
+
+    ⚠️ 但"保列"**不等于可以留着不解释**：任何整列为 `None` 的列（**包括被
+    `protect` 保下来的契约列**）一律进 `meta["all_null_cols"]`，另有
+    `unavailable` / `change_pct_note` 给出原因。否则就是"让用户对着整列 None 猜"，
+    那和假列一样坏。两个键的分工：
+      * `all_null_cols`：**诊断**口径 —— 本次哪些列整列是 None（删没删都在里面）；
+      * `dropped_empty_cols`：**动作**口径 —— 其中哪些被删掉了（非契约列）。
+
+    记账口径：**只有真丢了才写 `meta["dropped_empty_cols"]`**。键缺席 = 本次一个
+    非契约空列都没有（不是"没实现"）。反过来写空列表会让每个样本的 meta 键集
+    都抖一下，而"没丢东西"本来就没有需要交代的。
+    """
+    if not table.rows:
+        return table
+    nulls = [c for c in table.cols if all(r.get(c) is None for r in table.rows)]
+    # ★ 契约列被保护下来以后**必须交代**：不然用户对着一整列 None 猜半天，
+    #   这正是本函数要防的那件事。所以"整列为空"这件事不论删没删都要记账：
+    #   `all_null_cols` = 本次整列全空的列（诊断口径）
+    #   `dropped_empty_cols` = 其中**被删掉**的（动作口径）
+    if nulls:
+        table.meta["all_null_cols"] = nulls
+    dropped = [c for c in nulls if c not in protect]
+    if not dropped:
+        return table
+    keep = [c for c in table.cols if c not in dropped]
+    for row in table.rows:                 # 行里的键也要删，否则「已删列」还能按名取到
+        for c in dropped:
+            try:
+                del row[c]
+            except (KeyError, TypeError):
+                pass
+    table.set_cols(keep)
+    table.meta["dropped_empty_cols"] = dropped
+    table.meta["dropped_empty_note"] = (
+        "这些列本次 100% 为 None（结构性死列），已从 cols 删掉并在此记账。"
+        "⚠️ 只有「该死」的空列才删；若是「当日样本不完整」造成的整列空"
+        "（如 ztqd 的 N029/N025），那属于数据信号，走 all_null_cols **只标不删**。")
+    return table
+
+
+def _flag_all_null_cols(table: Table, *, product: str = "") -> Table:
+    """**不删任何列**，只把 100% 为 `None` 的列名记进 `meta["all_null_cols"]`。
+
+    用在数据中心产品（尤其 ztqd 涨停清单）：整列为 `None` 可能是**当日样本不完整**
+    （`00102` 口径的当日清单还没长全），也可能真有死列 —— 库**分不清**，
+    所以选择「保留 + 明说」，把判断权交给用户。删掉就等于替用户做了"这列没用"的决定。
+    """
+    if not table.rows:
+        return table
+    nulls = [c for c in table.cols if all(r.get(c) is None for r in table.rows)]
+    if nulls:
+        table.meta["all_null_cols"] = nulls
+        table.meta["all_null_note"] = (
+            "整列为 None 的列**已保留**（没有删）：对 %s 这类清单，整列空可能是"
+            "「当日样本不完整」（例如 00102 口径当日清单还在长），那是**数据信号**，"
+            "删列会把'数据不全'藏起来。要判死活请看多日样本，别只看今天。"
+            % (product or "数据中心产品"))
+    return table
 
 
 def _check_kind(kind: Any) -> str:
@@ -347,21 +492,27 @@ def _check_kind(kind: Any) -> str:
 # ══════════════════════════════════════════════════════════════════════════
 # 取数（各通道单独一个函数，方便离线测试注入假 client）
 # ══════════════════════════════════════════════════════════════════════════
-def _fetch_industry_list(client) -> Table:
-    """行业板块清单（128 行 × 9 列）。**1 次调用**，无日期参数。
+def _fetch_industry_list(client, *, with_prices: bool = True) -> Table:
+    """行业板块清单（128 行 × 9 列）+ `industry2` 回填涨跌幅。
+
+    `app_bklist_ag` **1 次调用**、无日期参数；`with_prices=True` 时**另加一轮**
+    `industry2`（`PBMultiHQ field4=10001`，128 行 ≈ 5 次分页）用**同码**回填
+    `CLOSE`/`NOW` —— 2026-10-27 实网 128/128 同码全部对上。
+
+    `with_prices=False` 给**内部**调用方用（`get_board_members` 只是按名字查代码，
+    不需要涨跌幅）：省掉那一轮翻页，别让"查个板块代码"白等 10 秒。
 
     实网复核（2026-10-25）见 `_BKLIST_MAP` 的逐列证据；与 `hyfx_sy` 模式 2
     的 881xxx 代码三处交叉验证一致。
     """
     raw = client.call(_CMD_BKLIST_AG, _CTL_BKLIST_AG, list(_PARAMS_BKLIST_AG))
-    return _board_table(
+    table = _board_table(
         raw, _BKLIST_MAP, "industry",
         cols=_BOARD_COLS_INDUSTRY,
         cmd=_CMD_BKLIST_AG,
-        why="app_bklist_ag 的 9 列里**没有涨跌幅**（N004 全 128 行恒为 1，不是涨跌幅）；"
-            "行业涨跌幅在 hyfx_sy 模式 2，用 flow.get_market_stat(kind=\"industry\") 取",
+        method=_METHOD_INDUSTRY,
         meta={"params": list(_PARAMS_BKLIST_AG),
-              "source": "app_bklist_ag（A 股板块清单，128 个行业，p1=层级 2）",
+              "source_note": "app_bklist_ag（A 股板块清单，128 个行业，p1=层级 2）",
               "row_semantics": "N001==N005==N008 三级行业码；N003==N009 行业名；"
                                "N006/N007 一级行业码/名；N004 恒 1（未确义，留在 raw）",
               # 服务端 9 列里没有任何"类别"列 —— 这两列的值由**请求**回填，不是数据
@@ -371,6 +522,52 @@ def _fetch_industry_list(client) -> Table:
                   "board_code": "取自 N002（881xxx 真板块码），不是 X1001 那种行业分类码",
               }},
     )
+    if with_prices:
+        _backfill_from_industry2(client, table)
+    return table
+
+
+def _backfill_from_industry2(client, table: Table) -> Table:
+    """用**同码**在 `industry2`（`PBMultiHQ field4=10001`）里回填 `now`/`close`。
+
+    为什么这条路是合法的：`app_bklist_ag` 的 `N002`（881xxx）与 `industry2` 板块域的
+    `Code`（881xxx）是**同一套板块指数代码**，2026-10-27 实网 128/128 全部对上
+    —— 是"同一个标的换个通道取价格"，不是"猜一个数填进去"。
+
+    回填不到的单条**留 `None`**（绝不猜、绝不填 0），代码记进
+    `meta["change_pct_unavailable"]`。
+    """
+    try:
+        src = _fetch_multihq_boards(client, "industry2", _BOARD_DOMAINS["industry2"])
+    except EmptyResult:
+        # 服务端这次没给 industry2：industry 清单本身是好的，不该因为它整张表失败。
+        # 但必须**明说**（留 None + 记账），不能装作算过了。
+        for row in table.rows:
+            row.setdefault("now", None)
+            row.setdefault("close", None)
+            row["change_pct"] = None
+        return _note_change_pct(
+            table, _METHOD_INDUSTRY,
+            note="industry2 本次返回 0 行，全部板块的涨跌幅无法计算（留 None）。"
+                 "行业清单本身是正常的，只是价格没回填上。")
+
+    price: dict[str, tuple[Any, Any]] = {}
+    for row in src.rows:
+        code = row.get("board_code")
+        if code:
+            price[code] = (row.get("now"), row.get("close"))
+
+    lacking: list[str] = []
+    for row in table.rows:
+        now, close = price.get(row.get("board_code"), (None, None))
+        row["now"], row["close"] = now, close
+        row["change_pct"] = _pct(now, close)
+        if row["change_pct"] is None and row.get("board_code"):
+            lacking.append(row["board_code"])
+    return _note_change_pct(
+        table, _METHOD_INDUSTRY,
+        note=("这些板块在 industry2（PBMultiHQ 10001）里没有价格，"
+              "所以涨跌幅留 None、不猜：%s" % "、".join(lacking)) if lacking else None)
 
 
 def _fetch_multihq_boards(client, kind: str, market: int) -> Table:
@@ -405,7 +602,7 @@ def _fetch_multihq_boards(client, kind: str, market: int) -> Table:
     meta: dict[str, Any] = {
         "params": {"market": market, "offset_step": _BOARD_PAGE,
                    "page_size": _BOARD_PAGE},
-        "source": "PBMultiHQ(ctl 0x12, field4=%d 板块域) 翻页；"
+        "source_note": "PBMultiHQ(ctl 0x12, field4=%d 板块域) 翻页；"
                   "2026-10-26 手机抓包 cap4.pcap 逐字节复现" % market,
         "rows_fetched": len(rows),
         "const_fields": {
@@ -425,8 +622,7 @@ def _fetch_multihq_boards(client, kind: str, market: int) -> Table:
         raw, _MULTIHQ_BOARD_MAP, kind,
         cols=_BOARD_COLS_CONCEPT,
         cmd=_CMD_MULTIHQ,
-        why="`change_pct` 恒 None：本通道原始列里有 `20ZAF`，但「20」这个前缀"
-            "未定论（可能是周期不是序号），拿不准的涨跌幅不许硬造 → 只留在 raw",
+        method=_METHOD_MULTIHQ,
         meta=meta,
     )
 
@@ -436,13 +632,18 @@ def _fetch_concept_list(client) -> Table:
     return _fetch_multihq_boards(client, "concept", _BOARD_DOMAINS["concept"])
 
 
-def _board_table(raw: Table, spec, board_type: str, *, cmd: str,
-                 meta: dict[str, Any], why: str,
-                 cols: tuple[str, ...] = _BOARD_COLS_BASE) -> Table:
-    """板块清单的统一收尾：固定列，`change_pct` 恒 `None`（通道没这列，不硬造）。
+def _fetch_industry_list_light(client) -> Table:
+    """只取行业清单、**不**回填价格（内部按名字查代码时用，省一轮翻页）。"""
+    return _fetch_industry_list(client, with_prices=False)
 
-    `meta` 里**必须**显式写出哪一列拿不到、为什么 —— 拿数据的人不看 docstring
-    （Lead 要求）：`meta["unavailable"]` + `meta["why"]`。
+
+def _board_table(raw: Table, spec, board_type: str, *, cmd: str,
+                 meta: dict[str, Any], cols: tuple[str, ...] = _BOARD_COLS_BASE,
+                 method: str = _METHOD_MULTIHQ) -> Table:
+    """板块清单的统一收尾：固定列 + **现算 `change_pct`** + 记账。
+
+    ⚠️ 阶段 4 之前这里是 `row["change_pct"] = None` 写死两行 —— 而同一个回包里
+    `CLOSE`/`NOW` 明明都有值。那不是"拿不到"，那是**把拿到的扔了**。
     """
     table = _shape(
         raw, spec,
@@ -451,15 +652,13 @@ def _board_table(raw: Table, spec, board_type: str, *, cmd: str,
         cmd=cmd, meta=meta,
     )
     for row in table.rows:
-        row["change_pct"] = None
+        row["change_pct"] = _pct(row.get("now"), row.get("close"))
         for field in cols:                 # 超集列补齐（如 concept 没有行业层级）
             row.setdefault(field, None)
     # ⚠️ 必须用 set_cols：直接赋 cols 只改表头，行的位置口径还停在旧列清单
     # （Const 字段在最前 → 旧清单比 cols 短），表现为「按名对、按位置错」。
     table.set_cols(cols)
-    table.meta["unavailable"] = ["change_pct"]
-    table.meta["why"] = why
-    return table
+    return _note_change_pct(table, method)
 
 
 # ══════════════════════════════════════════════════════════════════════════
@@ -478,7 +677,8 @@ def get_boards(client, kind: str = "all") -> Table:
     | `board_code` | 板块代码 | **通达信板块指数代码**（两条通道同口径）：`industry` 是 `881xxx`（如 `881002`），`concept` 是 `880xxx`（如 `880904`） |
     | `board_name` | 板块名 | 文本（行业名 / 概念名） |
     | `board_type` | 板块类别 | **回填请求的 kind**（服务端没有类别列），`industry`/`concept` |
-    | `change_pct` | 涨跌幅 | **恒 `None`** —— 两条通道都没有涨跌幅列（见下），并写进 `meta["unavailable"]` |
+    | `change_pct` | 涨跌幅 | **百分数**（`1.18` = +1.18%），由 `(now / close - 1) * 100` 现算。`industry` 支路来自 `industry2` 同码回填；任一价格缺失或 ≤0 → `None`（**不是 0**）。口径见 `meta["change_pct_method"]` |
+    | `now` / `close` | 板块指数现价 / 昨收 | `change_pct` 的**分子与分母**，都给出来以便就地复核；`industry` 支路同样来自 `industry2` 回填 |
     | `industry_code` | 三级行业码 | 仅 `industry`：`X1001` 这种（=`raw["N001"]`） |
     | `level1_code` / `level1_name` | 一级行业码/名 | 仅 `industry`：`X10` / `煤炭`（=`raw["N006"]`/`["N007"]`），便于按一级行业聚合 |
     | `raw` | 原始行 | 原始列一个不丢 |
@@ -489,13 +689,16 @@ def get_boards(client, kind: str = "all") -> Table:
       **128 行行业板块清单**（30 个一级行业下 128 个细分行业）。
       `board_code` = `N002`（`881002`…`881479` 板块指数代码，全 128 行数值化，
       并与 `hyfx_sy` 模式 2 的 `N003` 三处交叉验证一致）。
-      9 列里**没有涨跌幅**（`N004` 全 128 行恒为 1，实网排除）
-      → `change_pct` 恒 `None`。行业涨跌幅/涨跌家数用
-      `flow.get_market_stat(kind="industry")` 取。
+      9 列里**没有价格**（`N004` 全 128 行恒为 1，是别的量，实网已排除）。
+      所以这一支路**多打一轮** `industry2`（`PBMultiHQ field4=10001`），
+      用**同码**回填 `CLOSE`/`NOW` 再算涨跌幅（2026-10-27 实网 128/128 同码全中），
+      `meta["change_pct_method"] == "industry2 回填"`。回填不到的单条留 `None`
+      并记进 `meta["change_pct_unavailable"]`（不猜、不填 0）。
     * `concept` ✅ —— `HQServ.PBMultiHQ`（ctl `0x12`，`field4=10004` 板块域），
       按 `field6=offset` / `field7=44` 翻页，**2026-10-26 实网 269 行全量概念板块**
       （与手机端逐个点数一致：880903 水产品 / 880549 可燃冰 / 880564 白酒概念…）。
-      原始列里的 `20ZAF` 前缀含义未定论 → `change_pct` 恒 `None`，数值只留 `raw`。
+      回包里 `CLOSE`(昨收)/`NOW`(现价) **100% 非空** → `change_pct` 现算
+      （`meta["change_pct_method"] == "PBMultiHQ.NOW/CLOSE"`）。
     * `all` ⚠️ —— `industry` ∪ `concept`（**2 次调用**）。服务端没有一条命令能
       一次列出「概念 + 行业 + 地域」全量，所以 `all` 是**两部分拼接**，
       `meta["partial"] = True`，**不含 `index`**（其余五类可用对应 kind 单独取）；
@@ -522,9 +725,13 @@ def get_boards(client, kind: str = "all") -> Table:
     k = _check_kind(kind)
 
     if k == "industry":
-        return _fetch_industry_list(client)
+        # 只保护**基础契约列**：`industry_code`/`level1_*` 是 kind 专属扩展，
+        # 整列全空时该丢（那正是"假列"），丢了记账即可。
+        return _drop_empty_cols(_fetch_industry_list(client),
+                                protect=_BOARD_COLS_BASE)
     if k in _BOARD_DOMAINS:            # industry1/2/3 · concept · style · area
-        return _fetch_multihq_boards(client, k, _BOARD_DOMAINS[k])
+        return _drop_empty_cols(_fetch_multihq_boards(client, k, _BOARD_DOMAINS[k]),
+                                protect=_BOARD_COLS_BASE)
 
     # k == "all"：两条同构表拼接（都是"板块清单"形状，所以拼得起来）
     ind = _fetch_industry_list(client)
@@ -540,11 +747,13 @@ def get_boards(client, kind: str = "all") -> Table:
     for row in rows:                     # 超集补齐：概念行没有行业层级 → None
         for field in cols:
             row.setdefault(field, None)
-    return Table(
+    # 拼接表也必须带上语义层 meta：以 industry 那份为准（两条通道同一时刻取的，
+    # `as_of`/`status` 同源；`counts` 里另有 concept 的行数）
+    merged = Table(
         cols=cols, rows=rows,
         cmd="%s + %s" % (_CMD_BKLIST_AG, _CMD_MULTIHQ),
         domain=_DOMAIN,
-        meta={
+    ).inherit_meta(ind, **{
             "kinds": ["industry", "concept"],
             "partial": True,
             "missing": ["index"],
@@ -556,12 +765,13 @@ def get_boards(client, kind: str = "all") -> Table:
             "counts": {"industry": len(ind.rows), "concept": len(con.rows)},
             "const_fields": {"board_type": "按来源回填 'industry'/'concept'"
                                            "（服务端无类别列，不是数据里的）"},
-            "unavailable": ["change_pct"],
-            "why": "两个来源通道（app_bklist_ag / PBMultiHQ）都没有可信涨跌幅列；"
-                   "行业涨跌幅用 flow.get_market_stat(kind=\"industry\")，"
-                   "概念涨跌幅目前无通道",
-        },
-    )
+    })
+    # `change_pct` 两条支路来源不同（industry 走 industry2 回填、concept 走
+    # PBMultiHQ 现算），在拼接表上必须**分开写清**，否则用户会以为整张表一个口径。
+    _note_change_pct(
+        merged,
+        "industry 支路 = industry2 回填；concept 支路 = PBMultiHQ.NOW/CLOSE")
+    return _drop_empty_cols(merged, protect=_BOARD_COLS_BASE)
 
 
 def get_board_members(client, board) -> Table:
@@ -631,7 +841,7 @@ def get_board_members(client, board) -> Table:
         meta={
             "params": params,
             "board": key,
-            "source": "zttz_xggp（主题投资·相关个股，p5 是条数）",
+            "source_note": "zttz_xggp（主题投资·相关个股，p5 是条数）",
             "missing_fields": ["price", "change_pct"],
             "unavailable": ["price", "change_pct"],
             "why": "zttz_xggp 的 9 列是「类型/板块码/主题ID/股票代码/名称/市场/"
@@ -690,7 +900,7 @@ def _resolve_board_key(client, board) -> tuple[str, str]:
         if row.get("board_name") == s:
             return "board_code", row["board_code"]
 
-    ind = _fetch_industry_list(client)
+    ind = _fetch_industry_list_light(client)     # 只要名字→代码，不必付价格那轮翻页
     for row in ind.rows:
         if row.get("board_name") == s:
             # 认出来了：这是行业板块。它的 board_code 是 881xxx（行业板块指数代码），

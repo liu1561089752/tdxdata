@@ -1,0 +1,103 @@
+{
+ "meta": {
+  "name": "product_ztqd",
+  "cmd": "CWServ.ph_tdxdatacenter_ztqd",
+  "ctl": 30,
+  "api": "Client.get('ztqd')",
+  "params": {
+   "name": "ztqd"
+  },
+  "fetched_at": "2026-10-27T16:49:08+08:00",
+  "server_time": "2026-10-27 15:30:03",
+  "sha256": "2ace85ca1d232473e6a96e60121cccfba5236a9a8fbd086db089dc54c8b5ab72",
+  "base_dir": "F:\\TDX_stock_data\\tdxdata\\tests\\fixtures\\golden",
+  "python": "3.14.2",
+  "tdxdata_version": "0.2.0",
+  "git_head": "04463f31e6081e4578feb97c5ccf625887f6f514",
+  "wire_calls": [
+   {
+    "cmd": "CWServ.ph_tdxdatacenter_ztqd",
+    "ctl": 30,
+    "n": 1
+   }
+  ],
+  "frames": [
+   50
+  ],
+  "ctl_note": "即 cmd 那一帧的 ctl 字节"
+ },
+ "payload": {
+  "outcome": "ok",
+  "kind": "Dataset",
+  "value": {
+   "name": "ztqd",
+   "params": [
+    "00101",
+    "0",
+    "3",
+    "2026-10-23",
+    "2",
+    "0"
+   ],
+   "table": {
+    "cols": [
+     "N018",
+     "N100",
+     "N007",
+     "N015",
+     "N102",
+     "N103",
+     "N001",
+     "N009",
+     "N002",
+     "N010",
+     "N003",
+     "N011",
+     "N019",
+     "N101",
+     "N008",
+     "N016",
+     "N104",
+     "N105",
+     "N004",
+     "N012",
+     "N005",
+     "N013",
+     "N006",
+     "N014"
+    ],
+    "rows": [
+     {
+      "N018": "82",
+      "N100": "33",
+      "N007": "19",
+      "N015": "25",
+      "N102": "81",
+      "N103": "57",
+      "N001": "38",
+      "N009": "11",
+      "N002": "6",
+      "N010": "2",
+      "N003": "12",
+      "N011": "9",
+      "N019": "6",
+      "N101": "49",
+      "N008": "109",
+      "N016": "9",
+      "N104": "5",
+      "N105": "84",
+      "N004": "0",
+      "N012": "0",
+      "N005": "6",
+      "N013": "49",
+      "N006": "2",
+      "N014": "2"
+     }
+    ],
+    "cmd": "CWServ.ph_tdxdatacenter_ztqd",
+    "domain": "其他",
+    "meta": {}
+   }
+  }
+ }
+}

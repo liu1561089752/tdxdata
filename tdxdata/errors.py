@@ -9,7 +9,7 @@ from __future__ import annotations
 __all__ = [
     "TdxError", "ConnectionFailed", "Timeout", "ProtocolError",
     "ParamError", "ServerError", "NotSupportedError", "RateLimited",
-    "EmptyResult", "NoData",
+    "EmptyResult", "NoData", "OutOfScope", "AmbiguousSymbol",
 ]
 
 
@@ -64,3 +64,34 @@ class EmptyResult(TdxError):
 
 class NoData(EmptyResult):
     """`EmptyResult` 的别名，语义更直白。"""
+
+
+# ── 标的范围（阶段 3 新增）────────────────────────────────────────────────
+class OutOfScope(TdxError):
+    """**这个品种不在本数据源的覆盖范围**（不是"接口做不了这件事"）。
+
+    与 `NotSupportedError` 的分工（两者都让人"取不到"，但**下一步动作完全不同**）：
+
+    | 异常 | 意思 | 用户该做什么 |
+    |---|---|---|
+    | `NotSupportedError` | 通道/命令/能力**做不了这件事**（协议无字段、本库未实现） | 换接口 |
+    | `OutOfScope` | 这只标的**根本不在本数据源的证券表里** | 换数据源，或确认代码写错 |
+
+    两个已实证的现场：
+      * 港股 `00700` —— 5 位数字。若"左补零成 6 位"就会**静默命中另一只 A 股**
+        （`00700 → 000700 模塑科技`，`get_bars` 返回的 K 线与 `000700` 逐条相同），
+        所以宁可拒绝也不许补零。
+      * 股指期货 `IF2612` / 国债期货 `T00` —— 形态上认得出，但**本数据源的证券表里没有**。
+        ⚠️ 措辞纪律：**不许**说成"服务端不支持这个市场码"。已实证 `PBFXT` 的 `field3`
+        对已知代码是**宽松的**（`600519` 在 `field3=1/99/30` 三种下返回**逐位相同**的 K 线），
+        所以取不到的正确归因是"**代码不在证券表里**"，不是"市场码不支持"。
+    """
+
+
+class AmbiguousSymbol(TdxError):
+    """**两义代码**，且调用方要求严格（`Client(strict_symbols=True)`）。
+
+    默认**不抛**这个异常，只 `warnings.warn` —— 因为"两义"并不等于"错"，
+    `000001` 确实是平安银行（深市）；易错的是把它当成上证指数（那是 `999999`）。
+    所以默认照旧解析 + 提醒；要求确定性的调用方（批处理、入库）再开严格模式。
+    """

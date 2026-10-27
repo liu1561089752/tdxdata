@@ -43,7 +43,12 @@ from datetime import datetime, timedelta, timezone
 
 CST = timezone(timedelta(hours=8))
 
-# 四台 7615 服务器。限流是**按客户端 IP × 服务器**算的，轮着打才不会被单台掐死。
+# 四台 7615 服务器。限流是**按来源 IP**（不是「IP × 服务器」）算的 ——
+# 轮换只能**躲开单台过热**，**不能放大配额**。2026-10-27 实测（阶段 5）：
+# 4 条 lane 各钉一台主机并发取数，头 5 秒就有 3 条连接被重置
+# （limited_events 0→3、3 台进冷却、175 s 内 0 次成功取数），
+# 换成 4 台不同服务器并没有换来 4 份配额。
+# 证据：`F:\TDX\reports\refactor\probe\phase5\CONCLUSION.md`（原始输出同目录）。
 SERVERS = ["121.5.164.43", "124.223.177.105", "121.37.180.65", "60.204.149.166"]
 _SRV_I = [0]
 

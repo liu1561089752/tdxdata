@@ -1,0 +1,177 @@
+{
+ "meta": {
+  "name": "bars_880006",
+  "cmd": "HQServ.PBFXT",
+  "ctl": 14,
+  "api": "Client.get_bars(880006, day, count=5)",
+  "params": {
+   "symbol": "880006",
+   "period": "day",
+   "count": 5
+  },
+  "fetched_at": "2026-10-27T16:47:08+08:00",
+  "server_time": "2026-10-27 15:30:03",
+  "sha256": "9afdd28c7f2899e2b1ade0fedfde191afda3a09963ae62df95594acd2f353420",
+  "base_dir": "F:\\TDX_stock_data\\tdxdata\\tests\\fixtures\\golden",
+  "python": "3.14.2",
+  "tdxdata_version": "0.2.0",
+  "git_head": "04463f31e6081e4578feb97c5ccf625887f6f514",
+  "wire_calls": [
+   {
+    "cmd": "HQServ.PBFXT",
+    "ctl": 14,
+    "n": 1
+   }
+  ],
+  "frames": [
+   9
+  ],
+  "ctl_note": "即 cmd 那一帧的 ctl 字节"
+ },
+ "payload": {
+  "outcome": "ok",
+  "kind": "list[Bar]",
+  "value": [
+   {
+    "market": 1,
+    "code": "880006",
+    "date": "20261021",
+    "open": 5.0,
+    "high": 50.0,
+    "low": 0.01,
+    "close": 50.0,
+    "vol": 855554176.0,
+    "amount": 1442067775488.0,
+    "period": "day",
+    "time": "",
+    "raw": {
+     "Data": "20261021",
+     "Second": "0",
+     "Open": "5.000000",
+     "High": "50.000000",
+     "Low": "0.010000",
+     "Close": "50.000000",
+     "Amount": "1442067775488.000000",
+     "VolInStock": "1442067775488.000000",
+     "Volume": "855554176.000000",
+     "Settle": "0.000000",
+     "up": "1621.000000",
+     "down": "3020.000000"
+    },
+    "adjust": "NONE"
+   },
+   {
+    "market": 1,
+    "code": "880006",
+    "date": "20261022",
+    "open": 55.0,
+    "high": 58.0,
+    "low": 0.01,
+    "close": 33.0,
+    "vol": 969664256.0,
+    "amount": 1541863899136.0,
+    "period": "day",
+    "time": "",
+    "raw": {
+     "Data": "20261022",
+     "Second": "0",
+     "Open": "55.000000",
+     "High": "58.000000",
+     "Low": "0.010000",
+     "Close": "33.000000",
+     "Amount": "1541863899136.000000",
+     "VolInStock": "1541863899136.000000",
+     "Volume": "969664256.000000",
+     "Settle": "0.000000",
+     "up": "401.000000",
+     "down": "2731.000000"
+    },
+    "adjust": "NONE"
+   },
+   {
+    "market": 1,
+    "code": "880006",
+    "date": "20261023",
+    "open": 7.0,
+    "high": 85.0,
+    "low": 0.01,
+    "close": 84.0,
+    "vol": 1251397120.0,
+    "amount": 1972854849536.0,
+    "period": "day",
+    "time": "",
+    "raw": {
+     "Data": "20261023",
+     "Second": "0",
+     "Open": "7.000000",
+     "High": "85.000000",
+     "Low": "0.010000",
+     "Close": "84.000000",
+     "Amount": "1972854849536.000000",
+     "VolInStock": "1972854849536.000000",
+     "Volume": "1251397120.000000",
+     "Settle": "0.000000",
+     "up": "3133.000000",
+     "down": "717.000000"
+    },
+    "adjust": "NONE"
+   },
+   {
+    "market": 1,
+    "code": "880006",
+    "date": "20261026",
+    "open": 27.0,
+    "high": 63.0,
+    "low": 0.01,
+    "close": 59.0,
+    "vol": 982169344.0,
+    "amount": 1623091838976.0,
+    "period": "day",
+    "time": "",
+    "raw": {
+     "Data": "20261026",
+     "Second": "0",
+     "Open": "27.000000",
+     "High": "63.000000",
+     "Low": "0.010000",
+     "Close": "59.000000",
+     "Amount": "1623091838976.000000",
+     "VolInStock": "1623091838976.000000",
+     "Volume": "982169344.000000",
+     "Settle": "0.000000",
+     "up": "1833.000000",
+     "down": "2158.000000"
+    },
+    "adjust": "NONE"
+   },
+   {
+    "market": 1,
+    "code": "880006",
+    "date": "20261027",
+    "open": 23.0,
+    "high": 53.0,
+    "low": 3.0,
+    "close": 42.0,
+    "vol": 945838720.0,
+    "amount": 1472907051008.0,
+    "period": "day",
+    "time": "",
+    "raw": {
+     "Data": "20261027",
+     "Second": "0",
+     "Open": "23.000000",
+     "High": "53.000000",
+     "Low": "3.000000",
+     "Close": "42.000000",
+     "Amount": "1472907051008.000000",
+     "VolInStock": "1472907051008.000000",
+     "Volume": "945838720.000000",
+     "Settle": "0.000000",
+     "up": "435.000000",
+     "down": "2163.000000"
+    },
+    "adjust": "NONE"
+   }
+  ]
+ }
+}

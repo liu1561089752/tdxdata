@@ -1,0 +1,33 @@
+{
+ "meta": {
+  "name": "err_bars_IF00",
+  "cmd": "Client.get_bars('IF00') —— 错误现场",
+  "ctl": -1,
+  "api": "Client.get_bars('IF00') —— 错误现场",
+  "params": {
+   "symbol": "IF00",
+   "period": "day",
+   "count": 5
+  },
+  "fetched_at": "2026-10-27T18:21:24+08:00",
+  "server_time": "2026-10-27 15:30:03",
+  "sha256": "41741d1ff5fef5946b1cb19e747a5e078a4a05d640e0640dc5fded995f2a4dee",
+  "base_dir": "F:\\TDX_stock_data\\tdxdata\\tests\\fixtures\\golden",
+  "python": "3.14.2",
+  "tdxdata_version": "0.2.0",
+  "git_head": "04463f31e6081e4578feb97c5ccf625887f6f514",
+  "wire_calls": [],
+  "frames": "unavailable: 该调用在发出任何 wire 请求之前就失败了（tdxdata.errors.OutOfScope），没有可回放的帧",
+  "ctl_note": "-1 = 该样本没有产生 wire frame（在建帧之前就失败了）"
+ },
+ "payload": {
+  "outcome": "error",
+  "exc_type": "tdxdata.errors.OutOfScope",
+  "exc_msg": "标的 'IF00' 是**期货/期权/国债期货/外汇**形态的代码，这类品种**不在本数据源（通达信手机版 7615）的证券表内**，所以取不到。⚠️ 注意归因：这**不是**「服务端不支持这个市场码」—— 已实证 `PBFXT` 的 `field3` 对已知代码是宽松的（`600519` 在 field3=1/99/30 三种下返回**逐位相同**的 K 线），取不到是因为**代码不在证券表里**。本库目前只覆盖 A 股/北交所/指数/板块/债券。",
+  "exc_bases": [
+   "tdxdata.errors.TdxError",
+   "builtins.Exception",
+   "builtins.BaseException"
+  ]
+ }
+}

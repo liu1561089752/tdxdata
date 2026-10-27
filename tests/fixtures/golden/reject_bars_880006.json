@@ -1,0 +1,33 @@
+{
+ "meta": {
+  "name": "reject_bars_880006",
+  "cmd": "Client.get_bars('880006') —— 阶段 2 拒绝现场",
+  "ctl": -1,
+  "api": "Client.get_bars('880006') —— 阶段 2 拒绝现场",
+  "params": {
+   "symbol": "880006",
+   "period": "day",
+   "count": 5
+  },
+  "fetched_at": "2026-10-27T17:48:28+08:00",
+  "server_time": "2026-10-27 15:30:03",
+  "sha256": "ff6255c81a6148ba763955b9afec16f849232ab8a9fe5f453208d40a8ec9b974",
+  "base_dir": "F:\\TDX_stock_data\\tdxdata\\tests\\fixtures\\golden",
+  "python": "3.14.2",
+  "tdxdata_version": "0.2.0",
+  "git_head": "04463f31e6081e4578feb97c5ccf625887f6f514",
+  "wire_calls": [],
+  "frames": "unavailable: 该调用在发出任何 wire 请求之前就失败了（tdxdata.errors.NotSupportedError），没有可回放的帧",
+  "ctl_note": "-1 = 该样本没有产生 wire frame（在建帧之前就失败了）"
+ },
+ "payload": {
+  "outcome": "error",
+  "exc_type": "tdxdata.errors.NotSupportedError",
+  "exc_msg": "880006 是「停板家数」指标，其 open、close 是两个家数而非价格。\n价格序列请用 get_bars；广度序列请用 get_breadth(\"880006\")。",
+  "exc_bases": [
+   "tdxdata.errors.TdxError",
+   "builtins.Exception",
+   "builtins.BaseException"
+  ]
+ }
+}

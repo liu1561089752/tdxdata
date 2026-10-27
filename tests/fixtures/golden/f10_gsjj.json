@@ -1,0 +1,98 @@
+{
+ "meta": {
+  "name": "f10_gsjj",
+  "cmd": "CWServ.ph_agf10_gsjj",
+  "ctl": 22,
+  "api": "Client.get_f10(600519, 'gsjj')",
+  "params": {
+   "symbol": "600519",
+   "section": "gsjj"
+  },
+  "fetched_at": "2026-10-27T16:49:10+08:00",
+  "server_time": "2026-10-27 15:30:03",
+  "sha256": "1713ad5f756e55b68742475922daf2c7d3cf607de3c5805329d13a71587fa9fe",
+  "base_dir": "F:\\TDX_stock_data\\tdxdata\\tests\\fixtures\\golden",
+  "python": "3.14.2",
+  "tdxdata_version": "0.2.0",
+  "git_head": "04463f31e6081e4578feb97c5ccf625887f6f514",
+  "wire_calls": [
+   {
+    "cmd": "CWServ.ph_agf10_gsjj",
+    "ctl": 22,
+    "n": 1
+   }
+  ],
+  "frames": [
+   51
+  ],
+  "ctl_note": "即 cmd 那一帧的 ctl 字节"
+ },
+ "payload": {
+  "outcome": "ok",
+  "kind": "Table",
+  "value": {
+   "cols": [
+    "share_class",
+    "list_date",
+    "issue_method",
+    "pricing_method",
+    "par_value_yuan",
+    "issue_price_yuan",
+    "issue_vol",
+    "issue_total_vol",
+    "proceeds_gross_yuan",
+    "proceeds_net_yuan",
+    "lead_underwriter",
+    "co_underwriters",
+    "issue_target",
+    "issue_note"
+   ],
+   "rows": [
+    {
+     "share_class": "A股",
+     "list_date": "2001-08-27",
+     "issue_method": "上网定价发行",
+     "pricing_method": "定价发行",
+     "par_value_yuan": 1.0,
+     "issue_price_yuan": 31.39,
+     "issue_vol": 71500000.0,
+     "issue_total_vol": 71500000.0,
+     "proceeds_gross_yuan": 2244385000.0,
+     "proceeds_net_yuan": 2202179475.0,
+     "lead_underwriter": "南方证券股份有限公司",
+     "co_underwriters": "北京证券有限责任公司,南方证券股份有限公司",
+     "issue_target": "在上交所开立股票帐户的境内自然人及法人(法律、法规禁止者除外)",
+     "issue_note": "新老股东共享2001年1月1日以后利润",
+     "raw": {
+      "N001": "A股",
+      "N002": "2001-08-27",
+      "N003": "上网定价发行",
+      "N004": "定价发行",
+      "N005": "1.00",
+      "N006": "31.390",
+      "N007": "71500000.0000",
+      "N008": "71500000.0000",
+      "N009": "2.400",
+      "N010": "9.760",
+      "N011": "2244385000.0000",
+      "N012": "2202179475.0000",
+      "N013": "23.930",
+      "N014": "1.1306",
+      "N015": "42205525.0000",
+      "N016": "南方证券股份有限公司",
+      "N017": "北京证券有限责任公司,南方证券股份有限公司",
+      "N018": "在上交所开立股票帐户的境内自然人及法人(法律、法规禁止者除外)",
+      "N019": "新老股东共享2001年1月1日以后利润"
+     }
+    }
+   ],
+   "cmd": "CWServ.ph_agf10_gsjj",
+   "domain": "",
+   "meta": {
+    "product": "gsjj",
+    "cols_align": "server",
+    "template_check": "absent"
+   }
+  }
+ }
+}

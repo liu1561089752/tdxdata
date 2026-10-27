@@ -44,12 +44,14 @@
 | 证券代码表 / 板块成分 | ⚠️ 部分 | `get_universe` 只枚举「行情列表」；无完整代码表命令 |
 """
 from .client import Client
-from .enums import Adjust, KlinePeriod, Market
+from .enums import Adjust, KlinePeriod, Market, Status
 from .errors import (
+    AmbiguousSymbol,
     ConnectionFailed,
     EmptyResult,
     NoData,
     NotSupportedError,
+    OutOfScope,
     ParamError,
     ProtocolError,
     RateLimited,
@@ -59,16 +61,40 @@ from .errors import (
 )
 from .models import (
     Bar,
+    Bars,
     Dataset,
+    Minutes,
     MinutePoint,
     ProductInfo,
     Quote,
+    Quotes,
     Row,
     SecurityInfo,
+    Series,
     Table,
     Tick,
+    Ticks,
 )
 from .symbols import parse as parse_symbol
+from .series_kinds import (
+    NON_PRICE_SERIES,
+    SeriesSpec,
+    as_markdown_table,
+    get_spec,
+    is_non_price,
+    render_redirect,
+)
+#: 能力边界注册表（阶段 6）。⚠️ 它自己的渲染函数在这里叫 `capabilities_markdown` ——
+#: 因为 `tdxdata.as_markdown_table` **已经**是 `series_kinds` 那个，包级命名空间是
+#: 已发布的契约，不许为了新模块改老导出的含义。模块内的名字仍是 `as_markdown_table`。
+from .capabilities import (
+    CAPABILITIES,
+    INSTRUMENTS,
+    Capability,
+    by_instrument,
+    describe,
+)
+from .capabilities import as_markdown_table as capabilities_markdown
 
 def __getattr__(name):
     """`AsyncClient` 懒导入：`import tdxdata` 不必拖进 asyncio。
@@ -89,13 +115,23 @@ __all__ = [
     # 入口
     "Client", "AsyncClient",
     # 枚举
-    "Market", "KlinePeriod", "Adjust",
+    "Market", "KlinePeriod", "Adjust", "Status",
     # 模型
     "Bar", "MinutePoint", "Quote", "Tick", "SecurityInfo",
     "Table", "Row", "Dataset", "ProductInfo",
+    # 容器（list 子类，带 meta：as_of / status / fetched_at / source / elapsed）
+    "Series", "Bars", "Quotes", "Ticks", "Minutes",
+    # 非价格序列登记表（880005 等：OHLC 不是价格 → get_bars 拒绝，get_breadth 给命名字段）
+    "SeriesSpec", "NON_PRICE_SERIES", "get_spec", "is_non_price",
+    "as_markdown_table", "render_redirect",
+    # 能力边界注册表（阶段 6）：品种 × 接口 × 有无 × 依据 × 绕法
+    "Capability", "CAPABILITIES", "INSTRUMENTS", "by_instrument", "describe",
+    "capabilities_markdown",
     # 异常
     "TdxError", "ConnectionFailed", "Timeout", "RateLimited", "ProtocolError",
     "ParamError", "ServerError", "NotSupportedError", "EmptyResult", "NoData",
+    # 标的范围（阶段 3）：品种不在覆盖范围 / 两义代码（严格模式）
+    "OutOfScope", "AmbiguousSymbol",
     # 工具
     "parse_symbol",
     "__version__",

@@ -1,0 +1,405 @@
+{
+ "meta": {
+  "name": "market_stat_updown",
+  "cmd": "CWServ.sys_fn_jyr_v3",
+  "ctl": 22,
+  "api": "Client.get_market_stat('updown')",
+  "params": {
+   "kind": "updown"
+  },
+  "fetched_at": "2026-10-27T17:48:35+08:00",
+  "server_time": "2026-10-27 15:30:03",
+  "sha256": "e7f3ef675b072201ba20482e50fd44581dd5e89e8b070aec431df969f91cdae7",
+  "base_dir": "F:\\TDX_stock_data\\tdxdata\\tests\\fixtures\\golden",
+  "python": "3.14.2",
+  "tdxdata_version": "0.2.0",
+  "git_head": "04463f31e6081e4578feb97c5ccf625887f6f514",
+  "wire_calls": [
+   {
+    "cmd": "CWServ.sys_fn_jyr_v3",
+    "ctl": 22,
+    "n": 1
+   },
+   {
+    "cmd": "CWServ.ph_datacenter_zdt_zdfx",
+    "ctl": 31,
+    "n": 1
+   }
+  ],
+  "frames": [
+   62,
+   63
+  ],
+  "ctl_note": "即 cmd 那一帧的 ctl 字节"
+ },
+ "payload": {
+  "outcome": "ok",
+  "kind": "Table",
+  "value": {
+   "cols": [
+    "stat_date",
+    "limit_up_count",
+    "limit_down_count",
+    "date"
+   ],
+   "rows": [
+    {
+     "stat_date": "20261027",
+     "limit_up_count": 42,
+     "limit_down_count": 23,
+     "raw": {
+      "N001": "20261027",
+      "N002": "42",
+      "N003": "23"
+     },
+     "date": "2026-10-27"
+    },
+    {
+     "stat_date": "20261026",
+     "limit_up_count": 59,
+     "limit_down_count": 27,
+     "raw": {
+      "N001": "20261026",
+      "N002": "59",
+      "N003": "27"
+     },
+     "date": "2026-10-26"
+    },
+    {
+     "stat_date": "20261023",
+     "limit_up_count": 84,
+     "limit_down_count": 7,
+     "raw": {
+      "N001": "20261023",
+      "N002": "84",
+      "N003": "7"
+     },
+     "date": "2026-10-23"
+    },
+    {
+     "stat_date": "20261022",
+     "limit_up_count": 33,
+     "limit_down_count": 55,
+     "raw": {
+      "N001": "20261022",
+      "N002": "33",
+      "N003": "55"
+     },
+     "date": "2026-10-22"
+    },
+    {
+     "stat_date": "20261021",
+     "limit_up_count": 50,
+     "limit_down_count": 5,
+     "raw": {
+      "N001": "20261021",
+      "N002": "50",
+      "N003": "5"
+     },
+     "date": "2026-10-21"
+    },
+    {
+     "stat_date": "20261020",
+     "limit_up_count": 56,
+     "limit_down_count": 7,
+     "raw": {
+      "N001": "20261020",
+      "N002": "56",
+      "N003": "7"
+     },
+     "date": "2026-10-20"
+    },
+    {
+     "stat_date": "20261019",
+     "limit_up_count": 49,
+     "limit_down_count": 25,
+     "raw": {
+      "N001": "20261019",
+      "N002": "49",
+      "N003": "25"
+     },
+     "date": "2026-10-19"
+    },
+    {
+     "stat_date": "20261016",
+     "limit_up_count": 61,
+     "limit_down_count": 11,
+     "raw": {
+      "N001": "20261016",
+      "N002": "61",
+      "N003": "11"
+     },
+     "date": "2026-10-16"
+    },
+    {
+     "stat_date": "20261015",
+     "limit_up_count": 36,
+     "limit_down_count": 26,
+     "raw": {
+      "N001": "20261015",
+      "N002": "36",
+      "N003": "26"
+     },
+     "date": "2026-10-15"
+    },
+    {
+     "stat_date": "20261014",
+     "limit_up_count": 39,
+     "limit_down_count": 11,
+     "raw": {
+      "N001": "20261014",
+      "N002": "39",
+      "N003": "11"
+     },
+     "date": "2026-10-14"
+    },
+    {
+     "stat_date": "20261013",
+     "limit_up_count": 70,
+     "limit_down_count": 10,
+     "raw": {
+      "N001": "20261013",
+      "N002": "70",
+      "N003": "10"
+     },
+     "date": "2026-10-13"
+    },
+    {
+     "stat_date": "20261012",
+     "limit_up_count": 48,
+     "limit_down_count": 22,
+     "raw": {
+      "N001": "20261012",
+      "N002": "48",
+      "N003": "22"
+     },
+     "date": "2026-10-12"
+    },
+    {
+     "stat_date": "20261009",
+     "limit_up_count": 72,
+     "limit_down_count": 10,
+     "raw": {
+      "N001": "20261009",
+      "N002": "72",
+      "N003": "10"
+     },
+     "date": "2026-10-09"
+    },
+    {
+     "stat_date": "20261008",
+     "limit_up_count": 45,
+     "limit_down_count": 15,
+     "raw": {
+      "N001": "20261008",
+      "N002": "45",
+      "N003": "15"
+     },
+     "date": "2026-10-08"
+    },
+    {
+     "stat_date": "20260930",
+     "limit_up_count": 56,
+     "limit_down_count": 12,
+     "raw": {
+      "N001": "20260930",
+      "N002": "56",
+      "N003": "12"
+     },
+     "date": "2026-09-30"
+    },
+    {
+     "stat_date": "20260929",
+     "limit_up_count": 57,
+     "limit_down_count": 11,
+     "raw": {
+      "N001": "20260929",
+      "N002": "57",
+      "N003": "11"
+     },
+     "date": "2026-09-29"
+    },
+    {
+     "stat_date": "20260928",
+     "limit_up_count": 35,
+     "limit_down_count": 57,
+     "raw": {
+      "N001": "20260928",
+      "N002": "35",
+      "N003": "57"
+     },
+     "date": "2026-09-28"
+    },
+    {
+     "stat_date": "20260924",
+     "limit_up_count": 52,
+     "limit_down_count": 15,
+     "raw": {
+      "N001": "20260924",
+      "N002": "52",
+      "N003": "15"
+     },
+     "date": "2026-09-24"
+    },
+    {
+     "stat_date": "20260923",
+     "limit_up_count": 51,
+     "limit_down_count": 14,
+     "raw": {
+      "N001": "20260923",
+      "N002": "51",
+      "N003": "14"
+     },
+     "date": "2026-09-23"
+    },
+    {
+     "stat_date": "20260922",
+     "limit_up_count": 64,
+     "limit_down_count": 5,
+     "raw": {
+      "N001": "20260922",
+      "N002": "64",
+      "N003": "5"
+     },
+     "date": "2026-09-22"
+    },
+    {
+     "stat_date": "20260921",
+     "limit_up_count": 105,
+     "limit_down_count": 2,
+     "raw": {
+      "N001": "20260921",
+      "N002": "105",
+      "N003": "2"
+     },
+     "date": "2026-09-21"
+    },
+    {
+     "stat_date": "20260918",
+     "limit_up_count": 79,
+     "limit_down_count": 1,
+     "raw": {
+      "N001": "20260918",
+      "N002": "79",
+      "N003": "1"
+     },
+     "date": "2026-09-18"
+    },
+    {
+     "stat_date": "20260917",
+     "limit_up_count": 49,
+     "limit_down_count": 2,
+     "raw": {
+      "N001": "20260917",
+      "N002": "49",
+      "N003": "2"
+     },
+     "date": "2026-09-17"
+    },
+    {
+     "stat_date": "20260916",
+     "limit_up_count": 91,
+     "limit_down_count": 4,
+     "raw": {
+      "N001": "20260916",
+      "N002": "91",
+      "N003": "4"
+     },
+     "date": "2026-09-16"
+    },
+    {
+     "stat_date": "20260915",
+     "limit_up_count": 32,
+     "limit_down_count": 33,
+     "raw": {
+      "N001": "20260915",
+      "N002": "32",
+      "N003": "33"
+     },
+     "date": "2026-09-15"
+    },
+    {
+     "stat_date": "20260914",
+     "limit_up_count": 56,
+     "limit_down_count": 18,
+     "raw": {
+      "N001": "20260914",
+      "N002": "56",
+      "N003": "18"
+     },
+     "date": "2026-09-14"
+    },
+    {
+     "stat_date": "20260911",
+     "limit_up_count": 40,
+     "limit_down_count": 21,
+     "raw": {
+      "N001": "20260911",
+      "N002": "40",
+      "N003": "21"
+     },
+     "date": "2026-09-11"
+    },
+    {
+     "stat_date": "20260910",
+     "limit_up_count": 40,
+     "limit_down_count": 13,
+     "raw": {
+      "N001": "20260910",
+      "N002": "40",
+      "N003": "13"
+     },
+     "date": "2026-09-10"
+    },
+    {
+     "stat_date": "20260909",
+     "limit_up_count": 49,
+     "limit_down_count": 7,
+     "raw": {
+      "N001": "20260909",
+      "N002": "49",
+      "N003": "7"
+     },
+     "date": "2026-09-09"
+    },
+    {
+     "stat_date": "20260908",
+     "limit_up_count": 74,
+     "limit_down_count": 0,
+     "raw": {
+      "N001": "20260908",
+      "N002": "74",
+      "N003": "0"
+     },
+     "date": "2026-09-08"
+    }
+   ],
+   "cmd": "CWServ.ph_datacenter_zdt_zdfx",
+   "domain": "市场统计",
+   "meta": {
+    "fetched_at": "2026-10-27 17:48:35",
+    "source": {
+     "host": "121.37.180.65",
+     "cmd": "CWServ.ph_datacenter_zdt_zdfx",
+     "ctl": 31,
+     "clock": "hybrid",
+     "cached": false
+    },
+    "elapsed": 2.1995,
+    "fetch_clock": "hybrid",
+    "as_of": null,
+    "status": "provisional",
+    "status_note": "该命令在 421 产品台账里没有时效声明，无法判定，按**非定稿**保守处理（不是「我们判定它是盘中值」）",
+    "as_of_note": "这条通道（数据中心 JSON，`ResultSets`）回包**不带数据日期/时间**，所以 as_of 无法确定；要知道数据日请用 `Client.get(...).data_date`（从首行 N001 推）或本表的 meta[\"data_date\"]",
+    "params": [
+     "zdtj",
+     "2026-10-27",
+     0,
+     ""
+    ],
+    "trade_date": "2026-10-27",
+    "source_note": "ph_datacenter_zdt_zdfx（zdtj 子码，日期必须带横线）"
+   }
+  }
+ }
+}

@@ -204,6 +204,7 @@ def test_boards_industry_from_real_sample():
     t = boards.get_boards(fc, "industry")
 
     assert t.cols == ["board_code", "board_name", "board_type", "change_pct",
+                      "now", "close",
                       "industry_code", "level1_code", "level1_name"], t.cols
     assert len(t.rows) == 4
     first = t.rows[0]
@@ -221,8 +222,18 @@ def test_boards_industry_from_real_sample():
     assert first["raw"]["N004"] == "1"              # 恒 1 的列只留 raw，没给标准名
     assert first["raw"]["N009"] == "煤炭开采"       # 与 N003 重复，只留 raw
 
-    # 参数构造：p1=层级 2；ctl 0x16
-    assert fc.calls == [("CWServ.app_bklist_ag", 0x16, ["2"])], fc.calls
+    # 阶段 4：`app_bklist_ag` 无价格列，故 industry 支路会**另打一轮**
+    # `PBMultiHQ(market=10001)`（industry2）按同码回填 change_pct/now/close。
+    assert fc.calls[0] == ("CWServ.app_bklist_ag", 0x16, ["2"]), fc.calls
+    backfill = fc.calls[1:]
+    assert backfill, "industry 支路必须有回填轮：%r" % (fc.calls,)
+    assert all(c[0] == "PBMultiHQ.board_page" for c in backfill), fc.calls
+    assert {c[2]["market"] for c in backfill} == {10001}, fc.calls
+    # 本 fixture 的 industry2 里没有 881002/881005/881007/881008 →
+    # 回填**必须留 None，不许猜**，并把四个码报进 change_pct_unavailable
+    assert t.meta["change_pct_method"] == "industry2 回填", t.meta
+    assert t.meta["unavailable"] == ["change_pct"], t.meta
+    assert t.meta["change_pct_unavailable"] == ["881002", "881005", "881007", "881008"], t.meta
 
 
 def test_boards_concept_from_real_sample():
@@ -230,9 +241,18 @@ def test_boards_concept_from_real_sample():
     fc = _fake_all()
     t = boards.get_boards(fc, "concept")
 
-    assert t.cols == ["board_code", "board_name", "board_type", "change_pct"]
+    assert t.cols == ["board_code", "board_name", "board_type", "change_pct",
+                      "now", "close"]
     assert len(t.rows) == 2
-    assert all(r["change_pct"] is None for r in t.rows)
+    # 阶段 4：concept 走 PBMultiHQ，`CLOSE`(昨收)/`NOW`(现价) 100% 非空 →
+    # change_pct 由 `(NOW/CLOSE-1)*100` **实算**，不再是 None。
+    # 这里逐行按 fake 里的真实值复算，避免硬编码常量。
+    for r in t.rows:
+        want = (float(r["now"]) / float(r["close"]) - 1.0) * 100.0
+        assert abs(r["change_pct"] - want) < 1e-9, (r["board_code"], r["change_pct"], want)
+    assert abs(t.rows[0]["change_pct"] - (-1.0065288356909563)) < 1e-9, t.rows[0]
+    assert t.meta["change_pct_method"] == "PBMultiHQ.NOW/CLOSE", t.meta
+    assert t.meta["unavailable"] == [], "concept 的涨跌幅现在算得出来，不该再声明缺列"
     r0 = t.rows[0]
     assert r0["board_code"] == "880903"
     assert r0["board_name"] == "水产品"
@@ -298,11 +318,22 @@ def test_shape_accepts_real_list_rows():
 
 
 def test_boards_meta_declares_unavailable_column():
-    """Lead 要求：`change_pct` 恒 None 必须在 `meta` 里显式声明，不能只写 docstring。"""
+    """Lead 要求：哪一列拿不到，就必须在 `meta` 里显式声明，不能只写 docstring。
+
+    阶段 4 起 `change_pct` **可以算**（PBMultiHQ 的 `NOW/CLOSE`），所以「必须声明缺列」
+    的判据换成**按 kind 分别期望**：算得出来的不许声明缺，算不出来的必须声明缺。
+    """
     fc = _fake_all()
-    for kind in ("industry", "concept", "all"):
+    # concept：PBMultiHQ 自带 CLOSE/NOW → 算得出来 → 不许声明缺列
+    t = boards.get_boards(fc, "concept")
+    assert t.meta.get("unavailable") == [], t.meta
+    assert t.meta.get("change_pct_method") == "PBMultiHQ.NOW/CLOSE", t.meta
+    # industry：本 fixture 的 industry2 里没有这 4 个码 → 必须声明缺列，并点名是哪些码
+    for kind in ("industry", "all"):
+        fc = _fake_all()
         t = boards.get_boards(fc, kind)
         assert t.meta.get("unavailable") == ["change_pct"], (kind, t.meta)
+        assert t.meta.get("change_pct_unavailable"), (kind, t.meta)
         why = t.meta.get("why")
         assert isinstance(why, str) and len(why) > 10, (kind, why)
         assert "涨跌" in why, (kind, why)
@@ -322,6 +353,7 @@ def test_boards_all_is_documented_partial_union():
     assert types[4:] == ["concept"] * 2
     # 超集列：concept 行没有行业层级 → None（不是缺列）
     assert t.cols == ["board_code", "board_name", "board_type", "change_pct",
+                      "now", "close",
                       "industry_code", "level1_code", "level1_name"], t.cols
     assert t.rows[-1]["industry_code"] is None
     assert t.rows[0]["level1_code"] == "X10"
@@ -586,5 +618,7 @@ def test_boards_six_domains_map_to_right_market():
         assert t.rows[0]["board_name"] == name, kind
         assert t.rows[0]["board_type"] == kind, kind
         assert t.meta["params"]["market"] == market, kind
-        # 涨跌幅一律 None（20ZAF 前缀未定论，不硬造）
-        assert t.rows[0]["change_pct"] is None, kind
+        # 阶段 4：涨跌幅由 `NOW/CLOSE-1` 实算（六类的 fake 行都带 CLOSE/NOW）——
+        # 逐行按 fake 真值复算，不再断言 None。
+        want_cp = (float(t.rows[0]["now"]) / float(t.rows[0]["close"]) - 1.0) * 100.0
+        assert abs(t.rows[0]["change_pct"] - want_cp) < 1e-9, (kind, t.rows[0])

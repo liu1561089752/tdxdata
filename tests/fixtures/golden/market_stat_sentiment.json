@@ -1,0 +1,97 @@
+{
+ "meta": {
+  "name": "market_stat_sentiment",
+  "cmd": "CWServ.sys_fn_jyr_v3",
+  "ctl": 22,
+  "api": "Client.get_market_stat('sentiment')",
+  "params": {
+   "kind": "sentiment"
+  },
+  "fetched_at": "2026-10-27T17:48:39+08:00",
+  "server_time": "2026-10-27 15:30:03",
+  "sha256": "a6a6e5c9e1238eecd2e8ed490999c28dd3c4ded5126b9de7e50c7433d1ad9f58",
+  "base_dir": "F:\\TDX_stock_data\\tdxdata\\tests\\fixtures\\golden",
+  "python": "3.14.2",
+  "tdxdata_version": "0.2.0",
+  "git_head": "04463f31e6081e4578feb97c5ccf625887f6f514",
+  "wire_calls": [
+   {
+    "cmd": "CWServ.sys_fn_jyr_v3",
+    "ctl": 22,
+    "n": 1
+   },
+   {
+    "cmd": "CWServ.ph_pcwebcall_hy_bkldscnx",
+    "ctl": 33,
+    "n": 1
+   }
+  ],
+  "frames": [
+   64,
+   65
+  ],
+  "ctl_note": "即 cmd 那一帧的 ctl 字节"
+ },
+ "payload": {
+  "outcome": "ok",
+  "kind": "Table",
+  "value": {
+   "cols": [
+    "heat_value",
+    "heat_label",
+    "date"
+   ],
+   "rows": [
+    {
+     "heat_value": 43.13742857,
+     "heat_label": "市场氛围一般",
+     "date": "2026-10-26",
+     "raw": {
+      "N001": "43.13742857",
+      "N002": "市场氛围一般",
+      "N003": "因为计算市场热度值的源数据存在时滞风险，所以市场热度值存在滞后风险，使用者风险自担。",
+      "N004": "59.6271",
+      "N005": null,
+      "N006": "64.5393",
+      "N007": "35.6042",
+      "N008": "24.6940",
+      "N009": "20.0072",
+      "N010": "37.7555",
+      "N011": "59.7347",
+      "N012": "2026-10-26"
+     }
+    }
+   ],
+   "cmd": "CWServ.ph_pcwebcall_hy_bkldscnx",
+   "domain": "市场统计",
+   "meta": {
+    "fetched_at": "2026-10-27 17:48:39",
+    "source": {
+     "host": "121.37.180.65",
+     "cmd": "CWServ.ph_pcwebcall_hy_bkldscnx",
+     "ctl": 33,
+     "clock": "hybrid",
+     "cached": false
+    },
+    "elapsed": 2.2186,
+    "fetch_clock": "hybrid",
+    "as_of": null,
+    "status": "provisional",
+    "status_note": "该命令在 421 产品台账里没有时效声明，无法判定，按**非定稿**保守处理（不是「我们判定它是盘中值」）",
+    "as_of_note": "这条通道（数据中心 JSON，`ResultSets`）回包**不带数据日期/时间**，所以 as_of 无法确定；要知道数据日请用 `Client.get(...).data_date`（从首行 N001 推）或本表的 meta[\"data_date\"]",
+    "params": [
+     "002",
+     "2026-10-27"
+    ],
+    "trade_date": "2026-10-27",
+    "source_note": "ph_pcwebcall_hy_bkldscnx 视图 002（市场热度/牛熊情绪）",
+    "note": "日期由 sys_fn_jyr_v3 现取；传空串实测 -1005（文档『空=最新』对本视图不成立）",
+    "source_calls": 2,
+    "unmapped_raw_columns": [
+     "N003（风险免责长文本）",
+     "N004~N011（8 个分项，名字未破解）"
+    ]
+   }
+  }
+ }
+}

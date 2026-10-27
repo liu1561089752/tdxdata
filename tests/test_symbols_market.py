@@ -25,7 +25,8 @@ sys.stdout.reconfigure(encoding="utf-8")
 _HERE = os.path.dirname(os.path.abspath(__file__))
 sys.path.insert(0, os.path.dirname(_HERE))
 
-from tdxdata import symbols                                          # noqa: E402
+import pytest                                                       # noqa: E402
+from tdxdata import errors, symbols                                 # noqa: E402
 
 FIX = os.path.join(_HERE, "fixtures", "市场码真值样本.json")
 with open(FIX, encoding="utf-8") as f:
@@ -227,16 +228,31 @@ def test_bad_input_still_raises():
             raise AssertionError("%r 必须抛 ValueError" % (bad,))
 
 
-def test_short_code_is_tolerated_not_validated():
-    """⚠️ **既有行为，本轮不改**：纯数字但长度不足/超长**不会报错**，会被截断或原样放行。
+def test_short_code_is_rejected():
+    """**B1 红线修复（阶段 3）**：位数不对必须**显式拒绝**，绝不补零/截断。
 
-    `parse("60051")` → `(1, "60051")`、`parse("6005199x")` → `(1, "600519")`。
-    这跟 D1 是**同一类"静默出错"隐患**（用户打错字不会被告知，只会在取数时得到
-    "K线无数据"），但加长度校验属于**行为变更**，不在 D1 范围内，故此处只钉住现状，
-    并已记进 `reports/P8缺陷修复记录.md` 待办。
+    改前的既有行为是"容忍"：`parse("60051") → (1, "60051")`、
+    `parse("6005199x") → (1, "600519")`。旧用例的 docstring 自己写着
+    「加长度校验属于行为变更…已记进 `reports/P8缺陷修复记录.md` 待办」——
+    也就是它**明知是缺陷而暂时钉住现状**，本条即该待办的落地。
+
+    为什么必须改：`00700`（港股腾讯）被判成深市后下游 `PBFXT` **左补 0**，
+    `get_bars("00700")` **静默返回「模塑科技 000700」的 K 线**
+    （`close=13.58`，与 `get_bars("000700")` 逐条相同，`get_minutes` 同病）。
+    补零等于把**另一个标的的数据冒充成你要的标的**，比报错危险得多，
+    所以现在抛 `errors.OutOfScope`（消息里指路"要 A 股 000700 请写全 6 位"）。
+
+    ⚠️ `clean()` 仍是**内部宽容版**（`s[:6]` 截断，供已校验的内部值用），
+    对它的断言不变 —— 校验责任在 `parse()`。
     """
-    assert symbols.parse("60051") == (1, "60051")
-    assert symbols.parse("6005199x") == (1, "600519")   # clean() 截前 6 位
+    with pytest.raises(errors.OutOfScope):
+        symbols.parse("60051")                     # 纯数字 5 位：补零会命中 060051
+    # 这一条是 `ValueError` 而**不是** `OutOfScope`，分层是有意的：
+    # `OutOfScope` 的意思是"这是**另一种品种**（港股/期货），本数据源没有"；
+    # `"6005199x"` 里混了字母，是**写错了**，不是别的品种 —— 报 OutOfScope 会误导人去换数据源。
+    with pytest.raises(ValueError):
+        symbols.parse("6005199x")                  # 超长且含字母：截断会命中 600519
+    assert symbols.parse("sh600519") == (1, "600519"), "写全 6 位照旧可用"
     assert symbols.clean(" 600519 ") == "600519"
     assert symbols.clean("600519.SH") == "600519"
 

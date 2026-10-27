@@ -1,0 +1,32 @@
+{
+ "meta": {
+  "name": "err_bars_IF00",
+  "cmd": "Client.get_bars('IF00') —— 错误现场",
+  "ctl": -1,
+  "api": "Client.get_bars('IF00') —— 错误现场",
+  "params": {
+   "symbol": "IF00",
+   "period": "day",
+   "count": 5
+  },
+  "fetched_at": "2026-10-27T16:49:17+08:00",
+  "server_time": "2026-10-27 15:30:03",
+  "sha256": "e1427b5e338663b12bb26240ab1d4ae85199ad1cd075b3dc9920461ba10c34ec",
+  "base_dir": "F:\\TDX_stock_data\\tdxdata\\tests\\fixtures\\golden",
+  "python": "3.14.2",
+  "tdxdata_version": "0.2.0",
+  "git_head": "04463f31e6081e4578feb97c5ccf625887f6f514",
+  "wire_calls": [],
+  "frames": "unavailable: 该调用在发出任何 wire 请求之前就失败了（builtins.ValueError），没有可回放的帧",
+  "ctl_note": "-1 = 该样本没有产生 wire frame（在建帧之前就失败了）"
+ },
+ "payload": {
+  "outcome": "error",
+  "exc_type": "builtins.ValueError",
+  "exc_msg": "无法识别的标的：'IF00'（需要 6 位数字代码，可带 sh/sz/bj 前缀）",
+  "exc_bases": [
+   "builtins.Exception",
+   "builtins.BaseException"
+  ]
+ }
+}

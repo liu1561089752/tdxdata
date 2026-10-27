@@ -27,12 +27,45 @@
   已把 `ConnectionPool` 删掉）—— 要更快只能减少请求数，或跨进程/跨机分摊。
 * 这层**不导入** `indicator` / `limits` / `sections` 等重模块 ——
   它们是 `Client` 方法体里懒 import 的，这里提前导入会连带整包启动变慢。
+
+`concurrency`（阶段 5，**默认 1 = 关**）
+--------------------------------------
+`AsyncClient(concurrency=…)` 会**原样转给同步 `Client`**（参数名/语义完全一致，
+见 `Client` 的"并发与限流"）。两层的分工必须说清，否则很容易误以为"aa 已经并发了"：
+
+| 旋钮 | 在哪一层 | 管什么 |
+|---|---|---|
+| `concurrency` | 同步层 `Client` | **多条 lane + 多主机**。只影响 `Client._map_independent` 里那批"彼此独立的多次调用"（目前是 `get_market_stat('industry')` 的 30 个一级码） |
+| `max_concurrency` | 本层 `AsyncClient` | 本事件循环里"同时有多少个 `await` 能进线程池"的上限；**不**多建连接、**不**多占槽位 |
+
+⚠️ **本层不另起线程池**：它本身就是 async，所有阻塞都在 `asyncio.to_thread` 里；
+再加一层 executor 只会让"谁在排队"变成两处，收益为 0。
+⚠️ `asyncio.gather` 一个"普通串行方法"（`get_bars` / 翻页 / `get` 等）
+**不会**因为 `concurrency>1` 而变快：那些链路要么必须串行，要么压根没被
+分发到 lane 上 —— 异步壳如实透传，不假装能加速。
 """
 from __future__ import annotations
 
 import asyncio
 
 __all__ = ["AsyncClient"]
+
+#: `iter_universe` 的"同步生成器被取完了"哨兵。
+#:
+#: 为什么不能直接 `await self._run(next, gen)`：`next()` 用光时抛 `StopIteration`，
+#: 而在 `run_in_executor` 里 `StopIteration` **无法**穿过 future —— Python 会把它
+#: 变成 `RuntimeError: StopIteration interacts badly with generators and cannot be
+#: raised into a Future`（实测踩到）。所以在线程里把"到底了"翻成一个**普通值**，
+#: 回到事件循环再据此收尾。
+_DONE = object()
+
+
+def _next_or_done(gen):
+    """线程里取一条；到底了返回 `_DONE`（而不是抛 `StopIteration`）。"""
+    try:
+        return next(gen)
+    except StopIteration:
+        return _DONE
 
 
 class AsyncClient:
@@ -44,8 +77,12 @@ class AsyncClient:
         注入一个已建好的同步客户端（**测试用假对象即可，不必连网**）。
         给了它就不能再给其它参数。
     **kw :
-        原样转给 `Client(**kw)`（`host` / `timeout` / `gap` …）。`client` 为
-        `None` 时才生效。
+        原样转给 `Client(**kw)`（`host` / `timeout` / `gap` / `concurrency` …）。
+        `client` 为 `None` 时才生效。
+        ⚠️ 这里**不翻译** `concurrency` 的语义：它就是同步层那个 key-only 参数
+        （默认 `1` = 完全串行）。`>1` 时的硬上限/截断/`ValueError` 全部由
+        `Client` 决定，本层不重复实现一遍（重复实现必然分叉）。
+        想要 `rate_stats()["concurrency_effective"]` 看实际生效值。
 
     位置参数也会原样转给 `Client`（兼容 `API设计.md` §2.7 的 `__init__(*a, **kw)` 写法）。
 
@@ -90,6 +127,16 @@ class AsyncClient:
         """当前并发上限（默认 1）。"""
         return self._max_concurrency
 
+    @property
+    def last_call(self) -> dict:
+        """`await` 版没有意义 —— 这是**已在内存里的**快照，直接读，不开线程。
+
+        语义与同步层完全一致（`Client.last_call` 的返回对象就是同一个 dict）。
+        阶段 3 补齐：它是 Client 的公开属性，异步壳必须也能拿到，
+        否则"两套 API 能力一致"这句话在 `last_call` 上就是假的。
+        """
+        return self._c.last_call
+
     # ── 统一入口：**所有方法都必须走这里**，别再直接 asyncio.to_thread ──────
     async def _run(self, fn, *a, **kw):
         async with self._sem:                   # ★ 并发护栏
@@ -112,6 +159,26 @@ class AsyncClient:
     async def get_minutes(self, symbol, *a, **kw):
         """`await` 版 `Client.get_minutes`（当日分时）。"""
         return await self._run(self._c.get_minutes, symbol, *a, **kw)
+
+    async def get_quotes(self, symbols_, *a, **kw):
+        """`await` 版 `Client.get_quotes`（批量报价；支持 `on_missing=`）。"""
+        return await self._run(self._c.get_quotes, symbols_, *a, **kw)
+
+    async def get_ticks(self, symbol, *a, **kw):
+        """`await` 版 `Client.get_ticks`（逐笔成交）。"""
+        return await self._run(self._c.get_ticks, symbol, *a, **kw)
+
+    async def get_name(self, symbol, *a, **kw):
+        """`await` 版 `Client.get_name`（代码 → 名称）。"""
+        return await self._run(self._c.get_name, symbol, *a, **kw)
+
+    async def get_samples(self, symbols_, *a, **kw):
+        """`await` 版 `Client.get_samples`（批量抽样快照）。"""
+        return await self._run(self._c.get_samples, symbols_, *a, **kw)
+
+    async def get_breadth(self, code, *a, **kw):
+        """`await` 版 `Client.get_breadth`（广度指标：880005 涨跌家数等）。"""
+        return await self._run(self._c.get_breadth, code, *a, **kw)
 
     # ── 本地计算（派生指标 / 涨跌停）──────────────────────────────────────
     async def get_indicators(self, symbol, *a, **kw):
@@ -156,6 +223,22 @@ class AsyncClient:
         """`await` 版 `Client.get_market_page`（市场行情一页，2026-10-25 新增）。"""
         return await self._run(self._c.get_market_page, *a, **kw)
 
+    async def board_page(self, *a, **kw):
+        """`await` 版 `Client.board_page`（板块清单分页行情）。"""
+        return await self._run(self._c.board_page, *a, **kw)
+
+    async def get_block_data(self, block, *a, **kw):
+        """`await` 版 `Client.get_block_data`（块数据，单页 ≤100 行）。"""
+        return await self._run(self._c.get_block_data, block, *a, **kw)
+
+    async def get_block_rows(self, block, *a, **kw):
+        """`await` 版 `Client.get_block_rows`（块数据按页取全）。"""
+        return await self._run(self._c.get_block_rows, block, *a, **kw)
+
+    async def get_board_stat(self, *a, **kw):
+        """`await` 版 `Client.get_board_stat`（板块成分统计 PBHYStat）。"""
+        return await self._run(self._c.get_board_stat, *a, **kw)
+
     async def get_universe(self, *a, **kw):
         """`await` 版 `Client.get_universe`（按市场翻页枚举，有 max_pages 上限）。
 
@@ -164,6 +247,39 @@ class AsyncClient:
         不会自动并行加速。
         """
         return await self._run(self._c.get_universe, *a, **kw)
+
+    async def iter_universe(self, *a, **kw):
+        """`await` 版的 `Client.iter_universe` —— **异步生成器**，逐个 `Quote` 交出来。
+
+        ```python
+        async with AsyncClient() as c:
+            async for q in c.iter_universe(market=6):
+                ...
+        ```
+        ⚠️ 每次 `next()` 都在线程池里跑（翻一页 = 一次网络往返 ≈2.2 秒），
+        所以"边取边停"在异步里同样有意义：`break` 之后就不再翻下一页。
+        ⚠️ 同步层是**真阻塞**的生成器，所以**不要**在同一个事件循环里并发
+        `async for` 两个 `iter_universe()` 指望它们并行 —— 它们会串行排在
+        `pacer` 的进程级闸门和 `datacenter` 的连接锁后面（见类文档"并发与限流"）。
+        ⚠️ 同步生成器读的是**同步客户端**（`self._c`），与 `max_concurrency` 无关：
+        每页本来就被 `pacer` 的进程级闸门串起来了，这里再并发只会互相等。
+        """
+        gen = self._c.iter_universe(*a, **kw)
+        try:
+            while True:
+                item = await self._run(_next_or_done, gen)
+                if item is _DONE:
+                    return
+                yield item
+        finally:
+            close = getattr(gen, "close", None)
+            if close is not None:
+                close()          # 提前 break 时把同步生成器关掉，别把状态挂着
+
+    # ── 语义层（阶段 1/3）─────────────────────────────────────────────────
+    async def timeliness(self, *a, **kw):
+        """`await` 版 `Client.timeliness`（"先问再取"：这条通道现在什么时效状态）。"""
+        return await self._run(self._c.timeliness, *a, **kw)
 
     # ── 元信息（本地，不发网络请求）──────────────────────────────────────
     async def products(self, *a, **kw):
@@ -174,8 +290,23 @@ class AsyncClient:
         """`await` 版 `Client.domains`（有产品的域）。"""
         return await self._run(self._c.domains, *a, **kw)
 
+    async def capabilities(self, *a, **kw):
+        """`await` 版 `Client.capabilities`（能力边界表：品种 × 有无 × 依据 × 绕法）。
+
+        ⚠️ 这是**本地静态注册表，一个请求都不发** —— 它之所以也过 `to_thread`，
+        纯粹是为了让同步/异步两套接口长得一样（`test_aio_parity` 要求方法集完全一致），
+        **不是**为了并行。同理，`concurrency > 1` 对它毫无意义。
+        """
+        return await self._run(self._c.capabilities, *a, **kw)
+
     async def rate_stats(self, *a, **kw):
-        """`await` 版 `Client.rate_stats`（限流状态快照）。"""
+        """`await` 版 `Client.rate_stats`（限流状态快照）。
+
+        返回值里除 `base` / `current` / `max` / `limited_events` / `cooling_hosts`
+        外，还有阶段 5 的三个并发键：`concurrency`（请求值）/
+        `concurrency_effective`（生效值）/ `lanes`（每条 lane 钉的主机）。
+        异步壳**不另加口径**，照抄同步层。
+        """
         return await self._run(self._c.rate_stats, *a, **kw)
 
     # ── 生命周期 ──────────────────────────────────────────────────────────

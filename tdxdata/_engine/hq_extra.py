@@ -553,15 +553,29 @@ def _pairs(symbols_) -> list[tuple[int, str]]:
 # ══════════════════════════════════════════════════════════════════════════
 # 五、对外接口
 # ══════════════════════════════════════════════════════════════════════════
-def get_quotes(symbols_, batch=20, *, retry_missing=True):
-    """批量报价（`PBCombHQ`）→ `(cols, rows)`；有代码彻底取不到就**抛错点名**。
+def get_quotes(symbols_, batch=20, *, retry_missing=True, on_missing="raise"):
+    """批量报价（`PBCombHQ`）→ `(cols, rows)`；有代码彻底取不到时的行为由 `on_missing` 定。
 
     `batch`：每次请求放几个代码（抓包只验证到 6 个；上限未测，默认 20 保守）。
 
     服务端对**无效/不支持的代码是静默不返回**（不报错），所以这里：
-    先成批要，缺的码**单独再要一次**，仍缺就抛 `EmptyResult` 并把缺的代码写进消息。
-    绝不返回"少了几个代码"的表冒充完整结果。
+    先成批要，缺的码**单独再要一次**。
+
+    `on_missing`（阶段 3 下沉；**只决定抛不抛**，"缺了哪几个"由上层算）
+    ------------------------------------------------------------------
+    * `"raise"`（默认，行为与旧版一字不差）：仍缺就抛 `EmptyResult` 点名，
+      绝不返回"少了几个代码"的表冒充完整结果；
+    * `"skip"` / `"report"`：**不抛**，按请求顺序返回能拿到的那些（可能为空列表），
+      并把缺失清单交给上层 `Client.get_quotes` 写进 `Quotes.meta["missing"]`。
+
+    ⚠️ `report` 的 `warnings.warn` **不在这里发**：本层只知道"批里缺了谁"，
+    知道"你一共要了哪些"的是上层。提醒只发一次，别让人一次取数收两条同义警告。
+    ⚠️ `retry_missing` 与 `on_missing` **不冲突**：前者是"要不要为缺的码再补一次请求"
+    （省流量 vs 求全），后者是"补完还缺怎么办"。两者正交，都保留。
     """
+    from .._core import check_on_missing
+
+    mode = check_on_missing(on_missing)
     want = _pairs(symbols_)
     if not want:
         raise errors.ParamError("get_quotes 需要至少一个代码")
@@ -587,14 +601,15 @@ def get_quotes(symbols_, batch=20, *, retry_missing=True):
                     got[code] = row
 
     still = [c for _m, c in want if c not in got]
-    if still:
+    if still and mode == "raise":
         raise errors.EmptyResult(
             "PBCombHQ 取不到这些代码（服务端静默不返回，单发也没有）：%s。"
             "⚠️ 8 开头分两类、别混：**北交所证券**（43xxxx/83xxxx/87xxxx/92xxxx，`Setcode=2`）"
             "与本通道 **880xxx/881xxx 板块指数**（`Setcode=1`，如 880903 水产品、881007 油气开采）；"
             "881xxx 曾被误判成北交所（2026-10-27 已修，若你用的是旧版请注意）。"
-            "老新三板码（如 430047）本通道不认；其余请核代码是否仍存续。" % ", ".join(still))
-    rows = [got[c] for _m, c in want]          # 按请求顺序返回，不按服务端顺序
+            "老新三板码（如 430047）本通道不认；其余请核代码是否仍存续。"
+            "（若缺失是预期的，用 `get_quotes(..., on_missing=\"skip\")`。）" % ", ".join(still))
+    rows = [got[c] for _m, c in want if c in got]   # 按请求顺序返回，不按服务端顺序
     return cols, rows
 
 

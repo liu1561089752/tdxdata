@@ -45,7 +45,8 @@ def _load_specs():
     p = os.path.join(PARSE, "pb_specs.json")
     if not os.path.exists(p):
         return {}
-    raw = json.load(open(p, encoding="utf-8"))
+    with open(p, encoding="utf-8") as f:      # 必须 with：裸 open 会漏文件句柄
+        raw = json.load(f)                   # （实测每次 import 漏 1 条 ResourceWarning）
     out = {}
     for k, v in raw.items():
         # 只认命令名（含点号），跳过「说明」「约定」这类元信息块
@@ -67,7 +68,8 @@ def load_args():
     for fn in ("page_cmd_params.json", "raw_args.json"):
         p = os.path.join(PARSE, fn)
         if os.path.exists(p):
-            out.update(json.load(open(p, encoding="utf-8")))
+            with open(p, encoding="utf-8") as f:
+                out.update(json.load(f))
     return out
 
 

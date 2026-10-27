@@ -1,0 +1,3637 @@
+{
+ "meta": {
+  "name": "ticks",
+  "cmd": "HQServ:PBTickEx",
+  "ctl": 17,
+  "api": "Client.get_ticks(600519, count=200)",
+  "params": {
+   "symbol": "600519",
+   "count": 200
+  },
+  "fetched_at": "2026-10-27T16:47:03+08:00",
+  "server_time": "2026-10-27 15:30:03",
+  "sha256": "94657b97928a14729113d8801006fab220cfb0c0693dd0b15e1807997b1bacf6",
+  "base_dir": "F:\\TDX_stock_data\\tdxdata\\tests\\fixtures\\golden",
+  "python": "3.14.2",
+  "tdxdata_version": "0.2.0",
+  "git_head": "04463f31e6081e4578feb97c5ccf625887f6f514",
+  "wire_calls": [
+   {
+    "cmd": "HQServ:PBTickEx",
+    "ctl": 17,
+    "n": 2
+   }
+  ],
+  "frames": [
+   6,
+   7
+  ],
+  "ctl_note": "即 cmd 那一帧的 ctl 字节"
+ },
+ "payload": {
+  "outcome": "ok",
+  "kind": "list[Tick]",
+  "value": [
+   {
+    "market": 1,
+    "code": "600519",
+    "time": "14:48:07",
+    "price": 1356.5,
+    "vol": 16.0,
+    "trade_count": null,
+    "bs_flag": null,
+    "raw": {
+     "Second": "53287",
+     "Now": "1356.500000",
+     "NowVol": "16",
+     "VolInStockDiff": "14",
+     "InOutFlag": "0",
+     "HKTTFlag": "",
+     "HKInOutFlag": "0"
+    }
+   },
+   {
+    "market": 1,
+    "code": "600519",
+    "time": "14:48:10",
+    "price": 1356.599976,
+    "vol": 8.0,
+    "trade_count": null,
+    "bs_flag": null,
+    "raw": {
+     "Second": "53290",
+     "Now": "1356.599976",
+     "NowVol": "8",
+     "VolInStockDiff": "7",
+     "InOutFlag": "0",
+     "HKTTFlag": "",
+     "HKInOutFlag": "0"
+    }
+   },
+   {
+    "market": 1,
+    "code": "600519",
+    "time": "14:48:13",
+    "price": 1356.589966,
+    "vol": 12.0,
+    "trade_count": null,
+    "bs_flag": null,
+    "raw": {
+     "Second": "53293",
+     "Now": "1356.589966",
+     "NowVol": "12",
+     "VolInStockDiff": "10",
+     "InOutFlag": "0",
+     "HKTTFlag": "",
+     "HKInOutFlag": "0"
+    }
+   },
+   {
+    "market": 1,
+    "code": "600519",
+    "time": "14:48:16",
+    "price": 1356.359985,
+    "vol": 14.0,
+    "trade_count": null,
+    "bs_flag": null,
+    "raw": {
+     "Second": "53296",
+     "Now": "1356.359985",
+     "NowVol": "14",
+     "VolInStockDiff": "11",
+     "InOutFlag": "1",
+     "HKTTFlag": "\u0001",
+     "HKInOutFlag": "0"
+    }
+   },
+   {
+    "market": 1,
+    "code": "600519",
+    "time": "14:48:19",
+    "price": 1356.0,
+    "vol": 27.0,
+    "trade_count": null,
+    "bs_flag": null,
+    "raw": {
+     "Second": "53299",
+     "Now": "1356.000000",
+     "NowVol": "27",
+     "VolInStockDiff": "21",
+     "InOutFlag": "1",
+     "HKTTFlag": "\u0001",
+     "HKInOutFlag": "0"
+    }
+   },
+   {
+    "market": 1,
+    "code": "600519",
+    "time": "14:48:22",
+    "price": 1356.670044,
+    "vol": 51.0,
+    "trade_count": null,
+    "bs_flag": null,
+    "raw": {
+     "Second": "53302",
+     "Now": "1356.670044",
+     "NowVol": "51",
+     "VolInStockDiff": "17",
+     "InOutFlag": "0",
+     "HKTTFlag": "",
+     "HKInOutFlag": "0"
+    }
+   },
+   {
+    "market": 1,
+    "code": "600519",
+    "time": "14:48:25",
+    "price": 1356.01001,
+    "vol": 12.0,
+    "trade_count": null,
+    "bs_flag": null,
+    "raw": {
+     "Second": "53305",
+     "Now": "1356.010010",
+     "NowVol": "12",
+     "VolInStockDiff": "9",
+     "InOutFlag": "1",
+     "HKTTFlag": "\u0001",
+     "HKInOutFlag": "0"
+    }
+   },
+   {
+    "market": 1,
+    "code": "600519",
+    "time": "14:48:28",
+    "price": 1356.660034,
+    "vol": 10.0,
+    "trade_count": null,
+    "bs_flag": null,
+    "raw": {
+     "Second": "53308",
+     "Now": "1356.660034",
+     "NowVol": "10",
+     "VolInStockDiff": "10",
+     "InOutFlag": "0",
+     "HKTTFlag": "",
+     "HKInOutFlag": "0"
+    }
+   },
+   {
+    "market": 1,
+    "code": "600519",
+    "time": "14:48:31",
+    "price": 1356.660034,
+    "vol": 9.0,
+    "trade_count": null,
+    "bs_flag": null,
+    "raw": {
+     "Second": "53311",
+     "Now": "1356.660034",
+     "NowVol": "9",
+     "VolInStockDiff": "9",
+     "InOutFlag": "0",
+     "HKTTFlag": "",
+     "HKInOutFlag": "0"
+    }
+   },
+   {
+    "market": 1,
+    "code": "600519",
+    "time": "14:48:34",
+    "price": 1356.76001,
+    "vol": 9.0,
+    "trade_count": null,
+    "bs_flag": null,
+    "raw": {
+     "Second": "53314",
+     "Now": "1356.760010",
+     "NowVol": "9",
+     "VolInStockDiff": "9",
+     "InOutFlag": "0",
+     "HKTTFlag": "",
+     "HKInOutFlag": "0"
+    }
+   },
+   {
+    "market": 1,
+    "code": "600519",
+    "time": "14:48:37",
+    "price": 1356.800049,
+    "vol": 19.0,
+    "trade_count": null,
+    "bs_flag": null,
+    "raw": {
+     "Second": "53317",
+     "Now": "1356.800049",
+     "NowVol": "19",
+     "VolInStockDiff": "15",
+     "InOutFlag": "0",
+     "HKTTFlag": "",
+     "HKInOutFlag": "0"
+    }
+   },
+   {
+    "market": 1,
+    "code": "600519",
+    "time": "14:48:40",
+    "price": 1356.800049,
+    "vol": 10.0,
+    "trade_count": null,
+    "bs_flag": null,
+    "raw": {
+     "Second": "53320",
+     "Now": "1356.800049",
+     "NowVol": "10",
+     "VolInStockDiff": "10",
+     "InOutFlag": "0",
+     "HKTTFlag": "",
+     "HKInOutFlag": "0"
+    }
+   },
+   {
+    "market": 1,
+    "code": "600519",
+    "time": "14:48:43",
+    "price": 1356.869995,
+    "vol": 24.0,
+    "trade_count": null,
+    "bs_flag": null,
+    "raw": {
+     "Second": "53323",
+     "Now": "1356.869995",
+     "NowVol": "24",
+     "VolInStockDiff": "20",
+     "InOutFlag": "0",
+     "HKTTFlag": "",
+     "HKInOutFlag": "0"
+    }
+   },
+   {
+    "market": 1,
+    "code": "600519",
+    "time": "14:48:46",
+    "price": 1356.880005,
+    "vol": 15.0,
+    "trade_count": null,
+    "bs_flag": null,
+    "raw": {
+     "Second": "53326",
+     "Now": "1356.880005",
+     "NowVol": "15",
+     "VolInStockDiff": "9",
+     "InOutFlag": "0",
+     "HKTTFlag": "",
+     "HKInOutFlag": "0"
+    }
+   },
+   {
+    "market": 1,
+    "code": "600519",
+    "time": "14:48:49",
+    "price": 1356.900024,
+    "vol": 12.0,
+    "trade_count": null,
+    "bs_flag": null,
+    "raw": {
+     "Second": "53329",
+     "Now": "1356.900024",
+     "NowVol": "12",
+     "VolInStockDiff": "12",
+     "InOutFlag": "0",
+     "HKTTFlag": "",
+     "HKInOutFlag": "0"
+    }
+   },
+   {
+    "market": 1,
+    "code": "600519",
+    "time": "14:48:52",
+    "price": 1356.859985,
+    "vol": 17.0,
+    "trade_count": null,
+    "bs_flag": null,
+    "raw": {
+     "Second": "53332",
+     "Now": "1356.859985",
+     "NowVol": "17",
+     "VolInStockDiff": "14",
+     "InOutFlag": "1",
+     "HKTTFlag": "\u0001",
+     "HKInOutFlag": "0"
+    }
+   },
+   {
+    "market": 1,
+    "code": "600519",
+    "time": "14:48:55",
+    "price": 1356.880005,
+    "vol": 9.0,
+    "trade_count": null,
+    "bs_flag": null,
+    "raw": {
+     "Second": "53335",
+     "Now": "1356.880005",
+     "NowVol": "9",
+     "VolInStockDiff": "9",
+     "InOutFlag": "0",
+     "HKTTFlag": "",
+     "HKInOutFlag": "0"
+    }
+   },
+   {
+    "market": 1,
+    "code": "600519",
+    "time": "14:48:58",
+    "price": 1356.959961,
+    "vol": 12.0,
+    "trade_count": null,
+    "bs_flag": null,
+    "raw": {
+     "Second": "53338",
+     "Now": "1356.959961",
+     "NowVol": "12",
+     "VolInStockDiff": "10",
+     "InOutFlag": "0",
+     "HKTTFlag": "",
+     "HKInOutFlag": "0"
+    }
+   },
+   {
+    "market": 1,
+    "code": "600519",
+    "time": "14:49:01",
+    "price": 1356.910034,
+    "vol": 22.0,
+    "trade_count": null,
+    "bs_flag": null,
+    "raw": {
+     "Second": "53341",
+     "Now": "1356.910034",
+     "NowVol": "22",
+     "VolInStockDiff": "18",
+     "InOutFlag": "1",
+     "HKTTFlag": "\u0001",
+     "HKInOutFlag": "0"
+    }
+   },
+   {
+    "market": 1,
+    "code": "600519",
+    "time": "14:49:04",
+    "price": 1356.920044,
+    "vol": 10.0,
+    "trade_count": null,
+    "bs_flag": null,
+    "raw": {
+     "Second": "53344",
+     "Now": "1356.920044",
+     "NowVol": "10",
+     "VolInStockDiff": "10",
+     "InOutFlag": "1",
+     "HKTTFlag": "\u0001",
+     "HKInOutFlag": "0"
+    }
+   },
+   {
+    "market": 1,
+    "code": "600519",
+    "time": "14:49:07",
+    "price": 1356.959961,
+    "vol": 18.0,
+    "trade_count": null,
+    "bs_flag": null,
+    "raw": {
+     "Second": "53347",
+     "Now": "1356.959961",
+     "NowVol": "18",
+     "VolInStockDiff": "15",
+     "InOutFlag": "0",
+     "HKTTFlag": "",
+     "HKInOutFlag": "0"
+    }
+   },
+   {
+    "market": 1,
+    "code": "600519",
+    "time": "14:49:10",
+    "price": 1356.959961,
+    "vol": 20.0,
+    "trade_count": null,
+    "bs_flag": null,
+    "raw": {
+     "Second": "53350",
+     "Now": "1356.959961",
+     "NowVol": "20",
+     "VolInStockDiff": "17",
+     "InOutFlag": "0",
+     "HKTTFlag": "",
+     "HKInOutFlag": "0"
+    }
+   },
+   {
+    "market": 1,
+    "code": "600519",
+    "time": "14:49:13",
+    "price": 1356.97998,
+    "vol": 21.0,
+    "trade_count": null,
+    "bs_flag": null,
+    "raw": {
+     "Second": "53353",
+     "Now": "1356.979980",
+     "NowVol": "21",
+     "VolInStockDiff": "20",
+     "InOutFlag": "0",
+     "HKTTFlag": "",
+     "HKInOutFlag": "0"
+    }
+   },
+   {
+    "market": 1,
+    "code": "600519",
+    "time": "14:49:16",
+    "price": 1356.939941,
+    "vol": 21.0,
+    "trade_count": null,
+    "bs_flag": null,
+    "raw": {
+     "Second": "53356",
+     "Now": "1356.939941",
+     "NowVol": "21",
+     "VolInStockDiff": "17",
+     "InOutFlag": "1",
+     "HKTTFlag": "\u0001",
+     "HKInOutFlag": "0"
+    }
+   },
+   {
+    "market": 1,
+    "code": "600519",
+    "time": "14:49:19",
+    "price": 1356.97998,
+    "vol": 30.0,
+    "trade_count": null,
+    "bs_flag": null,
+    "raw": {
+     "Second": "53359",
+     "Now": "1356.979980",
+     "NowVol": "30",
+     "VolInStockDiff": "25",
+     "InOutFlag": "0",
+     "HKTTFlag": "",
+     "HKInOutFlag": "0"
+    }
+   },
+   {
+    "market": 1,
+    "code": "600519",
+    "time": "14:49:22",
+    "price": 1356.97998,
+    "vol": 7.0,
+    "trade_count": null,
+    "bs_flag": null,
+    "raw": {
+     "Second": "53362",
+     "Now": "1356.979980",
+     "NowVol": "7",
+     "VolInStockDiff": "6",
+     "InOutFlag": "0",
+     "HKTTFlag": "",
+     "HKInOutFlag": "0"
+    }
+   },
+   {
+    "market": 1,
+    "code": "600519",
+    "time": "14:49:25",
+    "price": 1356.98999,
+    "vol": 24.0,
+    "trade_count": null,
+    "bs_flag": null,
+    "raw": {
+     "Second": "53365",
+     "Now": "1356.989990",
+     "NowVol": "24",
+     "VolInStockDiff": "18",
+     "InOutFlag": "0",
+     "HKTTFlag": "",
+     "HKInOutFlag": "0"
+    }
+   },
+   {
+    "market": 1,
+    "code": "600519",
+    "time": "14:49:28",
+    "price": 1356.98999,
+    "vol": 13.0,
+    "trade_count": null,
+    "bs_flag": null,
+    "raw": {
+     "Second": "53368",
+     "Now": "1356.989990",
+     "NowVol": "13",
+     "VolInStockDiff": "12",
+     "InOutFlag": "0",
+     "HKTTFlag": "",
+     "HKInOutFlag": "0"
+    }
+   },
+   {
+    "market": 1,
+    "code": "600519",
+    "time": "14:49:31",
+    "price": 1356.98999,
+    "vol": 22.0,
+    "trade_count": null,
+    "bs_flag": null,
+    "raw": {
+     "Second": "53371",
+     "Now": "1356.989990",
+     "NowVol": "22",
+     "VolInStockDiff": "18",
+     "InOutFlag": "0",
+     "HKTTFlag": "",
+     "HKInOutFlag": "0"
+    }
+   },
+   {
+    "market": 1,
+    "code": "600519",
+    "time": "14:49:34",
+    "price": 1356.97998,
+    "vol": 6.0,
+    "trade_count": null,
+    "bs_flag": null,
+    "raw": {
+     "Second": "53374",
+     "Now": "1356.979980",
+     "NowVol": "6",
+     "VolInStockDiff": "6",
+     "InOutFlag": "2",
+     "HKTTFlag": "\u0002",
+     "HKInOutFlag": "0"
+    }
+   },
+   {
+    "market": 1,
+    "code": "600519",
+    "time": "14:49:37",
+    "price": 1356.98999,
+    "vol": 15.0,
+    "trade_count": null,
+    "bs_flag": null,
+    "raw": {
+     "Second": "53377",
+     "Now": "1356.989990",
+     "NowVol": "15",
+     "VolInStockDiff": "11",
+     "InOutFlag": "0",
+     "HKTTFlag": "",
+     "HKInOutFlag": "0"
+    }
+   },
+   {
+    "market": 1,
+    "code": "600519",
+    "time": "14:49:40",
+    "price": 1356.97998,
+    "vol": 18.0,
+    "trade_count": null,
+    "bs_flag": null,
+    "raw": {
+     "Second": "53380",
+     "Now": "1356.979980",
+     "NowVol": "18",
+     "VolInStockDiff": "13",
+     "InOutFlag": "1",
+     "HKTTFlag": "\u0001",
+     "HKInOutFlag": "0"
+    }
+   },
+   {
+    "market": 1,
+    "code": "600519",
+    "time": "14:49:43",
+    "price": 1356.969971,
+    "vol": 17.0,
+    "trade_count": null,
+    "bs_flag": null,
+    "raw": {
+     "Second": "53383",
+     "Now": "1356.969971",
+     "NowVol": "17",
+     "VolInStockDiff": "14",
+     "InOutFlag": "1",
+     "HKTTFlag": "\u0001",
+     "HKInOutFlag": "0"
+    }
+   },
+   {
+    "market": 1,
+    "code": "600519",
+    "time": "14:49:46",
+    "price": 1356.969971,
+    "vol": 14.0,
+    "trade_count": null,
+    "bs_flag": null,
+    "raw": {
+     "Second": "53386",
+     "Now": "1356.969971",
+     "NowVol": "14",
+     "VolInStockDiff": "13",
+     "InOutFlag": "1",
+     "HKTTFlag": "\u0001",
+     "HKInOutFlag": "0"
+    }
+   },
+   {
+    "market": 1,
+    "code": "600519",
+    "time": "14:49:49",
+    "price": 1356.969971,
+    "vol": 10.0,
+    "trade_count": null,
+    "bs_flag": null,
+    "raw": {
+     "Second": "53389",
+     "Now": "1356.969971",
+     "NowVol": "10",
+     "VolInStockDiff": "9",
+     "InOutFlag": "2",
+     "HKTTFlag": "\u0002",
+     "HKInOutFlag": "0"
+    }
+   },
+   {
+    "market": 1,
+    "code": "600519",
+    "time": "14:49:52",
+    "price": 1356.859985,
+    "vol": 12.0,
+    "trade_count": null,
+    "bs_flag": null,
+    "raw": {
+     "Second": "53392",
+     "Now": "1356.859985",
+     "NowVol": "12",
+     "VolInStockDiff": "10",
+     "InOutFlag": "1",
+     "HKTTFlag": "\u0001",
+     "HKInOutFlag": "0"
+    }
+   },
+   {
+    "market": 1,
+    "code": "600519",
+    "time": "14:49:55",
+    "price": 1356.660034,
+    "vol": 19.0,
+    "trade_count": null,
+    "bs_flag": null,
+    "raw": {
+     "Second": "53395",
+     "Now": "1356.660034",
+     "NowVol": "19",
+     "VolInStockDiff": "13",
+     "InOutFlag": "1",
+     "HKTTFlag": "\u0001",
+     "HKInOutFlag": "0"
+    }
+   },
+   {
+    "market": 1,
+    "code": "600519",
+    "time": "14:49:58",
+    "price": 1356.930054,
+    "vol": 4.0,
+    "trade_count": null,
+    "bs_flag": null,
+    "raw": {
+     "Second": "53398",
+     "Now": "1356.930054",
+     "NowVol": "4",
+     "VolInStockDiff": "4",
+     "InOutFlag": "0",
+     "HKTTFlag": "",
+     "HKInOutFlag": "0"
+    }
+   },
+   {
+    "market": 1,
+    "code": "600519",
+    "time": "14:50:01",
+    "price": 1356.900024,
+    "vol": 10.0,
+    "trade_count": null,
+    "bs_flag": null,
+    "raw": {
+     "Second": "53401",
+     "Now": "1356.900024",
+     "NowVol": "10",
+     "VolInStockDiff": "10",
+     "InOutFlag": "1",
+     "HKTTFlag": "\u0001",
+     "HKInOutFlag": "0"
+    }
+   },
+   {
+    "market": 1,
+    "code": "600519",
+    "time": "14:50:04",
+    "price": 1356.959961,
+    "vol": 22.0,
+    "trade_count": null,
+    "bs_flag": null,
+    "raw": {
+     "Second": "53404",
+     "Now": "1356.959961",
+     "NowVol": "22",
+     "VolInStockDiff": "17",
+     "InOutFlag": "0",
+     "HKTTFlag": "",
+     "HKInOutFlag": "0"
+    }
+   },
+   {
+    "market": 1,
+    "code": "600519",
+    "time": "14:50:07",
+    "price": 1356.959961,
+    "vol": 45.0,
+    "trade_count": null,
+    "bs_flag": null,
+    "raw": {
+     "Second": "53407",
+     "Now": "1356.959961",
+     "NowVol": "45",
+     "VolInStockDiff": "33",
+     "InOutFlag": "1",
+     "HKTTFlag": "\u0001",
+     "HKInOutFlag": "0"
+    }
+   },
+   {
+    "market": 1,
+    "code": "600519",
+    "time": "14:50:10",
+    "price": 1356.97998,
+    "vol": 4.0,
+    "trade_count": null,
+    "bs_flag": null,
+    "raw": {
+     "Second": "53410",
+     "Now": "1356.979980",
+     "NowVol": "4",
+     "VolInStockDiff": "4",
+     "InOutFlag": "0",
+     "HKTTFlag": "",
+     "HKInOutFlag": "0"
+    }
+   },
+   {
+    "market": 1,
+    "code": "600519",
+    "time": "14:50:13",
+    "price": 1356.939941,
+    "vol": 12.0,
+    "trade_count": null,
+    "bs_flag": null,
+    "raw": {
+     "Second": "53413",
+     "Now": "1356.939941",
+     "NowVol": "12",
+     "VolInStockDiff": "11",
+     "InOutFlag": "0",
+     "HKTTFlag": "",
+     "HKInOutFlag": "0"
+    }
+   },
+   {
+    "market": 1,
+    "code": "600519",
+    "time": "14:50:16",
+    "price": 1356.390015,
+    "vol": 19.0,
+    "trade_count": null,
+    "bs_flag": null,
+    "raw": {
+     "Second": "53416",
+     "Now": "1356.390015",
+     "NowVol": "19",
+     "VolInStockDiff": "18",
+     "InOutFlag": "1",
+     "HKTTFlag": "\u0001",
+     "HKInOutFlag": "0"
+    }
+   },
+   {
+    "market": 1,
+    "code": "600519",
+    "time": "14:50:19",
+    "price": 1356.920044,
+    "vol": 7.0,
+    "trade_count": null,
+    "bs_flag": null,
+    "raw": {
+     "Second": "53419",
+     "Now": "1356.920044",
+     "NowVol": "7",
+     "VolInStockDiff": "6",
+     "InOutFlag": "0",
+     "HKTTFlag": "",
+     "HKInOutFlag": "0"
+    }
+   },
+   {
+    "market": 1,
+    "code": "600519",
+    "time": "14:50:22",
+    "price": 1356.839966,
+    "vol": 18.0,
+    "trade_count": null,
+    "bs_flag": null,
+    "raw": {
+     "Second": "53422",
+     "Now": "1356.839966",
+     "NowVol": "18",
+     "VolInStockDiff": "13",
+     "InOutFlag": "0",
+     "HKTTFlag": "",
+     "HKInOutFlag": "0"
+    }
+   },
+   {
+    "market": 1,
+    "code": "600519",
+    "time": "14:50:25",
+    "price": 1356.5,
+    "vol": 17.0,
+    "trade_count": null,
+    "bs_flag": null,
+    "raw": {
+     "Second": "53425",
+     "Now": "1356.500000",
+     "NowVol": "17",
+     "VolInStockDiff": "14",
+     "InOutFlag": "1",
+     "HKTTFlag": "\u0001",
+     "HKInOutFlag": "0"
+    }
+   },
+   {
+    "market": 1,
+    "code": "600519",
+    "time": "14:50:28",
+    "price": 1356.51001,
+    "vol": 22.0,
+    "trade_count": null,
+    "bs_flag": null,
+    "raw": {
+     "Second": "53428",
+     "Now": "1356.510010",
+     "NowVol": "22",
+     "VolInStockDiff": "17",
+     "InOutFlag": "0",
+     "HKTTFlag": "",
+     "HKInOutFlag": "0"
+    }
+   },
+   {
+    "market": 1,
+    "code": "600519",
+    "time": "14:50:31",
+    "price": 1356.949951,
+    "vol": 8.0,
+    "trade_count": null,
+    "bs_flag": null,
+    "raw": {
+     "Second": "53431",
+     "Now": "1356.949951",
+     "NowVol": "8",
+     "VolInStockDiff": "8",
+     "InOutFlag": "0",
+     "HKTTFlag": "",
+     "HKInOutFlag": "0"
+    }
+   },
+   {
+    "market": 1,
+    "code": "600519",
+    "time": "14:50:34",
+    "price": 1356.5,
+    "vol": 22.0,
+    "trade_count": null,
+    "bs_flag": null,
+    "raw": {
+     "Second": "53434",
+     "Now": "1356.500000",
+     "NowVol": "22",
+     "VolInStockDiff": "13",
+     "InOutFlag": "1",
+     "HKTTFlag": "\u0001",
+     "HKInOutFlag": "0"
+    }
+   },
+   {
+    "market": 1,
+    "code": "600519",
+    "time": "14:50:37",
+    "price": 1356.900024,
+    "vol": 12.0,
+    "trade_count": null,
+    "bs_flag": null,
+    "raw": {
+     "Second": "53437",
+     "Now": "1356.900024",
+     "NowVol": "12",
+     "VolInStockDiff": "11",
+     "InOutFlag": "0",
+     "HKTTFlag": "",
+     "HKInOutFlag": "0"
+    }
+   },
+   {
+    "market": 1,
+    "code": "600519",
+    "time": "14:50:40",
+    "price": 1356.910034,
+    "vol": 10.0,
+    "trade_count": null,
+    "bs_flag": null,
+    "raw": {
+     "Second": "53440",
+     "Now": "1356.910034",
+     "NowVol": "10",
+     "VolInStockDiff": "10",
+     "InOutFlag": "0",
+     "HKTTFlag": "",
+     "HKInOutFlag": "0"
+    }
+   },
+   {
+    "market": 1,
+    "code": "600519",
+    "time": "14:50:43",
+    "price": 1356.839966,
+    "vol": 13.0,
+    "trade_count": null,
+    "bs_flag": null,
+    "raw": {
+     "Second": "53443",
+     "Now": "1356.839966",
+     "NowVol": "13",
+     "VolInStockDiff": "12",
+     "InOutFlag": "0",
+     "HKTTFlag": "",
+     "HKInOutFlag": "0"
+    }
+   },
+   {
+    "market": 1,
+    "code": "600519",
+    "time": "14:50:46",
+    "price": 1356.900024,
+    "vol": 25.0,
+    "trade_count": null,
+    "bs_flag": null,
+    "raw": {
+     "Second": "53446",
+     "Now": "1356.900024",
+     "NowVol": "25",
+     "VolInStockDiff": "19",
+     "InOutFlag": "0",
+     "HKTTFlag": "",
+     "HKInOutFlag": "0"
+    }
+   },
+   {
+    "market": 1,
+    "code": "600519",
+    "time": "14:50:49",
+    "price": 1356.920044,
+    "vol": 6.0,
+    "trade_count": null,
+    "bs_flag": null,
+    "raw": {
+     "Second": "53449",
+     "Now": "1356.920044",
+     "NowVol": "6",
+     "VolInStockDiff": "6",
+     "InOutFlag": "0",
+     "HKTTFlag": "",
+     "HKInOutFlag": "0"
+    }
+   },
+   {
+    "market": 1,
+    "code": "600519",
+    "time": "14:50:52",
+    "price": 1356.930054,
+    "vol": 5.0,
+    "trade_count": null,
+    "bs_flag": null,
+    "raw": {
+     "Second": "53452",
+     "Now": "1356.930054",
+     "NowVol": "5",
+     "VolInStockDiff": "5",
+     "InOutFlag": "0",
+     "HKTTFlag": "",
+     "HKInOutFlag": "0"
+    }
+   },
+   {
+    "market": 1,
+    "code": "600519",
+    "time": "14:50:55",
+    "price": 1356.949951,
+    "vol": 14.0,
+    "trade_count": null,
+    "bs_flag": null,
+    "raw": {
+     "Second": "53455",
+     "Now": "1356.949951",
+     "NowVol": "14",
+     "VolInStockDiff": "10",
+     "InOutFlag": "0",
+     "HKTTFlag": "",
+     "HKInOutFlag": "0"
+    }
+   },
+   {
+    "market": 1,
+    "code": "600519",
+    "time": "14:50:58",
+    "price": 1356.949951,
+    "vol": 12.0,
+    "trade_count": null,
+    "bs_flag": null,
+    "raw": {
+     "Second": "53458",
+     "Now": "1356.949951",
+     "NowVol": "12",
+     "VolInStockDiff": "12",
+     "InOutFlag": "0",
+     "HKTTFlag": "",
+     "HKInOutFlag": "0"
+    }
+   },
+   {
+    "market": 1,
+    "code": "600519",
+    "time": "14:51:01",
+    "price": 1356.939941,
+    "vol": 40.0,
+    "trade_count": null,
+    "bs_flag": null,
+    "raw": {
+     "Second": "53461",
+     "Now": "1356.939941",
+     "NowVol": "40",
+     "VolInStockDiff": "26",
+     "InOutFlag": "0",
+     "HKTTFlag": "",
+     "HKInOutFlag": "0"
+    }
+   },
+   {
+    "market": 1,
+    "code": "600519",
+    "time": "14:51:04",
+    "price": 1356.800049,
+    "vol": 23.0,
+    "trade_count": null,
+    "bs_flag": null,
+    "raw": {
+     "Second": "53464",
+     "Now": "1356.800049",
+     "NowVol": "23",
+     "VolInStockDiff": "17",
+     "InOutFlag": "1",
+     "HKTTFlag": "\u0001",
+     "HKInOutFlag": "0"
+    }
+   },
+   {
+    "market": 1,
+    "code": "600519",
+    "time": "14:51:07",
+    "price": 1356.800049,
+    "vol": 10.0,
+    "trade_count": null,
+    "bs_flag": null,
+    "raw": {
+     "Second": "53467",
+     "Now": "1356.800049",
+     "NowVol": "10",
+     "VolInStockDiff": "10",
+     "InOutFlag": "0",
+     "HKTTFlag": "",
+     "HKInOutFlag": "0"
+    }
+   },
+   {
+    "market": 1,
+    "code": "600519",
+    "time": "14:51:10",
+    "price": 1356.699951,
+    "vol": 38.0,
+    "trade_count": null,
+    "bs_flag": null,
+    "raw": {
+     "Second": "53470",
+     "Now": "1356.699951",
+     "NowVol": "38",
+     "VolInStockDiff": "27",
+     "InOutFlag": "1",
+     "HKTTFlag": "\u0001",
+     "HKInOutFlag": "0"
+    }
+   },
+   {
+    "market": 1,
+    "code": "600519",
+    "time": "14:51:13",
+    "price": 1356.900024,
+    "vol": 15.0,
+    "trade_count": null,
+    "bs_flag": null,
+    "raw": {
+     "Second": "53473",
+     "Now": "1356.900024",
+     "NowVol": "15",
+     "VolInStockDiff": "12",
+     "InOutFlag": "0",
+     "HKTTFlag": "",
+     "HKInOutFlag": "0"
+    }
+   },
+   {
+    "market": 1,
+    "code": "600519",
+    "time": "14:51:16",
+    "price": 1356.939941,
+    "vol": 15.0,
+    "trade_count": null,
+    "bs_flag": null,
+    "raw": {
+     "Second": "53476",
+     "Now": "1356.939941",
+     "NowVol": "15",
+     "VolInStockDiff": "14",
+     "InOutFlag": "0",
+     "HKTTFlag": "",
+     "HKInOutFlag": "0"
+    }
+   },
+   {
+    "market": 1,
+    "code": "600519",
+    "time": "14:51:19",
+    "price": 1356.949951,
+    "vol": 21.0,
+    "trade_count": null,
+    "bs_flag": null,
+    "raw": {
+     "Second": "53479",
+     "Now": "1356.949951",
+     "NowVol": "21",
+     "VolInStockDiff": "18",
+     "InOutFlag": "0",
+     "HKTTFlag": "",
+     "HKInOutFlag": "0"
+    }
+   },
+   {
+    "market": 1,
+    "code": "600519",
+    "time": "14:51:22",
+    "price": 1356.959961,
+    "vol": 39.0,
+    "trade_count": null,
+    "bs_flag": null,
+    "raw": {
+     "Second": "53482",
+     "Now": "1356.959961",
+     "NowVol": "39",
+     "VolInStockDiff": "23",
+     "InOutFlag": "0",
+     "HKTTFlag": "",
+     "HKInOutFlag": "0"
+    }
+   },
+   {
+    "market": 1,
+    "code": "600519",
+    "time": "14:51:25",
+    "price": 1356.959961,
+    "vol": 19.0,
+    "trade_count": null,
+    "bs_flag": null,
+    "raw": {
+     "Second": "53485",
+     "Now": "1356.959961",
+     "NowVol": "19",
+     "VolInStockDiff": "15",
+     "InOutFlag": "0",
+     "HKTTFlag": "",
+     "HKInOutFlag": "0"
+    }
+   },
+   {
+    "market": 1,
+    "code": "600519",
+    "time": "14:51:28",
+    "price": 1356.949951,
+    "vol": 37.0,
+    "trade_count": null,
+    "bs_flag": null,
+    "raw": {
+     "Second": "53488",
+     "Now": "1356.949951",
+     "NowVol": "37",
+     "VolInStockDiff": "25",
+     "InOutFlag": "1",
+     "HKTTFlag": "\u0001",
+     "HKInOutFlag": "0"
+    }
+   },
+   {
+    "market": 1,
+    "code": "600519",
+    "time": "14:51:31",
+    "price": 1356.959961,
+    "vol": 7.0,
+    "trade_count": null,
+    "bs_flag": null,
+    "raw": {
+     "Second": "53491",
+     "Now": "1356.959961",
+     "NowVol": "7",
+     "VolInStockDiff": "6",
+     "InOutFlag": "0",
+     "HKTTFlag": "",
+     "HKInOutFlag": "0"
+    }
+   },
+   {
+    "market": 1,
+    "code": "600519",
+    "time": "14:51:34",
+    "price": 1356.97998,
+    "vol": 14.0,
+    "trade_count": null,
+    "bs_flag": null,
+    "raw": {
+     "Second": "53494",
+     "Now": "1356.979980",
+     "NowVol": "14",
+     "VolInStockDiff": "13",
+     "InOutFlag": "0",
+     "HKTTFlag": "",
+     "HKInOutFlag": "0"
+    }
+   },
+   {
+    "market": 1,
+    "code": "600519",
+    "time": "14:51:37",
+    "price": 1356.949951,
+    "vol": 31.0,
+    "trade_count": null,
+    "bs_flag": null,
+    "raw": {
+     "Second": "53497",
+     "Now": "1356.949951",
+     "NowVol": "31",
+     "VolInStockDiff": "22",
+     "InOutFlag": "1",
+     "HKTTFlag": "\u0001",
+     "HKInOutFlag": "0"
+    }
+   },
+   {
+    "market": 1,
+    "code": "600519",
+    "time": "14:51:40",
+    "price": 1356.97998,
+    "vol": 19.0,
+    "trade_count": null,
+    "bs_flag": null,
+    "raw": {
+     "Second": "53500",
+     "Now": "1356.979980",
+     "NowVol": "19",
+     "VolInStockDiff": "18",
+     "InOutFlag": "0",
+     "HKTTFlag": "",
+     "HKInOutFlag": "0"
+    }
+   },
+   {
+    "market": 1,
+    "code": "600519",
+    "time": "14:51:43",
+    "price": 1356.949951,
+    "vol": 10.0,
+    "trade_count": null,
+    "bs_flag": null,
+    "raw": {
+     "Second": "53503",
+     "Now": "1356.949951",
+     "NowVol": "10",
+     "VolInStockDiff": "7",
+     "InOutFlag": "0",
+     "HKTTFlag": "",
+     "HKInOutFlag": "0"
+    }
+   },
+   {
+    "market": 1,
+    "code": "600519",
+    "time": "14:51:46",
+    "price": 1356.969971,
+    "vol": 8.0,
+    "trade_count": null,
+    "bs_flag": null,
+    "raw": {
+     "Second": "53506",
+     "Now": "1356.969971",
+     "NowVol": "8",
+     "VolInStockDiff": "8",
+     "InOutFlag": "0",
+     "HKTTFlag": "",
+     "HKInOutFlag": "0"
+    }
+   },
+   {
+    "market": 1,
+    "code": "600519",
+    "time": "14:51:49",
+    "price": 1356.790039,
+    "vol": 45.0,
+    "trade_count": null,
+    "bs_flag": null,
+    "raw": {
+     "Second": "53509",
+     "Now": "1356.790039",
+     "NowVol": "45",
+     "VolInStockDiff": "31",
+     "InOutFlag": "1",
+     "HKTTFlag": "\u0001",
+     "HKInOutFlag": "0"
+    }
+   },
+   {
+    "market": 1,
+    "code": "600519",
+    "time": "14:51:52",
+    "price": 1356.530029,
+    "vol": 26.0,
+    "trade_count": null,
+    "bs_flag": null,
+    "raw": {
+     "Second": "53512",
+     "Now": "1356.530029",
+     "NowVol": "26",
+     "VolInStockDiff": "18",
+     "InOutFlag": "1",
+     "HKTTFlag": "\u0001",
+     "HKInOutFlag": "0"
+    }
+   },
+   {
+    "market": 1,
+    "code": "600519",
+    "time": "14:51:55",
+    "price": 1356.339966,
+    "vol": 33.0,
+    "trade_count": null,
+    "bs_flag": null,
+    "raw": {
+     "Second": "53515",
+     "Now": "1356.339966",
+     "NowVol": "33",
+     "VolInStockDiff": "26",
+     "InOutFlag": "1",
+     "HKTTFlag": "\u0001",
+     "HKInOutFlag": "0"
+    }
+   },
+   {
+    "market": 1,
+    "code": "600519",
+    "time": "14:51:58",
+    "price": 1356.51001,
+    "vol": 15.0,
+    "trade_count": null,
+    "bs_flag": null,
+    "raw": {
+     "Second": "53518",
+     "Now": "1356.510010",
+     "NowVol": "15",
+     "VolInStockDiff": "12",
+     "InOutFlag": "0",
+     "HKTTFlag": "",
+     "HKInOutFlag": "0"
+    }
+   },
+   {
+    "market": 1,
+    "code": "600519",
+    "time": "14:52:01",
+    "price": 1356.329956,
+    "vol": 25.0,
+    "trade_count": null,
+    "bs_flag": null,
+    "raw": {
+     "Second": "53521",
+     "Now": "1356.329956",
+     "NowVol": "25",
+     "VolInStockDiff": "18",
+     "InOutFlag": "0",
+     "HKTTFlag": "",
+     "HKInOutFlag": "0"
+    }
+   },
+   {
+    "market": 1,
+    "code": "600519",
+    "time": "14:52:04",
+    "price": 1356.369995,
+    "vol": 22.0,
+    "trade_count": null,
+    "bs_flag": null,
+    "raw": {
+     "Second": "53524",
+     "Now": "1356.369995",
+     "NowVol": "22",
+     "VolInStockDiff": "19",
+     "InOutFlag": "0",
+     "HKTTFlag": "",
+     "HKInOutFlag": "0"
+    }
+   },
+   {
+    "market": 1,
+    "code": "600519",
+    "time": "14:52:07",
+    "price": 1356.780029,
+    "vol": 7.0,
+    "trade_count": null,
+    "bs_flag": null,
+    "raw": {
+     "Second": "53527",
+     "Now": "1356.780029",
+     "NowVol": "7",
+     "VolInStockDiff": "7",
+     "InOutFlag": "0",
+     "HKTTFlag": "",
+     "HKInOutFlag": "0"
+    }
+   },
+   {
+    "market": 1,
+    "code": "600519",
+    "time": "14:52:10",
+    "price": 1356.390015,
+    "vol": 23.0,
+    "trade_count": null,
+    "bs_flag": null,
+    "raw": {
+     "Second": "53530",
+     "Now": "1356.390015",
+     "NowVol": "23",
+     "VolInStockDiff": "18",
+     "InOutFlag": "1",
+     "HKTTFlag": "\u0001",
+     "HKInOutFlag": "0"
+    }
+   },
+   {
+    "market": 1,
+    "code": "600519",
+    "time": "14:52:13",
+    "price": 1356.369995,
+    "vol": 15.0,
+    "trade_count": null,
+    "bs_flag": null,
+    "raw": {
+     "Second": "53533",
+     "Now": "1356.369995",
+     "NowVol": "15",
+     "VolInStockDiff": "13",
+     "InOutFlag": "1",
+     "HKTTFlag": "\u0001",
+     "HKInOutFlag": "0"
+    }
+   },
+   {
+    "market": 1,
+    "code": "600519",
+    "time": "14:52:16",
+    "price": 1356.369995,
+    "vol": 16.0,
+    "trade_count": null,
+    "bs_flag": null,
+    "raw": {
+     "Second": "53536",
+     "Now": "1356.369995",
+     "NowVol": "16",
+     "VolInStockDiff": "13",
+     "InOutFlag": "0",
+     "HKTTFlag": "",
+     "HKInOutFlag": "0"
+    }
+   },
+   {
+    "market": 1,
+    "code": "600519",
+    "time": "14:52:19",
+    "price": 1356.790039,
+    "vol": 15.0,
+    "trade_count": null,
+    "bs_flag": null,
+    "raw": {
+     "Second": "53539",
+     "Now": "1356.790039",
+     "NowVol": "15",
+     "VolInStockDiff": "13",
+     "InOutFlag": "0",
+     "HKTTFlag": "",
+     "HKInOutFlag": "0"
+    }
+   },
+   {
+    "market": 1,
+    "code": "600519",
+    "time": "14:52:22",
+    "price": 1356.349976,
+    "vol": 12.0,
+    "trade_count": null,
+    "bs_flag": null,
+    "raw": {
+     "Second": "53542",
+     "Now": "1356.349976",
+     "NowVol": "12",
+     "VolInStockDiff": "10",
+     "InOutFlag": "1",
+     "HKTTFlag": "\u0001",
+     "HKInOutFlag": "0"
+    }
+   },
+   {
+    "market": 1,
+    "code": "600519",
+    "time": "14:52:25",
+    "price": 1356.800049,
+    "vol": 12.0,
+    "trade_count": null,
+    "bs_flag": null,
+    "raw": {
+     "Second": "53545",
+     "Now": "1356.800049",
+     "NowVol": "12",
+     "VolInStockDiff": "10",
+     "InOutFlag": "0",
+     "HKTTFlag": "",
+     "HKInOutFlag": "0"
+    }
+   },
+   {
+    "market": 1,
+    "code": "600519",
+    "time": "14:52:28",
+    "price": 1356.51001,
+    "vol": 36.0,
+    "trade_count": null,
+    "bs_flag": null,
+    "raw": {
+     "Second": "53548",
+     "Now": "1356.510010",
+     "NowVol": "36",
+     "VolInStockDiff": "18",
+     "InOutFlag": "1",
+     "HKTTFlag": "\u0001",
+     "HKInOutFlag": "0"
+    }
+   },
+   {
+    "market": 1,
+    "code": "600519",
+    "time": "14:52:31",
+    "price": 1356.390015,
+    "vol": 12.0,
+    "trade_count": null,
+    "bs_flag": null,
+    "raw": {
+     "Second": "53551",
+     "Now": "1356.390015",
+     "NowVol": "12",
+     "VolInStockDiff": "11",
+     "InOutFlag": "1",
+     "HKTTFlag": "\u0001",
+     "HKInOutFlag": "0"
+    }
+   },
+   {
+    "market": 1,
+    "code": "600519",
+    "time": "14:52:34",
+    "price": 1356.800049,
+    "vol": 22.0,
+    "trade_count": null,
+    "bs_flag": null,
+    "raw": {
+     "Second": "53554",
+     "Now": "1356.800049",
+     "NowVol": "22",
+     "VolInStockDiff": "18",
+     "InOutFlag": "0",
+     "HKTTFlag": "",
+     "HKInOutFlag": "0"
+    }
+   },
+   {
+    "market": 1,
+    "code": "600519",
+    "time": "14:52:37",
+    "price": 1356.780029,
+    "vol": 36.0,
+    "trade_count": null,
+    "bs_flag": null,
+    "raw": {
+     "Second": "53557",
+     "Now": "1356.780029",
+     "NowVol": "36",
+     "VolInStockDiff": "17",
+     "InOutFlag": "0",
+     "HKTTFlag": "",
+     "HKInOutFlag": "0"
+    }
+   },
+   {
+    "market": 1,
+    "code": "600519",
+    "time": "14:52:40",
+    "price": 1356.51001,
+    "vol": 22.0,
+    "trade_count": null,
+    "bs_flag": null,
+    "raw": {
+     "Second": "53560",
+     "Now": "1356.510010",
+     "NowVol": "22",
+     "VolInStockDiff": "21",
+     "InOutFlag": "1",
+     "HKTTFlag": "\u0001",
+     "HKInOutFlag": "0"
+    }
+   },
+   {
+    "market": 1,
+    "code": "600519",
+    "time": "14:52:43",
+    "price": 1356.540039,
+    "vol": 12.0,
+    "trade_count": null,
+    "bs_flag": null,
+    "raw": {
+     "Second": "53563",
+     "Now": "1356.540039",
+     "NowVol": "12",
+     "VolInStockDiff": "10",
+     "InOutFlag": "1",
+     "HKTTFlag": "\u0001",
+     "HKInOutFlag": "0"
+    }
+   },
+   {
+    "market": 1,
+    "code": "600519",
+    "time": "14:52:46",
+    "price": 1356.900024,
+    "vol": 37.0,
+    "trade_count": null,
+    "bs_flag": null,
+    "raw": {
+     "Second": "53566",
+     "Now": "1356.900024",
+     "NowVol": "37",
+     "VolInStockDiff": "11",
+     "InOutFlag": "0",
+     "HKTTFlag": "",
+     "HKInOutFlag": "0"
+    }
+   },
+   {
+    "market": 1,
+    "code": "600519",
+    "time": "14:52:49",
+    "price": 1356.400024,
+    "vol": 32.0,
+    "trade_count": null,
+    "bs_flag": null,
+    "raw": {
+     "Second": "53569",
+     "Now": "1356.400024",
+     "NowVol": "32",
+     "VolInStockDiff": "25",
+     "InOutFlag": "1",
+     "HKTTFlag": "\u0001",
+     "HKInOutFlag": "0"
+    }
+   },
+   {
+    "market": 1,
+    "code": "600519",
+    "time": "14:52:52",
+    "price": 1356.920044,
+    "vol": 10.0,
+    "trade_count": null,
+    "bs_flag": null,
+    "raw": {
+     "Second": "53572",
+     "Now": "1356.920044",
+     "NowVol": "10",
+     "VolInStockDiff": "7",
+     "InOutFlag": "0",
+     "HKTTFlag": "",
+     "HKInOutFlag": "0"
+    }
+   },
+   {
+    "market": 1,
+    "code": "600519",
+    "time": "14:52:55",
+    "price": 1356.400024,
+    "vol": 22.0,
+    "trade_count": null,
+    "bs_flag": null,
+    "raw": {
+     "Second": "53575",
+     "Now": "1356.400024",
+     "NowVol": "22",
+     "VolInStockDiff": "16",
+     "InOutFlag": "1",
+     "HKTTFlag": "\u0001",
+     "HKInOutFlag": "0"
+    }
+   },
+   {
+    "market": 1,
+    "code": "600519",
+    "time": "14:52:58",
+    "price": 1356.900024,
+    "vol": 42.0,
+    "trade_count": null,
+    "bs_flag": null,
+    "raw": {
+     "Second": "53578",
+     "Now": "1356.900024",
+     "NowVol": "42",
+     "VolInStockDiff": "26",
+     "InOutFlag": "0",
+     "HKTTFlag": "",
+     "HKInOutFlag": "0"
+    }
+   },
+   {
+    "market": 1,
+    "code": "600519",
+    "time": "14:53:01",
+    "price": 1356.400024,
+    "vol": 10.0,
+    "trade_count": null,
+    "bs_flag": null,
+    "raw": {
+     "Second": "53581",
+     "Now": "1356.400024",
+     "NowVol": "10",
+     "VolInStockDiff": "9",
+     "InOutFlag": "1",
+     "HKTTFlag": "\u0001",
+     "HKInOutFlag": "0"
+    }
+   },
+   {
+    "market": 1,
+    "code": "600519",
+    "time": "14:53:04",
+    "price": 1356.390015,
+    "vol": 55.0,
+    "trade_count": null,
+    "bs_flag": null,
+    "raw": {
+     "Second": "53584",
+     "Now": "1356.390015",
+     "NowVol": "55",
+     "VolInStockDiff": "27",
+     "InOutFlag": "1",
+     "HKTTFlag": "\u0001",
+     "HKInOutFlag": "0"
+    }
+   },
+   {
+    "market": 1,
+    "code": "600519",
+    "time": "14:53:07",
+    "price": 1356.400024,
+    "vol": 14.0,
+    "trade_count": null,
+    "bs_flag": null,
+    "raw": {
+     "Second": "53587",
+     "Now": "1356.400024",
+     "NowVol": "14",
+     "VolInStockDiff": "8",
+     "InOutFlag": "1",
+     "HKTTFlag": "\u0001",
+     "HKInOutFlag": "0"
+    }
+   },
+   {
+    "market": 1,
+    "code": "600519",
+    "time": "14:53:10",
+    "price": 1356.880005,
+    "vol": 17.0,
+    "trade_count": null,
+    "bs_flag": null,
+    "raw": {
+     "Second": "53590",
+     "Now": "1356.880005",
+     "NowVol": "17",
+     "VolInStockDiff": "14",
+     "InOutFlag": "0",
+     "HKTTFlag": "",
+     "HKInOutFlag": "0"
+    }
+   },
+   {
+    "market": 1,
+    "code": "600519",
+    "time": "14:53:13",
+    "price": 1356.410034,
+    "vol": 19.0,
+    "trade_count": null,
+    "bs_flag": null,
+    "raw": {
+     "Second": "53593",
+     "Now": "1356.410034",
+     "NowVol": "19",
+     "VolInStockDiff": "15",
+     "InOutFlag": "1",
+     "HKTTFlag": "\u0001",
+     "HKInOutFlag": "0"
+    }
+   },
+   {
+    "market": 1,
+    "code": "600519",
+    "time": "14:53:16",
+    "price": 1356.089966,
+    "vol": 25.0,
+    "trade_count": null,
+    "bs_flag": null,
+    "raw": {
+     "Second": "53596",
+     "Now": "1356.089966",
+     "NowVol": "25",
+     "VolInStockDiff": "24",
+     "InOutFlag": "1",
+     "HKTTFlag": "\u0001",
+     "HKInOutFlag": "0"
+    }
+   },
+   {
+    "market": 1,
+    "code": "600519",
+    "time": "14:53:19",
+    "price": 1356.099976,
+    "vol": 13.0,
+    "trade_count": null,
+    "bs_flag": null,
+    "raw": {
+     "Second": "53599",
+     "Now": "1356.099976",
+     "NowVol": "13",
+     "VolInStockDiff": "12",
+     "InOutFlag": "1",
+     "HKTTFlag": "\u0001",
+     "HKInOutFlag": "0"
+    }
+   },
+   {
+    "market": 1,
+    "code": "600519",
+    "time": "14:53:22",
+    "price": 1356.109985,
+    "vol": 33.0,
+    "trade_count": null,
+    "bs_flag": null,
+    "raw": {
+     "Second": "53602",
+     "Now": "1356.109985",
+     "NowVol": "33",
+     "VolInStockDiff": "12",
+     "InOutFlag": "1",
+     "HKTTFlag": "\u0001",
+     "HKInOutFlag": "0"
+    }
+   },
+   {
+    "market": 1,
+    "code": "600519",
+    "time": "14:53:25",
+    "price": 1356.099976,
+    "vol": 23.0,
+    "trade_count": null,
+    "bs_flag": null,
+    "raw": {
+     "Second": "53605",
+     "Now": "1356.099976",
+     "NowVol": "23",
+     "VolInStockDiff": "17",
+     "InOutFlag": "1",
+     "HKTTFlag": "\u0001",
+     "HKInOutFlag": "0"
+    }
+   },
+   {
+    "market": 1,
+    "code": "600519",
+    "time": "14:53:28",
+    "price": 1356.0,
+    "vol": 30.0,
+    "trade_count": null,
+    "bs_flag": null,
+    "raw": {
+     "Second": "53608",
+     "Now": "1356.000000",
+     "NowVol": "30",
+     "VolInStockDiff": "19",
+     "InOutFlag": "1",
+     "HKTTFlag": "\u0001",
+     "HKInOutFlag": "0"
+    }
+   },
+   {
+    "market": 1,
+    "code": "600519",
+    "time": "14:53:31",
+    "price": 1355.550049,
+    "vol": 19.0,
+    "trade_count": null,
+    "bs_flag": null,
+    "raw": {
+     "Second": "53611",
+     "Now": "1355.550049",
+     "NowVol": "19",
+     "VolInStockDiff": "11",
+     "InOutFlag": "1",
+     "HKTTFlag": "\u0001",
+     "HKInOutFlag": "0"
+    }
+   },
+   {
+    "market": 1,
+    "code": "600519",
+    "time": "14:53:34",
+    "price": 1355.52002,
+    "vol": 9.0,
+    "trade_count": null,
+    "bs_flag": null,
+    "raw": {
+     "Second": "53614",
+     "Now": "1355.520020",
+     "NowVol": "9",
+     "VolInStockDiff": "7",
+     "InOutFlag": "1",
+     "HKTTFlag": "\u0001",
+     "HKInOutFlag": "0"
+    }
+   },
+   {
+    "market": 1,
+    "code": "600519",
+    "time": "14:53:37",
+    "price": 1355.52002,
+    "vol": 6.0,
+    "trade_count": null,
+    "bs_flag": null,
+    "raw": {
+     "Second": "53617",
+     "Now": "1355.520020",
+     "NowVol": "6",
+     "VolInStockDiff": "4",
+     "InOutFlag": "1",
+     "HKTTFlag": "\u0001",
+     "HKInOutFlag": "0"
+    }
+   },
+   {
+    "market": 1,
+    "code": "600519",
+    "time": "14:53:40",
+    "price": 1356.099976,
+    "vol": 14.0,
+    "trade_count": null,
+    "bs_flag": null,
+    "raw": {
+     "Second": "53620",
+     "Now": "1356.099976",
+     "NowVol": "14",
+     "VolInStockDiff": "12",
+     "InOutFlag": "0",
+     "HKTTFlag": "",
+     "HKInOutFlag": "0"
+    }
+   },
+   {
+    "market": 1,
+    "code": "600519",
+    "time": "14:53:43",
+    "price": 1356.199951,
+    "vol": 16.0,
+    "trade_count": null,
+    "bs_flag": null,
+    "raw": {
+     "Second": "53623",
+     "Now": "1356.199951",
+     "NowVol": "16",
+     "VolInStockDiff": "9",
+     "InOutFlag": "0",
+     "HKTTFlag": "",
+     "HKInOutFlag": "0"
+    }
+   },
+   {
+    "market": 1,
+    "code": "600519",
+    "time": "14:53:46",
+    "price": 1355.790039,
+    "vol": 16.0,
+    "trade_count": null,
+    "bs_flag": null,
+    "raw": {
+     "Second": "53626",
+     "Now": "1355.790039",
+     "NowVol": "16",
+     "VolInStockDiff": "14",
+     "InOutFlag": "1",
+     "HKTTFlag": "\u0001",
+     "HKInOutFlag": "0"
+    }
+   },
+   {
+    "market": 1,
+    "code": "600519",
+    "time": "14:53:49",
+    "price": 1356.310059,
+    "vol": 18.0,
+    "trade_count": null,
+    "bs_flag": null,
+    "raw": {
+     "Second": "53629",
+     "Now": "1356.310059",
+     "NowVol": "18",
+     "VolInStockDiff": "14",
+     "InOutFlag": "0",
+     "HKTTFlag": "",
+     "HKInOutFlag": "0"
+    }
+   },
+   {
+    "market": 1,
+    "code": "600519",
+    "time": "14:53:52",
+    "price": 1356.800049,
+    "vol": 13.0,
+    "trade_count": null,
+    "bs_flag": null,
+    "raw": {
+     "Second": "53632",
+     "Now": "1356.800049",
+     "NowVol": "13",
+     "VolInStockDiff": "8",
+     "InOutFlag": "0",
+     "HKTTFlag": "",
+     "HKInOutFlag": "0"
+    }
+   },
+   {
+    "market": 1,
+    "code": "600519",
+    "time": "14:53:55",
+    "price": 1356.079956,
+    "vol": 21.0,
+    "trade_count": null,
+    "bs_flag": null,
+    "raw": {
+     "Second": "53635",
+     "Now": "1356.079956",
+     "NowVol": "21",
+     "VolInStockDiff": "14",
+     "InOutFlag": "1",
+     "HKTTFlag": "\u0001",
+     "HKInOutFlag": "0"
+    }
+   },
+   {
+    "market": 1,
+    "code": "600519",
+    "time": "14:53:58",
+    "price": 1356.079956,
+    "vol": 6.0,
+    "trade_count": null,
+    "bs_flag": null,
+    "raw": {
+     "Second": "53638",
+     "Now": "1356.079956",
+     "NowVol": "6",
+     "VolInStockDiff": "6",
+     "InOutFlag": "1",
+     "HKTTFlag": "\u0001",
+     "HKInOutFlag": "0"
+    }
+   },
+   {
+    "market": 1,
+    "code": "600519",
+    "time": "14:54:01",
+    "price": 1356.199951,
+    "vol": 43.0,
+    "trade_count": null,
+    "bs_flag": null,
+    "raw": {
+     "Second": "53641",
+     "Now": "1356.199951",
+     "NowVol": "43",
+     "VolInStockDiff": "26",
+     "InOutFlag": "0",
+     "HKTTFlag": "",
+     "HKInOutFlag": "0"
+    }
+   },
+   {
+    "market": 1,
+    "code": "600519",
+    "time": "14:54:04",
+    "price": 1356.180054,
+    "vol": 86.0,
+    "trade_count": null,
+    "bs_flag": null,
+    "raw": {
+     "Second": "53644",
+     "Now": "1356.180054",
+     "NowVol": "86",
+     "VolInStockDiff": "62",
+     "InOutFlag": "0",
+     "HKTTFlag": "",
+     "HKInOutFlag": "0"
+    }
+   },
+   {
+    "market": 1,
+    "code": "600519",
+    "time": "14:54:07",
+    "price": 1354.47998,
+    "vol": 14.0,
+    "trade_count": null,
+    "bs_flag": null,
+    "raw": {
+     "Second": "53647",
+     "Now": "1354.479980",
+     "NowVol": "14",
+     "VolInStockDiff": "14",
+     "InOutFlag": "1",
+     "HKTTFlag": "\u0001",
+     "HKInOutFlag": "0"
+    }
+   },
+   {
+    "market": 1,
+    "code": "600519",
+    "time": "14:54:10",
+    "price": 1356.300049,
+    "vol": 21.0,
+    "trade_count": null,
+    "bs_flag": null,
+    "raw": {
+     "Second": "53650",
+     "Now": "1356.300049",
+     "NowVol": "21",
+     "VolInStockDiff": "19",
+     "InOutFlag": "0",
+     "HKTTFlag": "",
+     "HKInOutFlag": "0"
+    }
+   },
+   {
+    "market": 1,
+    "code": "600519",
+    "time": "14:54:13",
+    "price": 1356.0,
+    "vol": 17.0,
+    "trade_count": null,
+    "bs_flag": null,
+    "raw": {
+     "Second": "53653",
+     "Now": "1356.000000",
+     "NowVol": "17",
+     "VolInStockDiff": "11",
+     "InOutFlag": "0",
+     "HKTTFlag": "",
+     "HKInOutFlag": "0"
+    }
+   },
+   {
+    "market": 1,
+    "code": "600519",
+    "time": "14:54:16",
+    "price": 1355.52002,
+    "vol": 24.0,
+    "trade_count": null,
+    "bs_flag": null,
+    "raw": {
+     "Second": "53656",
+     "Now": "1355.520020",
+     "NowVol": "24",
+     "VolInStockDiff": "17",
+     "InOutFlag": "1",
+     "HKTTFlag": "\u0001",
+     "HKInOutFlag": "0"
+    }
+   },
+   {
+    "market": 1,
+    "code": "600519",
+    "time": "14:54:19",
+    "price": 1356.069946,
+    "vol": 18.0,
+    "trade_count": null,
+    "bs_flag": null,
+    "raw": {
+     "Second": "53659",
+     "Now": "1356.069946",
+     "NowVol": "18",
+     "VolInStockDiff": "15",
+     "InOutFlag": "0",
+     "HKTTFlag": "",
+     "HKInOutFlag": "0"
+    }
+   },
+   {
+    "market": 1,
+    "code": "600519",
+    "time": "14:54:22",
+    "price": 1356.099976,
+    "vol": 19.0,
+    "trade_count": null,
+    "bs_flag": null,
+    "raw": {
+     "Second": "53662",
+     "Now": "1356.099976",
+     "NowVol": "19",
+     "VolInStockDiff": "16",
+     "InOutFlag": "0",
+     "HKTTFlag": "",
+     "HKInOutFlag": "0"
+    }
+   },
+   {
+    "market": 1,
+    "code": "600519",
+    "time": "14:54:25",
+    "price": 1355.709961,
+    "vol": 20.0,
+    "trade_count": null,
+    "bs_flag": null,
+    "raw": {
+     "Second": "53665",
+     "Now": "1355.709961",
+     "NowVol": "20",
+     "VolInStockDiff": "14",
+     "InOutFlag": "1",
+     "HKTTFlag": "\u0001",
+     "HKInOutFlag": "0"
+    }
+   },
+   {
+    "market": 1,
+    "code": "600519",
+    "time": "14:54:28",
+    "price": 1355.709961,
+    "vol": 28.0,
+    "trade_count": null,
+    "bs_flag": null,
+    "raw": {
+     "Second": "53668",
+     "Now": "1355.709961",
+     "NowVol": "28",
+     "VolInStockDiff": "19",
+     "InOutFlag": "1",
+     "HKTTFlag": "\u0001",
+     "HKInOutFlag": "0"
+    }
+   },
+   {
+    "market": 1,
+    "code": "600519",
+    "time": "14:54:31",
+    "price": 1355.699951,
+    "vol": 35.0,
+    "trade_count": null,
+    "bs_flag": null,
+    "raw": {
+     "Second": "53671",
+     "Now": "1355.699951",
+     "NowVol": "35",
+     "VolInStockDiff": "19",
+     "InOutFlag": "1",
+     "HKTTFlag": "\u0001",
+     "HKInOutFlag": "0"
+    }
+   },
+   {
+    "market": 1,
+    "code": "600519",
+    "time": "14:54:34",
+    "price": 1355.709961,
+    "vol": 7.0,
+    "trade_count": null,
+    "bs_flag": null,
+    "raw": {
+     "Second": "53674",
+     "Now": "1355.709961",
+     "NowVol": "7",
+     "VolInStockDiff": "6",
+     "InOutFlag": "0",
+     "HKTTFlag": "",
+     "HKInOutFlag": "0"
+    }
+   },
+   {
+    "market": 1,
+    "code": "600519",
+    "time": "14:54:37",
+    "price": 1355.719971,
+    "vol": 10.0,
+    "trade_count": null,
+    "bs_flag": null,
+    "raw": {
+     "Second": "53677",
+     "Now": "1355.719971",
+     "NowVol": "10",
+     "VolInStockDiff": "9",
+     "InOutFlag": "0",
+     "HKTTFlag": "",
+     "HKInOutFlag": "0"
+    }
+   },
+   {
+    "market": 1,
+    "code": "600519",
+    "time": "14:54:40",
+    "price": 1356.0,
+    "vol": 15.0,
+    "trade_count": null,
+    "bs_flag": null,
+    "raw": {
+     "Second": "53680",
+     "Now": "1356.000000",
+     "NowVol": "15",
+     "VolInStockDiff": "14",
+     "InOutFlag": "0",
+     "HKTTFlag": "",
+     "HKInOutFlag": "0"
+    }
+   },
+   {
+    "market": 1,
+    "code": "600519",
+    "time": "14:54:43",
+    "price": 1355.569946,
+    "vol": 20.0,
+    "trade_count": null,
+    "bs_flag": null,
+    "raw": {
+     "Second": "53683",
+     "Now": "1355.569946",
+     "NowVol": "20",
+     "VolInStockDiff": "14",
+     "InOutFlag": "1",
+     "HKTTFlag": "\u0001",
+     "HKInOutFlag": "0"
+    }
+   },
+   {
+    "market": 1,
+    "code": "600519",
+    "time": "14:54:46",
+    "price": 1356.0,
+    "vol": 16.0,
+    "trade_count": null,
+    "bs_flag": null,
+    "raw": {
+     "Second": "53686",
+     "Now": "1356.000000",
+     "NowVol": "16",
+     "VolInStockDiff": "15",
+     "InOutFlag": "0",
+     "HKTTFlag": "",
+     "HKInOutFlag": "0"
+    }
+   },
+   {
+    "market": 1,
+    "code": "600519",
+    "time": "14:54:49",
+    "price": 1356.089966,
+    "vol": 17.0,
+    "trade_count": null,
+    "bs_flag": null,
+    "raw": {
+     "Second": "53689",
+     "Now": "1356.089966",
+     "NowVol": "17",
+     "VolInStockDiff": "15",
+     "InOutFlag": "0",
+     "HKTTFlag": "",
+     "HKInOutFlag": "0"
+    }
+   },
+   {
+    "market": 1,
+    "code": "600519",
+    "time": "14:54:52",
+    "price": 1356.689941,
+    "vol": 25.0,
+    "trade_count": null,
+    "bs_flag": null,
+    "raw": {
+     "Second": "53692",
+     "Now": "1356.689941",
+     "NowVol": "25",
+     "VolInStockDiff": "14",
+     "InOutFlag": "0",
+     "HKTTFlag": "",
+     "HKInOutFlag": "0"
+    }
+   },
+   {
+    "market": 1,
+    "code": "600519",
+    "time": "14:54:55",
+    "price": 1356.180054,
+    "vol": 17.0,
+    "trade_count": null,
+    "bs_flag": null,
+    "raw": {
+     "Second": "53695",
+     "Now": "1356.180054",
+     "NowVol": "17",
+     "VolInStockDiff": "13",
+     "InOutFlag": "0",
+     "HKTTFlag": "",
+     "HKInOutFlag": "0"
+    }
+   },
+   {
+    "market": 1,
+    "code": "600519",
+    "time": "14:54:58",
+    "price": 1356.170044,
+    "vol": 14.0,
+    "trade_count": null,
+    "bs_flag": null,
+    "raw": {
+     "Second": "53698",
+     "Now": "1356.170044",
+     "NowVol": "14",
+     "VolInStockDiff": "9",
+     "InOutFlag": "0",
+     "HKTTFlag": "",
+     "HKInOutFlag": "0"
+    }
+   },
+   {
+    "market": 1,
+    "code": "600519",
+    "time": "14:55:01",
+    "price": 1355.660034,
+    "vol": 29.0,
+    "trade_count": null,
+    "bs_flag": null,
+    "raw": {
+     "Second": "53701",
+     "Now": "1355.660034",
+     "NowVol": "29",
+     "VolInStockDiff": "16",
+     "InOutFlag": "1",
+     "HKTTFlag": "\u0001",
+     "HKInOutFlag": "0"
+    }
+   },
+   {
+    "market": 1,
+    "code": "600519",
+    "time": "14:55:04",
+    "price": 1356.099976,
+    "vol": 15.0,
+    "trade_count": null,
+    "bs_flag": null,
+    "raw": {
+     "Second": "53704",
+     "Now": "1356.099976",
+     "NowVol": "15",
+     "VolInStockDiff": "13",
+     "InOutFlag": "0",
+     "HKTTFlag": "",
+     "HKInOutFlag": "0"
+    }
+   },
+   {
+    "market": 1,
+    "code": "600519",
+    "time": "14:55:07",
+    "price": 1355.670044,
+    "vol": 18.0,
+    "trade_count": null,
+    "bs_flag": null,
+    "raw": {
+     "Second": "53707",
+     "Now": "1355.670044",
+     "NowVol": "18",
+     "VolInStockDiff": "14",
+     "InOutFlag": "1",
+     "HKTTFlag": "\u0001",
+     "HKInOutFlag": "0"
+    }
+   },
+   {
+    "market": 1,
+    "code": "600519",
+    "time": "14:55:10",
+    "price": 1355.77002,
+    "vol": 7.0,
+    "trade_count": null,
+    "bs_flag": null,
+    "raw": {
+     "Second": "53710",
+     "Now": "1355.770020",
+     "NowVol": "7",
+     "VolInStockDiff": "6",
+     "InOutFlag": "0",
+     "HKTTFlag": "",
+     "HKInOutFlag": "0"
+    }
+   },
+   {
+    "market": 1,
+    "code": "600519",
+    "time": "14:55:13",
+    "price": 1356.0,
+    "vol": 9.0,
+    "trade_count": null,
+    "bs_flag": null,
+    "raw": {
+     "Second": "53713",
+     "Now": "1356.000000",
+     "NowVol": "9",
+     "VolInStockDiff": "8",
+     "InOutFlag": "0",
+     "HKTTFlag": "",
+     "HKInOutFlag": "0"
+    }
+   },
+   {
+    "market": 1,
+    "code": "600519",
+    "time": "14:55:16",
+    "price": 1355.660034,
+    "vol": 24.0,
+    "trade_count": null,
+    "bs_flag": null,
+    "raw": {
+     "Second": "53716",
+     "Now": "1355.660034",
+     "NowVol": "24",
+     "VolInStockDiff": "16",
+     "InOutFlag": "1",
+     "HKTTFlag": "\u0001",
+     "HKInOutFlag": "0"
+    }
+   },
+   {
+    "market": 1,
+    "code": "600519",
+    "time": "14:55:19",
+    "price": 1356.0,
+    "vol": 11.0,
+    "trade_count": null,
+    "bs_flag": null,
+    "raw": {
+     "Second": "53719",
+     "Now": "1356.000000",
+     "NowVol": "11",
+     "VolInStockDiff": "11",
+     "InOutFlag": "0",
+     "HKTTFlag": "",
+     "HKInOutFlag": "0"
+    }
+   },
+   {
+    "market": 1,
+    "code": "600519",
+    "time": "14:55:22",
+    "price": 1355.369995,
+    "vol": 23.0,
+    "trade_count": null,
+    "bs_flag": null,
+    "raw": {
+     "Second": "53722",
+     "Now": "1355.369995",
+     "NowVol": "23",
+     "VolInStockDiff": "21",
+     "InOutFlag": "1",
+     "HKTTFlag": "\u0001",
+     "HKInOutFlag": "0"
+    }
+   },
+   {
+    "market": 1,
+    "code": "600519",
+    "time": "14:55:25",
+    "price": 1356.170044,
+    "vol": 16.0,
+    "trade_count": null,
+    "bs_flag": null,
+    "raw": {
+     "Second": "53725",
+     "Now": "1356.170044",
+     "NowVol": "16",
+     "VolInStockDiff": "13",
+     "InOutFlag": "0",
+     "HKTTFlag": "",
+     "HKInOutFlag": "0"
+    }
+   },
+   {
+    "market": 1,
+    "code": "600519",
+    "time": "14:55:28",
+    "price": 1356.0,
+    "vol": 13.0,
+    "trade_count": null,
+    "bs_flag": null,
+    "raw": {
+     "Second": "53728",
+     "Now": "1356.000000",
+     "NowVol": "13",
+     "VolInStockDiff": "8",
+     "InOutFlag": "0",
+     "HKTTFlag": "",
+     "HKInOutFlag": "0"
+    }
+   },
+   {
+    "market": 1,
+    "code": "600519",
+    "time": "14:55:31",
+    "price": 1356.079956,
+    "vol": 16.0,
+    "trade_count": null,
+    "bs_flag": null,
+    "raw": {
+     "Second": "53731",
+     "Now": "1356.079956",
+     "NowVol": "16",
+     "VolInStockDiff": "13",
+     "InOutFlag": "0",
+     "HKTTFlag": "",
+     "HKInOutFlag": "0"
+    }
+   },
+   {
+    "market": 1,
+    "code": "600519",
+    "time": "14:55:34",
+    "price": 1355.98999,
+    "vol": 23.0,
+    "trade_count": null,
+    "bs_flag": null,
+    "raw": {
+     "Second": "53734",
+     "Now": "1355.989990",
+     "NowVol": "23",
+     "VolInStockDiff": "16",
+     "InOutFlag": "0",
+     "HKTTFlag": "",
+     "HKInOutFlag": "0"
+    }
+   },
+   {
+    "market": 1,
+    "code": "600519",
+    "time": "14:55:37",
+    "price": 1356.060059,
+    "vol": 9.0,
+    "trade_count": null,
+    "bs_flag": null,
+    "raw": {
+     "Second": "53737",
+     "Now": "1356.060059",
+     "NowVol": "9",
+     "VolInStockDiff": "8",
+     "InOutFlag": "0",
+     "HKTTFlag": "",
+     "HKInOutFlag": "0"
+    }
+   },
+   {
+    "market": 1,
+    "code": "600519",
+    "time": "14:55:40",
+    "price": 1356.069946,
+    "vol": 21.0,
+    "trade_count": null,
+    "bs_flag": null,
+    "raw": {
+     "Second": "53740",
+     "Now": "1356.069946",
+     "NowVol": "21",
+     "VolInStockDiff": "18",
+     "InOutFlag": "0",
+     "HKTTFlag": "",
+     "HKInOutFlag": "0"
+    }
+   },
+   {
+    "market": 1,
+    "code": "600519",
+    "time": "14:55:43",
+    "price": 1356.079956,
+    "vol": 19.0,
+    "trade_count": null,
+    "bs_flag": null,
+    "raw": {
+     "Second": "53743",
+     "Now": "1356.079956",
+     "NowVol": "19",
+     "VolInStockDiff": "15",
+     "InOutFlag": "0",
+     "HKTTFlag": "",
+     "HKInOutFlag": "0"
+    }
+   },
+   {
+    "market": 1,
+    "code": "600519",
+    "time": "14:55:46",
+    "price": 1356.079956,
+    "vol": 23.0,
+    "trade_count": null,
+    "bs_flag": null,
+    "raw": {
+     "Second": "53746",
+     "Now": "1356.079956",
+     "NowVol": "23",
+     "VolInStockDiff": "18",
+     "InOutFlag": "0",
+     "HKTTFlag": "",
+     "HKInOutFlag": "0"
+    }
+   },
+   {
+    "market": 1,
+    "code": "600519",
+    "time": "14:55:49",
+    "price": 1355.369995,
+    "vol": 13.0,
+    "trade_count": null,
+    "bs_flag": null,
+    "raw": {
+     "Second": "53749",
+     "Now": "1355.369995",
+     "NowVol": "13",
+     "VolInStockDiff": "12",
+     "InOutFlag": "1",
+     "HKTTFlag": "\u0001",
+     "HKInOutFlag": "0"
+    }
+   },
+   {
+    "market": 1,
+    "code": "600519",
+    "time": "14:55:52",
+    "price": 1355.380005,
+    "vol": 24.0,
+    "trade_count": null,
+    "bs_flag": null,
+    "raw": {
+     "Second": "53752",
+     "Now": "1355.380005",
+     "NowVol": "24",
+     "VolInStockDiff": "18",
+     "InOutFlag": "1",
+     "HKTTFlag": "\u0001",
+     "HKInOutFlag": "0"
+    }
+   },
+   {
+    "market": 1,
+    "code": "600519",
+    "time": "14:55:55",
+    "price": 1355.719971,
+    "vol": 35.0,
+    "trade_count": null,
+    "bs_flag": null,
+    "raw": {
+     "Second": "53755",
+     "Now": "1355.719971",
+     "NowVol": "35",
+     "VolInStockDiff": "26",
+     "InOutFlag": "0",
+     "HKTTFlag": "",
+     "HKInOutFlag": "0"
+    }
+   },
+   {
+    "market": 1,
+    "code": "600519",
+    "time": "14:55:58",
+    "price": 1355.089966,
+    "vol": 33.0,
+    "trade_count": null,
+    "bs_flag": null,
+    "raw": {
+     "Second": "53758",
+     "Now": "1355.089966",
+     "NowVol": "33",
+     "VolInStockDiff": "13",
+     "InOutFlag": "1",
+     "HKTTFlag": "\u0001",
+     "HKInOutFlag": "0"
+    }
+   },
+   {
+    "market": 1,
+    "code": "600519",
+    "time": "14:56:01",
+    "price": 1355.52002,
+    "vol": 23.0,
+    "trade_count": null,
+    "bs_flag": null,
+    "raw": {
+     "Second": "53761",
+     "Now": "1355.520020",
+     "NowVol": "23",
+     "VolInStockDiff": "20",
+     "InOutFlag": "0",
+     "HKTTFlag": "",
+     "HKInOutFlag": "0"
+    }
+   },
+   {
+    "market": 1,
+    "code": "600519",
+    "time": "14:56:04",
+    "price": 1355.619995,
+    "vol": 23.0,
+    "trade_count": null,
+    "bs_flag": null,
+    "raw": {
+     "Second": "53764",
+     "Now": "1355.619995",
+     "NowVol": "23",
+     "VolInStockDiff": "14",
+     "InOutFlag": "0",
+     "HKTTFlag": "",
+     "HKInOutFlag": "0"
+    }
+   },
+   {
+    "market": 1,
+    "code": "600519",
+    "time": "14:56:07",
+    "price": 1355.0,
+    "vol": 43.0,
+    "trade_count": null,
+    "bs_flag": null,
+    "raw": {
+     "Second": "53767",
+     "Now": "1355.000000",
+     "NowVol": "43",
+     "VolInStockDiff": "28",
+     "InOutFlag": "1",
+     "HKTTFlag": "\u0001",
+     "HKInOutFlag": "0"
+    }
+   },
+   {
+    "market": 1,
+    "code": "600519",
+    "time": "14:56:10",
+    "price": 1355.810059,
+    "vol": 29.0,
+    "trade_count": null,
+    "bs_flag": null,
+    "raw": {
+     "Second": "53770",
+     "Now": "1355.810059",
+     "NowVol": "29",
+     "VolInStockDiff": "23",
+     "InOutFlag": "0",
+     "HKTTFlag": "",
+     "HKInOutFlag": "0"
+    }
+   },
+   {
+    "market": 1,
+    "code": "600519",
+    "time": "14:56:13",
+    "price": 1355.98999,
+    "vol": 18.0,
+    "trade_count": null,
+    "bs_flag": null,
+    "raw": {
+     "Second": "53773",
+     "Now": "1355.989990",
+     "NowVol": "18",
+     "VolInStockDiff": "13",
+     "InOutFlag": "0",
+     "HKTTFlag": "",
+     "HKInOutFlag": "0"
+    }
+   },
+   {
+    "market": 1,
+    "code": "600519",
+    "time": "14:56:16",
+    "price": 1354.01001,
+    "vol": 22.0,
+    "trade_count": null,
+    "bs_flag": null,
+    "raw": {
+     "Second": "53776",
+     "Now": "1354.010010",
+     "NowVol": "22",
+     "VolInStockDiff": "17",
+     "InOutFlag": "1",
+     "HKTTFlag": "\u0001",
+     "HKInOutFlag": "0"
+    }
+   },
+   {
+    "market": 1,
+    "code": "600519",
+    "time": "14:56:19",
+    "price": 1355.810059,
+    "vol": 8.0,
+    "trade_count": null,
+    "bs_flag": null,
+    "raw": {
+     "Second": "53779",
+     "Now": "1355.810059",
+     "NowVol": "8",
+     "VolInStockDiff": "6",
+     "InOutFlag": "0",
+     "HKTTFlag": "",
+     "HKInOutFlag": "0"
+    }
+   },
+   {
+    "market": 1,
+    "code": "600519",
+    "time": "14:56:22",
+    "price": 1354.209961,
+    "vol": 11.0,
+    "trade_count": null,
+    "bs_flag": null,
+    "raw": {
+     "Second": "53782",
+     "Now": "1354.209961",
+     "NowVol": "11",
+     "VolInStockDiff": "11",
+     "InOutFlag": "1",
+     "HKTTFlag": "\u0001",
+     "HKInOutFlag": "0"
+    }
+   },
+   {
+    "market": 1,
+    "code": "600519",
+    "time": "14:56:25",
+    "price": 1355.380005,
+    "vol": 8.0,
+    "trade_count": null,
+    "bs_flag": null,
+    "raw": {
+     "Second": "53785",
+     "Now": "1355.380005",
+     "NowVol": "8",
+     "VolInStockDiff": "6",
+     "InOutFlag": "0",
+     "HKTTFlag": "",
+     "HKInOutFlag": "0"
+    }
+   },
+   {
+    "market": 1,
+    "code": "600519",
+    "time": "14:56:28",
+    "price": 1355.880005,
+    "vol": 8.0,
+    "trade_count": null,
+    "bs_flag": null,
+    "raw": {
+     "Second": "53788",
+     "Now": "1355.880005",
+     "NowVol": "8",
+     "VolInStockDiff": "7",
+     "InOutFlag": "0",
+     "HKTTFlag": "",
+     "HKInOutFlag": "0"
+    }
+   },
+   {
+    "market": 1,
+    "code": "600519",
+    "time": "14:56:31",
+    "price": 1354.209961,
+    "vol": 69.0,
+    "trade_count": null,
+    "bs_flag": null,
+    "raw": {
+     "Second": "53791",
+     "Now": "1354.209961",
+     "NowVol": "69",
+     "VolInStockDiff": "27",
+     "InOutFlag": "1",
+     "HKTTFlag": "\u0001",
+     "HKInOutFlag": "0"
+    }
+   },
+   {
+    "market": 1,
+    "code": "600519",
+    "time": "14:56:34",
+    "price": 1356.0,
+    "vol": 15.0,
+    "trade_count": null,
+    "bs_flag": null,
+    "raw": {
+     "Second": "53794",
+     "Now": "1356.000000",
+     "NowVol": "15",
+     "VolInStockDiff": "13",
+     "InOutFlag": "0",
+     "HKTTFlag": "",
+     "HKInOutFlag": "0"
+    }
+   },
+   {
+    "market": 1,
+    "code": "600519",
+    "time": "14:56:37",
+    "price": 1354.01001,
+    "vol": 25.0,
+    "trade_count": null,
+    "bs_flag": null,
+    "raw": {
+     "Second": "53797",
+     "Now": "1354.010010",
+     "NowVol": "25",
+     "VolInStockDiff": "16",
+     "InOutFlag": "1",
+     "HKTTFlag": "\u0001",
+     "HKInOutFlag": "0"
+    }
+   },
+   {
+    "market": 1,
+    "code": "600519",
+    "time": "14:56:41",
+    "price": 1353.98999,
+    "vol": 3.0,
+    "trade_count": null,
+    "bs_flag": null,
+    "raw": {
+     "Second": "53801",
+     "Now": "1353.989990",
+     "NowVol": "3",
+     "VolInStockDiff": "3",
+     "InOutFlag": "1",
+     "HKTTFlag": "\u0001",
+     "HKInOutFlag": "0"
+    }
+   },
+   {
+    "market": 1,
+    "code": "600519",
+    "time": "14:56:43",
+    "price": 1354.01001,
+    "vol": 6.0,
+    "trade_count": null,
+    "bs_flag": null,
+    "raw": {
+     "Second": "53803",
+     "Now": "1354.010010",
+     "NowVol": "6",
+     "VolInStockDiff": "6",
+     "InOutFlag": "0",
+     "HKTTFlag": "",
+     "HKInOutFlag": "0"
+    }
+   },
+   {
+    "market": 1,
+    "code": "600519",
+    "time": "14:56:46",
+    "price": 1354.01001,
+    "vol": 3.0,
+    "trade_count": null,
+    "bs_flag": null,
+    "raw": {
+     "Second": "53806",
+     "Now": "1354.010010",
+     "NowVol": "3",
+     "VolInStockDiff": "3",
+     "InOutFlag": "0",
+     "HKTTFlag": "",
+     "HKInOutFlag": "0"
+    }
+   },
+   {
+    "market": 1,
+    "code": "600519",
+    "time": "14:56:49",
+    "price": 1355.890015,
+    "vol": 12.0,
+    "trade_count": null,
+    "bs_flag": null,
+    "raw": {
+     "Second": "53809",
+     "Now": "1355.890015",
+     "NowVol": "12",
+     "VolInStockDiff": "12",
+     "InOutFlag": "0",
+     "HKTTFlag": "",
+     "HKInOutFlag": "0"
+    }
+   },
+   {
+    "market": 1,
+    "code": "600519",
+    "time": "14:56:52",
+    "price": 1354.02002,
+    "vol": 7.0,
+    "trade_count": null,
+    "bs_flag": null,
+    "raw": {
+     "Second": "53812",
+     "Now": "1354.020020",
+     "NowVol": "7",
+     "VolInStockDiff": "6",
+     "InOutFlag": "1",
+     "HKTTFlag": "\u0001",
+     "HKInOutFlag": "0"
+    }
+   },
+   {
+    "market": 1,
+    "code": "600519",
+    "time": "14:56:55",
+    "price": 1353.199951,
+    "vol": 14.0,
+    "trade_count": null,
+    "bs_flag": null,
+    "raw": {
+     "Second": "53815",
+     "Now": "1353.199951",
+     "NowVol": "14",
+     "VolInStockDiff": "14",
+     "InOutFlag": "1",
+     "HKTTFlag": "\u0001",
+     "HKInOutFlag": "0"
+    }
+   },
+   {
+    "market": 1,
+    "code": "600519",
+    "time": "14:56:58",
+    "price": 1355.900024,
+    "vol": 5.0,
+    "trade_count": null,
+    "bs_flag": null,
+    "raw": {
+     "Second": "53818",
+     "Now": "1355.900024",
+     "NowVol": "5",
+     "VolInStockDiff": "5",
+     "InOutFlag": "0",
+     "HKTTFlag": "",
+     "HKInOutFlag": "0"
+    }
+   },
+   {
+    "market": 1,
+    "code": "600519",
+    "time": "14:57:01",
+    "price": 1355.900024,
+    "vol": 1.0,
+    "trade_count": null,
+    "bs_flag": null,
+    "raw": {
+     "Second": "53821",
+     "Now": "1355.900024",
+     "NowVol": "1",
+     "VolInStockDiff": "1",
+     "InOutFlag": "0",
+     "HKTTFlag": "",
+     "HKInOutFlag": "0"
+    }
+   },
+   {
+    "market": 1,
+    "code": "600519",
+    "time": "15:00:01",
+    "price": 1355.900024,
+    "vol": 1382.0,
+    "trade_count": null,
+    "bs_flag": null,
+    "raw": {
+     "Second": "54001",
+     "Now": "1355.900024",
+     "NowVol": "1382",
+     "VolInStockDiff": "320",
+     "InOutFlag": "2",
+     "HKTTFlag": "\u0002",
+     "HKInOutFlag": "0"
+    }
+   },
+   {
+    "market": 1,
+    "code": "600519",
+    "time": "15:05:02",
+    "price": 1355.900024,
+    "vol": 11.0,
+    "trade_count": null,
+    "bs_flag": null,
+    "raw": {
+     "Second": "54302",
+     "Now": "1355.900024",
+     "NowVol": "11",
+     "VolInStockDiff": "5",
+     "InOutFlag": "5",
+     "HKTTFlag": "\u0005",
+     "HKInOutFlag": "0"
+    }
+   },
+   {
+    "market": 1,
+    "code": "600519",
+    "time": "15:05:05",
+    "price": 1355.900024,
+    "vol": 1.0,
+    "trade_count": null,
+    "bs_flag": null,
+    "raw": {
+     "Second": "54305",
+     "Now": "1355.900024",
+     "NowVol": "1",
+     "VolInStockDiff": "1",
+     "InOutFlag": "5",
+     "HKTTFlag": "\u0005",
+     "HKInOutFlag": "0"
+    }
+   },
+   {
+    "market": 1,
+    "code": "600519",
+    "time": "15:05:11",
+    "price": 1355.900024,
+    "vol": 1.0,
+    "trade_count": null,
+    "bs_flag": null,
+    "raw": {
+     "Second": "54311",
+     "Now": "1355.900024",
+     "NowVol": "1",
+     "VolInStockDiff": "1",
+     "InOutFlag": "5",
+     "HKTTFlag": "\u0005",
+     "HKInOutFlag": "0"
+    }
+   },
+   {
+    "market": 1,
+    "code": "600519",
+    "time": "15:05:17",
+    "price": 1355.900024,
+    "vol": 2.0,
+    "trade_count": null,
+    "bs_flag": null,
+    "raw": {
+     "Second": "54317",
+     "Now": "1355.900024",
+     "NowVol": "2",
+     "VolInStockDiff": "2",
+     "InOutFlag": "5",
+     "HKTTFlag": "\u0005",
+     "HKInOutFlag": "0"
+    }
+   },
+   {
+    "market": 1,
+    "code": "600519",
+    "time": "15:05:26",
+    "price": 1355.900024,
+    "vol": 1.0,
+    "trade_count": null,
+    "bs_flag": null,
+    "raw": {
+     "Second": "54326",
+     "Now": "1355.900024",
+     "NowVol": "1",
+     "VolInStockDiff": "1",
+     "InOutFlag": "5",
+     "HKTTFlag": "\u0005",
+     "HKInOutFlag": "0"
+    }
+   },
+   {
+    "market": 1,
+    "code": "600519",
+    "time": "15:05:35",
+    "price": 1355.900024,
+    "vol": 1.0,
+    "trade_count": null,
+    "bs_flag": null,
+    "raw": {
+     "Second": "54335",
+     "Now": "1355.900024",
+     "NowVol": "1",
+     "VolInStockDiff": "1",
+     "InOutFlag": "5",
+     "HKTTFlag": "\u0005",
+     "HKInOutFlag": "0"
+    }
+   },
+   {
+    "market": 1,
+    "code": "600519",
+    "time": "15:05:41",
+    "price": 1355.900024,
+    "vol": 1.0,
+    "trade_count": null,
+    "bs_flag": null,
+    "raw": {
+     "Second": "54341",
+     "Now": "1355.900024",
+     "NowVol": "1",
+     "VolInStockDiff": "1",
+     "InOutFlag": "5",
+     "HKTTFlag": "\u0005",
+     "HKInOutFlag": "0"
+    }
+   },
+   {
+    "market": 1,
+    "code": "600519",
+    "time": "15:06:29",
+    "price": 1355.900024,
+    "vol": 1.0,
+    "trade_count": null,
+    "bs_flag": null,
+    "raw": {
+     "Second": "54389",
+     "Now": "1355.900024",
+     "NowVol": "1",
+     "VolInStockDiff": "1",
+     "InOutFlag": "5",
+     "HKTTFlag": "\u0005",
+     "HKInOutFlag": "0"
+    }
+   },
+   {
+    "market": 1,
+    "code": "600519",
+    "time": "15:07:53",
+    "price": 1355.900024,
+    "vol": 1.0,
+    "trade_count": null,
+    "bs_flag": null,
+    "raw": {
+     "Second": "54473",
+     "Now": "1355.900024",
+     "NowVol": "1",
+     "VolInStockDiff": "1",
+     "InOutFlag": "5",
+     "HKTTFlag": "\u0005",
+     "HKInOutFlag": "0"
+    }
+   },
+   {
+    "market": 1,
+    "code": "600519",
+    "time": "15:08:44",
+    "price": 1355.900024,
+    "vol": 1.0,
+    "trade_count": null,
+    "bs_flag": null,
+    "raw": {
+     "Second": "54524",
+     "Now": "1355.900024",
+     "NowVol": "1",
+     "VolInStockDiff": "1",
+     "InOutFlag": "5",
+     "HKTTFlag": "\u0005",
+     "HKInOutFlag": "0"
+    }
+   },
+   {
+    "market": 1,
+    "code": "600519",
+    "time": "15:09:44",
+    "price": 1355.900024,
+    "vol": 1.0,
+    "trade_count": null,
+    "bs_flag": null,
+    "raw": {
+     "Second": "54584",
+     "Now": "1355.900024",
+     "NowVol": "1",
+     "VolInStockDiff": "1",
+     "InOutFlag": "5",
+     "HKTTFlag": "\u0005",
+     "HKInOutFlag": "0"
+    }
+   },
+   {
+    "market": 1,
+    "code": "600519",
+    "time": "15:10:44",
+    "price": 1355.900024,
+    "vol": 1.0,
+    "trade_count": null,
+    "bs_flag": null,
+    "raw": {
+     "Second": "54644",
+     "Now": "1355.900024",
+     "NowVol": "1",
+     "VolInStockDiff": "1",
+     "InOutFlag": "5",
+     "HKTTFlag": "\u0005",
+     "HKInOutFlag": "0"
+    }
+   },
+   {
+    "market": 1,
+    "code": "600519",
+    "time": "15:14:38",
+    "price": 1355.900024,
+    "vol": 1.0,
+    "trade_count": null,
+    "bs_flag": null,
+    "raw": {
+     "Second": "54878",
+     "Now": "1355.900024",
+     "NowVol": "1",
+     "VolInStockDiff": "1",
+     "InOutFlag": "5",
+     "HKTTFlag": "\u0005",
+     "HKInOutFlag": "0"
+    }
+   },
+   {
+    "market": 1,
+    "code": "600519",
+    "time": "15:16:14",
+    "price": 1355.900024,
+    "vol": 1.0,
+    "trade_count": null,
+    "bs_flag": null,
+    "raw": {
+     "Second": "54974",
+     "Now": "1355.900024",
+     "NowVol": "1",
+     "VolInStockDiff": "1",
+     "InOutFlag": "5",
+     "HKTTFlag": "\u0005",
+     "HKInOutFlag": "0"
+    }
+   },
+   {
+    "market": 1,
+    "code": "600519",
+    "time": "15:17:35",
+    "price": 1355.900024,
+    "vol": 1.0,
+    "trade_count": null,
+    "bs_flag": null,
+    "raw": {
+     "Second": "55055",
+     "Now": "1355.900024",
+     "NowVol": "1",
+     "VolInStockDiff": "1",
+     "InOutFlag": "5",
+     "HKTTFlag": "\u0005",
+     "HKInOutFlag": "0"
+    }
+   },
+   {
+    "market": 1,
+    "code": "600519",
+    "time": "15:21:17",
+    "price": 1355.900024,
+    "vol": 1.0,
+    "trade_count": null,
+    "bs_flag": null,
+    "raw": {
+     "Second": "55277",
+     "Now": "1355.900024",
+     "NowVol": "1",
+     "VolInStockDiff": "1",
+     "InOutFlag": "5",
+     "HKTTFlag": "\u0005",
+     "HKInOutFlag": "0"
+    }
+   },
+   {
+    "market": 1,
+    "code": "600519",
+    "time": "15:26:26",
+    "price": 1355.900024,
+    "vol": 1.0,
+    "trade_count": null,
+    "bs_flag": null,
+    "raw": {
+     "Second": "55586",
+     "Now": "1355.900024",
+     "NowVol": "1",
+     "VolInStockDiff": "1",
+     "InOutFlag": "5",
+     "HKTTFlag": "\u0005",
+     "HKInOutFlag": "0"
+    }
+   },
+   {
+    "market": 1,
+    "code": "600519",
+    "time": "15:28:26",
+    "price": 1355.900024,
+    "vol": 15.0,
+    "trade_count": null,
+    "bs_flag": null,
+    "raw": {
+     "Second": "55706",
+     "Now": "1355.900024",
+     "NowVol": "15",
+     "VolInStockDiff": "7",
+     "InOutFlag": "5",
+     "HKTTFlag": "\u0005",
+     "HKInOutFlag": "0"
+    }
+   },
+   {
+    "market": 1,
+    "code": "600519",
+    "time": "15:28:50",
+    "price": 1355.900024,
+    "vol": 2.0,
+    "trade_count": null,
+    "bs_flag": null,
+    "raw": {
+     "Second": "55730",
+     "Now": "1355.900024",
+     "NowVol": "2",
+     "VolInStockDiff": "2",
+     "InOutFlag": "5",
+     "HKTTFlag": "\u0005",
+     "HKInOutFlag": "0"
+    }
+   },
+   {
+    "market": 1,
+    "code": "600519",
+    "time": "15:29:50",
+    "price": 1355.900024,
+    "vol": 1.0,
+    "trade_count": null,
+    "bs_flag": null,
+    "raw": {
+     "Second": "55790",
+     "Now": "1355.900024",
+     "NowVol": "1",
+     "VolInStockDiff": "1",
+     "InOutFlag": "5",
+     "HKTTFlag": "\u0005",
+     "HKInOutFlag": "0"
+    }
+   }
+  ]
+ }
+}

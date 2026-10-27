@@ -49,6 +49,7 @@ import re
 from typing import Any
 
 from ..errors import EmptyResult, NotSupportedError
+from .boards import _drop_empty_cols
 from ..models import Table
 
 __all__ = ["get_capital_flow", "get_market_stat", "MARKET_STAT_KINDS",
@@ -264,7 +265,9 @@ def _shape(src: Table, spec: tuple[tuple[str, str, str], ...], *,
         out["raw"] = _row_dict(src, src_row)             # 红线：原始列一个都不许丢
         rows.append(out)
 
-    return Table(cols=out_cols, rows=rows, cmd=cmd, domain=domain, meta=dict(meta or {}))
+    # ⚠️ 同 boards._shape：重建表必须继承 `src.meta`，否则语义层键全丢
+    return Table(cols=out_cols, rows=rows, cmd=cmd,
+                 domain=domain).inherit_meta(src, **(meta or {}))
 
 
 def _row_dict(src: Table, row: Any) -> dict[str, Any]:
@@ -383,7 +386,7 @@ def get_capital_flow(client, symbols=None) -> Table:
             "params": params,
             "p1": _CXLCLR_P1,
             "p1_meaning": "00202 = 净流入榜·主力净额（00201 = 主买净额；001xx = 净流出榜）",
-            "source": "ph_zt_zjlx_cxlclr 榜单模式（服务器自带中文表头 RS1）",
+            "source_note": "ph_zt_zjlx_cxlclr 榜单模式（服务器自带中文表头 RS1）",
             "unavailable_fields": ["price", "net_inflow_pct"],
         },
     )
@@ -470,12 +473,14 @@ def _market_updown(client) -> Table:
         cols=_STAT_COLS["updown"] + ("date",),
         cmd=_CMD_ZDT_ZDFX, domain=_DOMAIN_STAT,
         meta={"params": params, "trade_date": date,
-              "source": "ph_datacenter_zdt_zdfx（zdtj 子码，日期必须带横线）"},
+              "source_note": "ph_datacenter_zdt_zdfx（zdtj 子码，日期必须带横线）"},
     )
     for row in table.rows:
         row["date"] = _norm_date(row.get("stat_date"))
     table.set_cols(list(_STAT_COLS["updown"]) + ["date"])
-    return table
+    # 阶段 4：丢掉 100% 为 None 的**结构性死列**（并记账）。
+    # 作用域：只有 get_boards 与 market_stat 这三类；ztqd 清单**不适用**（见 boards 注释）。
+    return _drop_empty_cols(table)
 
 
 def _market_sentiment(client) -> Table:
@@ -485,19 +490,39 @@ def _market_sentiment(client) -> Table:
     date = _current_trade_date(client)
     params: list[Any] = [_BKLDSCNX_VIEW, date]
     raw = client.call(_CMD_BKLDSCNX, _CTL_BKLDSCNX, params)
-    return _shape(
+    table = _shape(
         raw, _BKLDSCNX_MAP,
         cols=_STAT_COLS["sentiment"],
         cmd=_CMD_BKLDSCNX, domain=_DOMAIN_STAT,
         meta={
             "params": params,
             "trade_date": date,
-            "source": "ph_pcwebcall_hy_bkldscnx 视图 002（市场热度/牛熊情绪）",
+            "source_note": "ph_pcwebcall_hy_bkldscnx 视图 002（市场热度/牛熊情绪）",
             "note": "日期由 sys_fn_jyr_v3 现取；传空串实测 -1005（文档『空=最新』对本视图不成立）",
             "source_calls": 2,
             "unmapped_raw_columns": ["N003（风险免责长文本）", "N004~N011（8 个分项，名字未破解）"],
         },
     )
+    return _drop_empty_cols(table)
+
+
+def _map_or_serial(client, fn, items):
+    """把一批**彼此独立**的取数并发跑完，结果**按 `items` 原序**返回。
+
+    这是本模块唯一会并发的地方，而且**判据不在这一层**（阶段 5）：
+      * `Client._map_independent` 在 `concurrency == 1`（默认）时就是
+        `[fn(x) for x in items]` —— 纯串行、不起线程池、不进队列；
+      * 只有用户显式 `Client(concurrency>1)` 时它才真的多 lane 并发；
+      * 拿不到这个入口（测试里的假 client、`Client.__new__` 裸对象）→ 老实串行。
+
+    ⚠️ 只许用于"互不依赖"的调用。**翻页、先目录后明细这类有顺序依赖的链路**
+    一律串行 —— 并发化它们只会拿错数据或漏数据。
+    ⚠️ 结果顺序 = 输入顺序：并发完成的先后**绝不影响**输出顺序。
+    """
+    runner = getattr(client, "_map_independent", None)
+    if callable(runner):
+        return runner(fn, items)
+    return [fn(x) for x in items]
 
 
 def _market_industry(client) -> Table:
@@ -511,6 +536,17 @@ def _market_industry(client) -> Table:
          各层级成员的 8 列明细（含 `change_pct`、`up_count`、`down_count`）。
     合计 **1 + N 次**调用。数据本身没法一次取全（服务端就是这么设计的），
     所以把成本写进 docstring，而不是偷偷返回一张不完整表。
+
+    并发（阶段 5，**默认关**）
+    --------------------------
+    这 30 个一级码的明细**彼此独立**（各自一个参数、互不引用对方的返回值），
+    是本库唯一值得并发的点。用户显式 `Client(concurrency>1)` 时，
+    `_map_or_serial` 会把它分发到多条 lane（每条 lane 钉一台服务器）。
+    **默认 `concurrency=1` 时它就是下面那个普通 for 循环**：不建线程池、
+    不进队列、`pacer.wait()` 不传 `host` —— 与改造前逐字节相同。
+    无论并发与否：结果一律**按 `codes` 原序**拼装（完成的先后不影响顺序），
+    `skipped_codes` / `calls` / `truncated` / `params_dir` / `level1_codes`
+    等 meta 一个字节都不变（黄金样本 `market_stat_industry` 会直接照出漂移）。
     """
     dir_raw = client.call(_CMD_HYFX_SY, _CTL_HYFX_SY,
                           [_HYFX_MODE_DIR, _HYFX_DIR_P2])
@@ -529,23 +565,38 @@ def _market_industry(client) -> Table:
     if truncated:
         codes = codes[:_INDUSTRY_MAX_CODES]
 
-    rows: list[dict[str, Any]] = []
-    skipped: list[str] = []
-    for code in codes:
+    def _fetch_one(code: str):
+        """取**一个**一级行业码的明细分表；当期无数据（`EmptyResult`）→ `None`（=跳过）。
+
+        ⚠️ 只接住 `EmptyResult`（"列在、行 0"= 这个行业当期没数据）；
+        其它异常（`ParamError`/`NotSupported`/`RateLimited`/断连）一律往外抛，
+        **不许**因为改成并发就把异常吞掉或降级成"没数据"。
+        """
         params: list[Any] = [_HYFX_MODE_DETAIL, code]
         try:
             raw = client.call(_CMD_HYFX_SY, _CTL_HYFX_SY, params)
         except EmptyResult:
-            # 「有列无行」= 这个一级行业当期没数据，跳过并记账；
-            # 其它异常（ParamError/NotSupported/RateLimited）一律往上抛，不吞。
-            skipped.append(code)
-            continue
-        part = _shape(
+            return None
+        return _shape(
             raw, _HYFX_LV2_MAP,
             cols=_STAT_COLS["industry"],
             cmd=_CMD_HYFX_SY, domain=_DOMAIN_STAT,
             meta={"params": params, "level1_code": code},
         )
+
+    # 30 个一级码**彼此独立** → 唯一的并发收益点（阶段 5）。
+    # 默认 `concurrency=1` 时这就是个普通 for 循环，一个线程都不起。
+    parts = _map_or_serial(client, _fetch_one, codes)
+
+    rows: list[dict[str, Any]] = []
+    skipped: list[str] = []
+    _meta_src = None                 # 第一份分表：拼接表的语义层 meta 从它继承
+    for code, part in zip(codes, parts):
+        if part is None:
+            skipped.append(code)
+            continue
+        if _meta_src is None:
+            _meta_src = part
         rows.extend(part.rows)
 
     # 服务端 `N005` 给的是 `20261023` 紧凑写法（实网确认）→ 统一成 `YYYY-MM-DD`
@@ -560,18 +611,25 @@ def _market_industry(client) -> Table:
             % (len(codes), " ".join(codes[:6]) + ("…" if len(codes) > 6 else ""))
         )
 
-    return Table(
+    # 逐行业拼接出来的表也必须带上语义层 meta：以**第一份**分表的 meta 为准
+    # （同一轮里陆续取的，`as_of`/`status` 同源；`calls` 里另有真实请求次数）
+    merged = Table(
         cols=list(_STAT_COLS["industry"]),
         rows=rows,
         cmd=_CMD_HYFX_SY,
         domain=_DOMAIN_STAT,
-        meta={
+    ).inherit_meta(_meta_src, **{
             "params_dir": [_HYFX_MODE_DIR, _HYFX_DIR_P2],
             "level1_codes": codes,
             "calls": 1 + len(codes),
             "skipped_codes": skipped,
             "truncated": truncated,
-            "source": "hyfx_sy 模式 1（一级目录）+ 模式 2（逐一级行业明细）",
+            "source_note": "hyfx_sy 模式 1（一级目录）+ 模式 2（逐一级行业明细）",
             "note": "本命令族唯一带「上涨家数/下跌家数」的表；模式 2 只吃一级行业码",
-        },
-    )
+    })
+    # 继承来的 `params` / `level1_code` 描述的是**某一个**一级行业（来自第一份分表），
+    # 放在拼接表上会变成「整张表只取了一个行业」的假陈述 —— 整表的参数口径看
+    # `params_dir` / `level1_codes`。这两个键必须删掉，不许留。
+    for _stale in ("params", "level1_code"):
+        merged.meta.pop(_stale, None)
+    return _drop_empty_cols(merged)

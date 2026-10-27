@@ -1,0 +1,3875 @@
+{
+ "meta": {
+  "name": "minutes",
+  "cmd": "HQServ.PBZST",
+  "ctl": 14,
+  "api": "Client.get_minutes(600519)",
+  "params": {
+   "symbol": "600519"
+  },
+  "fetched_at": "2026-10-27T16:46:59+08:00",
+  "server_time": "2026-10-27 15:30:03",
+  "sha256": "c55c0f6a092541b9685a052e2d208d7758d7af05c6ef38ebd7f915e2b5fba692",
+  "base_dir": "F:\\TDX_stock_data\\tdxdata\\tests\\fixtures\\golden",
+  "python": "3.14.2",
+  "tdxdata_version": "0.2.0",
+  "git_head": "04463f31e6081e4578feb97c5ccf625887f6f514",
+  "wire_calls": [
+   {
+    "cmd": "HQServ.PBZST",
+    "ctl": 14,
+    "n": 1
+   }
+  ],
+  "frames": [
+   5
+  ],
+  "ctl_note": "即 cmd 那一帧的 ctl 字节"
+ },
+ "payload": {
+  "outcome": "ok",
+  "kind": "list[MinutePoint]",
+  "value": [
+   {
+    "code": "600519",
+    "time": "09:30",
+    "price": 1347.0,
+    "avg_price": 1341.948486,
+    "vol": 1560.0,
+    "market": 1,
+    "raw": {
+     "Minute": "570",
+     "Now": "1347.000000",
+     "Average": "1341.948486",
+     "NowVol": "1560",
+     "VolInStock": "0",
+     "Lead": "0.000000"
+    }
+   },
+   {
+    "code": "600519",
+    "time": "09:31",
+    "price": 1352.47998,
+    "avg_price": 1344.7323,
+    "vol": 812.0,
+    "market": 1,
+    "raw": {
+     "Minute": "571",
+     "Now": "1352.479980",
+     "Average": "1344.732300",
+     "NowVol": "812",
+     "VolInStock": "0",
+     "Lead": "0.000000"
+    }
+   },
+   {
+    "code": "600519",
+    "time": "09:32",
+    "price": 1348.0,
+    "avg_price": 1345.478882,
+    "vol": 507.0,
+    "market": 1,
+    "raw": {
+     "Minute": "572",
+     "Now": "1348.000000",
+     "Average": "1345.478882",
+     "NowVol": "507",
+     "VolInStock": "0",
+     "Lead": "0.000000"
+    }
+   },
+   {
+    "code": "600519",
+    "time": "09:33",
+    "price": 1347.189941,
+    "avg_price": 1345.685425,
+    "vol": 322.0,
+    "market": 1,
+    "raw": {
+     "Minute": "573",
+     "Now": "1347.189941",
+     "Average": "1345.685425",
+     "NowVol": "322",
+     "VolInStock": "0",
+     "Lead": "0.000000"
+    }
+   },
+   {
+    "code": "600519",
+    "time": "09:34",
+    "price": 1349.98999,
+    "avg_price": 1346.041138,
+    "vol": 349.0,
+    "market": 1,
+    "raw": {
+     "Minute": "574",
+     "Now": "1349.989990",
+     "Average": "1346.041138",
+     "NowVol": "349",
+     "VolInStock": "0",
+     "Lead": "0.000000"
+    }
+   },
+   {
+    "code": "600519",
+    "time": "09:35",
+    "price": 1346.51001,
+    "avg_price": 1346.140991,
+    "vol": 226.0,
+    "market": 1,
+    "raw": {
+     "Minute": "575",
+     "Now": "1346.510010",
+     "Average": "1346.140991",
+     "NowVol": "226",
+     "VolInStock": "0",
+     "Lead": "0.000000"
+    }
+   },
+   {
+    "code": "600519",
+    "time": "09:36",
+    "price": 1345.189941,
+    "avg_price": 1346.140015,
+    "vol": 201.0,
+    "market": 1,
+    "raw": {
+     "Minute": "576",
+     "Now": "1345.189941",
+     "Average": "1346.140015",
+     "NowVol": "201",
+     "VolInStock": "0",
+     "Lead": "0.000000"
+    }
+   },
+   {
+    "code": "600519",
+    "time": "09:37",
+    "price": 1345.189941,
+    "avg_price": 1346.084229,
+    "vol": 184.0,
+    "market": 1,
+    "raw": {
+     "Minute": "577",
+     "Now": "1345.189941",
+     "Average": "1346.084229",
+     "NowVol": "184",
+     "VolInStock": "0",
+     "Lead": "0.000000"
+    }
+   },
+   {
+    "code": "600519",
+    "time": "09:38",
+    "price": 1347.579956,
+    "avg_price": 1346.093018,
+    "vol": 150.0,
+    "market": 1,
+    "raw": {
+     "Minute": "578",
+     "Now": "1347.579956",
+     "Average": "1346.093018",
+     "NowVol": "150",
+     "VolInStock": "0",
+     "Lead": "0.000000"
+    }
+   },
+   {
+    "code": "600519",
+    "time": "09:39",
+    "price": 1350.099976,
+    "avg_price": 1346.258911,
+    "vol": 298.0,
+    "market": 1,
+    "raw": {
+     "Minute": "579",
+     "Now": "1350.099976",
+     "Average": "1346.258911",
+     "NowVol": "298",
+     "VolInStock": "0",
+     "Lead": "0.000000"
+    }
+   },
+   {
+    "code": "600519",
+    "time": "09:40",
+    "price": 1349.040039,
+    "avg_price": 1346.376709,
+    "vol": 149.0,
+    "market": 1,
+    "raw": {
+     "Minute": "580",
+     "Now": "1349.040039",
+     "Average": "1346.376709",
+     "NowVol": "149",
+     "VolInStock": "0",
+     "Lead": "0.000000"
+    }
+   },
+   {
+    "code": "600519",
+    "time": "09:41",
+    "price": 1351.5,
+    "avg_price": 1346.511475,
+    "vol": 179.0,
+    "market": 1,
+    "raw": {
+     "Minute": "581",
+     "Now": "1351.500000",
+     "Average": "1346.511475",
+     "NowVol": "179",
+     "VolInStock": "0",
+     "Lead": "0.000000"
+    }
+   },
+   {
+    "code": "600519",
+    "time": "09:42",
+    "price": 1348.650024,
+    "avg_price": 1346.641602,
+    "vol": 184.0,
+    "market": 1,
+    "raw": {
+     "Minute": "582",
+     "Now": "1348.650024",
+     "Average": "1346.641602",
+     "NowVol": "184",
+     "VolInStock": "0",
+     "Lead": "0.000000"
+    }
+   },
+   {
+    "code": "600519",
+    "time": "09:43",
+    "price": 1347.959961,
+    "avg_price": 1346.749756,
+    "vol": 304.0,
+    "market": 1,
+    "raw": {
+     "Minute": "583",
+     "Now": "1347.959961",
+     "Average": "1346.749756",
+     "NowVol": "304",
+     "VolInStock": "0",
+     "Lead": "0.000000"
+    }
+   },
+   {
+    "code": "600519",
+    "time": "09:44",
+    "price": 1348.0,
+    "avg_price": 1346.763184,
+    "vol": 122.0,
+    "market": 1,
+    "raw": {
+     "Minute": "584",
+     "Now": "1348.000000",
+     "Average": "1346.763184",
+     "NowVol": "122",
+     "VolInStock": "0",
+     "Lead": "0.000000"
+    }
+   },
+   {
+    "code": "600519",
+    "time": "09:45",
+    "price": 1348.23999,
+    "avg_price": 1346.773926,
+    "vol": 111.0,
+    "market": 1,
+    "raw": {
+     "Minute": "585",
+     "Now": "1348.239990",
+     "Average": "1346.773926",
+     "NowVol": "111",
+     "VolInStock": "0",
+     "Lead": "0.000000"
+    }
+   },
+   {
+    "code": "600519",
+    "time": "09:46",
+    "price": 1346.949951,
+    "avg_price": 1346.784546,
+    "vol": 107.0,
+    "market": 1,
+    "raw": {
+     "Minute": "586",
+     "Now": "1346.949951",
+     "Average": "1346.784546",
+     "NowVol": "107",
+     "VolInStock": "0",
+     "Lead": "0.000000"
+    }
+   },
+   {
+    "code": "600519",
+    "time": "09:47",
+    "price": 1346.130005,
+    "avg_price": 1346.771973,
+    "vol": 140.0,
+    "market": 1,
+    "raw": {
+     "Minute": "587",
+     "Now": "1346.130005",
+     "Average": "1346.771973",
+     "NowVol": "140",
+     "VolInStock": "0",
+     "Lead": "0.000000"
+    }
+   },
+   {
+    "code": "600519",
+    "time": "09:48",
+    "price": 1345.98999,
+    "avg_price": 1346.765381,
+    "vol": 60.0,
+    "market": 1,
+    "raw": {
+     "Minute": "588",
+     "Now": "1345.989990",
+     "Average": "1346.765381",
+     "NowVol": "60",
+     "VolInStock": "0",
+     "Lead": "0.000000"
+    }
+   },
+   {
+    "code": "600519",
+    "time": "09:49",
+    "price": 1344.310059,
+    "avg_price": 1346.713013,
+    "vol": 169.0,
+    "market": 1,
+    "raw": {
+     "Minute": "589",
+     "Now": "1344.310059",
+     "Average": "1346.713013",
+     "NowVol": "169",
+     "VolInStock": "0",
+     "Lead": "0.000000"
+    }
+   },
+   {
+    "code": "600519",
+    "time": "09:50",
+    "price": 1342.719971,
+    "avg_price": 1346.585083,
+    "vol": 242.0,
+    "market": 1,
+    "raw": {
+     "Minute": "590",
+     "Now": "1342.719971",
+     "Average": "1346.585083",
+     "NowVol": "242",
+     "VolInStock": "0",
+     "Lead": "0.000000"
+    }
+   },
+   {
+    "code": "600519",
+    "time": "09:51",
+    "price": 1343.209961,
+    "avg_price": 1346.536255,
+    "vol": 100.0,
+    "market": 1,
+    "raw": {
+     "Minute": "591",
+     "Now": "1343.209961",
+     "Average": "1346.536255",
+     "NowVol": "100",
+     "VolInStock": "0",
+     "Lead": "0.000000"
+    }
+   },
+   {
+    "code": "600519",
+    "time": "09:52",
+    "price": 1345.5,
+    "avg_price": 1346.482056,
+    "vol": 237.0,
+    "market": 1,
+    "raw": {
+     "Minute": "592",
+     "Now": "1345.500000",
+     "Average": "1346.482056",
+     "NowVol": "237",
+     "VolInStock": "0",
+     "Lead": "0.000000"
+    }
+   },
+   {
+    "code": "600519",
+    "time": "09:53",
+    "price": 1343.699951,
+    "avg_price": 1346.459717,
+    "vol": 106.0,
+    "market": 1,
+    "raw": {
+     "Minute": "593",
+     "Now": "1343.699951",
+     "Average": "1346.459717",
+     "NowVol": "106",
+     "VolInStock": "0",
+     "Lead": "0.000000"
+    }
+   },
+   {
+    "code": "600519",
+    "time": "09:54",
+    "price": 1342.099976,
+    "avg_price": 1346.369507,
+    "vol": 175.0,
+    "market": 1,
+    "raw": {
+     "Minute": "594",
+     "Now": "1342.099976",
+     "Average": "1346.369507",
+     "NowVol": "175",
+     "VolInStock": "0",
+     "Lead": "0.000000"
+    }
+   },
+   {
+    "code": "600519",
+    "time": "09:55",
+    "price": 1340.459961,
+    "avg_price": 1346.239014,
+    "vol": 163.0,
+    "market": 1,
+    "raw": {
+     "Minute": "595",
+     "Now": "1340.459961",
+     "Average": "1346.239014",
+     "NowVol": "163",
+     "VolInStock": "0",
+     "Lead": "0.000000"
+    }
+   },
+   {
+    "code": "600519",
+    "time": "09:56",
+    "price": 1341.699951,
+    "avg_price": 1346.138062,
+    "vol": 125.0,
+    "market": 1,
+    "raw": {
+     "Minute": "596",
+     "Now": "1341.699951",
+     "Average": "1346.138062",
+     "NowVol": "125",
+     "VolInStock": "0",
+     "Lead": "0.000000"
+    }
+   },
+   {
+    "code": "600519",
+    "time": "09:57",
+    "price": 1341.01001,
+    "avg_price": 1346.091064,
+    "vol": 69.0,
+    "market": 1,
+    "raw": {
+     "Minute": "597",
+     "Now": "1341.010010",
+     "Average": "1346.091064",
+     "NowVol": "69",
+     "VolInStock": "0",
+     "Lead": "0.000000"
+    }
+   },
+   {
+    "code": "600519",
+    "time": "09:58",
+    "price": 1342.790039,
+    "avg_price": 1346.014038,
+    "vol": 147.0,
+    "market": 1,
+    "raw": {
+     "Minute": "598",
+     "Now": "1342.790039",
+     "Average": "1346.014038",
+     "NowVol": "147",
+     "VolInStock": "0",
+     "Lead": "0.000000"
+    }
+   },
+   {
+    "code": "600519",
+    "time": "09:59",
+    "price": 1345.0,
+    "avg_price": 1345.97229,
+    "vol": 182.0,
+    "market": 1,
+    "raw": {
+     "Minute": "599",
+     "Now": "1345.000000",
+     "Average": "1345.972290",
+     "NowVol": "182",
+     "VolInStock": "0",
+     "Lead": "0.000000"
+    }
+   },
+   {
+    "code": "600519",
+    "time": "10:00",
+    "price": 1347.5,
+    "avg_price": 1345.964355,
+    "vol": 171.0,
+    "market": 1,
+    "raw": {
+     "Minute": "600",
+     "Now": "1347.500000",
+     "Average": "1345.964355",
+     "NowVol": "171",
+     "VolInStock": "0",
+     "Lead": "0.000000"
+    }
+   },
+   {
+    "code": "600519",
+    "time": "10:01",
+    "price": 1347.819946,
+    "avg_price": 1345.993408,
+    "vol": 140.0,
+    "market": 1,
+    "raw": {
+     "Minute": "601",
+     "Now": "1347.819946",
+     "Average": "1345.993408",
+     "NowVol": "140",
+     "VolInStock": "0",
+     "Lead": "0.000000"
+    }
+   },
+   {
+    "code": "600519",
+    "time": "10:02",
+    "price": 1349.0,
+    "avg_price": 1346.024048,
+    "vol": 115.0,
+    "market": 1,
+    "raw": {
+     "Minute": "602",
+     "Now": "1349.000000",
+     "Average": "1346.024048",
+     "NowVol": "115",
+     "VolInStock": "0",
+     "Lead": "0.000000"
+    }
+   },
+   {
+    "code": "600519",
+    "time": "10:03",
+    "price": 1350.319946,
+    "avg_price": 1346.131226,
+    "vol": 245.0,
+    "market": 1,
+    "raw": {
+     "Minute": "603",
+     "Now": "1350.319946",
+     "Average": "1346.131226",
+     "NowVol": "245",
+     "VolInStock": "0",
+     "Lead": "0.000000"
+    }
+   },
+   {
+    "code": "600519",
+    "time": "10:04",
+    "price": 1350.219971,
+    "avg_price": 1346.329834,
+    "vol": 371.0,
+    "market": 1,
+    "raw": {
+     "Minute": "604",
+     "Now": "1350.219971",
+     "Average": "1346.329834",
+     "NowVol": "371",
+     "VolInStock": "0",
+     "Lead": "0.000000"
+    }
+   },
+   {
+    "code": "600519",
+    "time": "10:05",
+    "price": 1350.0,
+    "avg_price": 1346.461548,
+    "vol": 322.0,
+    "market": 1,
+    "raw": {
+     "Minute": "605",
+     "Now": "1350.000000",
+     "Average": "1346.461548",
+     "NowVol": "322",
+     "VolInStock": "0",
+     "Lead": "0.000000"
+    }
+   },
+   {
+    "code": "600519",
+    "time": "10:06",
+    "price": 1349.98999,
+    "avg_price": 1346.489258,
+    "vol": 75.0,
+    "market": 1,
+    "raw": {
+     "Minute": "606",
+     "Now": "1349.989990",
+     "Average": "1346.489258",
+     "NowVol": "75",
+     "VolInStock": "0",
+     "Lead": "0.000000"
+    }
+   },
+   {
+    "code": "600519",
+    "time": "10:07",
+    "price": 1349.800049,
+    "avg_price": 1346.514648,
+    "vol": 78.0,
+    "market": 1,
+    "raw": {
+     "Minute": "607",
+     "Now": "1349.800049",
+     "Average": "1346.514648",
+     "NowVol": "78",
+     "VolInStock": "0",
+     "Lead": "0.000000"
+    }
+   },
+   {
+    "code": "600519",
+    "time": "10:08",
+    "price": 1349.060059,
+    "avg_price": 1346.543091,
+    "vol": 85.0,
+    "market": 1,
+    "raw": {
+     "Minute": "608",
+     "Now": "1349.060059",
+     "Average": "1346.543091",
+     "NowVol": "85",
+     "VolInStock": "0",
+     "Lead": "0.000000"
+    }
+   },
+   {
+    "code": "600519",
+    "time": "10:09",
+    "price": 1350.430054,
+    "avg_price": 1346.607788,
+    "vol": 175.0,
+    "market": 1,
+    "raw": {
+     "Minute": "609",
+     "Now": "1350.430054",
+     "Average": "1346.607788",
+     "NowVol": "175",
+     "VolInStock": "0",
+     "Lead": "0.000000"
+    }
+   },
+   {
+    "code": "600519",
+    "time": "10:10",
+    "price": 1350.790039,
+    "avg_price": 1346.645874,
+    "vol": 97.0,
+    "market": 1,
+    "raw": {
+     "Minute": "610",
+     "Now": "1350.790039",
+     "Average": "1346.645874",
+     "NowVol": "97",
+     "VolInStock": "0",
+     "Lead": "0.000000"
+    }
+   },
+   {
+    "code": "600519",
+    "time": "10:11",
+    "price": 1351.949951,
+    "avg_price": 1346.798828,
+    "vol": 305.0,
+    "market": 1,
+    "raw": {
+     "Minute": "611",
+     "Now": "1351.949951",
+     "Average": "1346.798828",
+     "NowVol": "305",
+     "VolInStock": "0",
+     "Lead": "0.000000"
+    }
+   },
+   {
+    "code": "600519",
+    "time": "10:12",
+    "price": 1351.300049,
+    "avg_price": 1346.863403,
+    "vol": 133.0,
+    "market": 1,
+    "raw": {
+     "Minute": "612",
+     "Now": "1351.300049",
+     "Average": "1346.863403",
+     "NowVol": "133",
+     "VolInStock": "0",
+     "Lead": "0.000000"
+    }
+   },
+   {
+    "code": "600519",
+    "time": "10:13",
+    "price": 1349.890015,
+    "avg_price": 1346.910767,
+    "vol": 140.0,
+    "market": 1,
+    "raw": {
+     "Minute": "613",
+     "Now": "1349.890015",
+     "Average": "1346.910767",
+     "NowVol": "140",
+     "VolInStock": "0",
+     "Lead": "0.000000"
+    }
+   },
+   {
+    "code": "600519",
+    "time": "10:14",
+    "price": 1350.689941,
+    "avg_price": 1346.958008,
+    "vol": 142.0,
+    "market": 1,
+    "raw": {
+     "Minute": "614",
+     "Now": "1350.689941",
+     "Average": "1346.958008",
+     "NowVol": "142",
+     "VolInStock": "0",
+     "Lead": "0.000000"
+    }
+   },
+   {
+    "code": "600519",
+    "time": "10:15",
+    "price": 1350.050049,
+    "avg_price": 1347.042969,
+    "vol": 246.0,
+    "market": 1,
+    "raw": {
+     "Minute": "615",
+     "Now": "1350.050049",
+     "Average": "1347.042969",
+     "NowVol": "246",
+     "VolInStock": "0",
+     "Lead": "0.000000"
+    }
+   },
+   {
+    "code": "600519",
+    "time": "10:16",
+    "price": 1349.0,
+    "avg_price": 1347.095703,
+    "vol": 217.0,
+    "market": 1,
+    "raw": {
+     "Minute": "616",
+     "Now": "1349.000000",
+     "Average": "1347.095703",
+     "NowVol": "217",
+     "VolInStock": "0",
+     "Lead": "0.000000"
+    }
+   },
+   {
+    "code": "600519",
+    "time": "10:17",
+    "price": 1347.680054,
+    "avg_price": 1347.135376,
+    "vol": 290.0,
+    "market": 1,
+    "raw": {
+     "Minute": "617",
+     "Now": "1347.680054",
+     "Average": "1347.135376",
+     "NowVol": "290",
+     "VolInStock": "0",
+     "Lead": "0.000000"
+    }
+   },
+   {
+    "code": "600519",
+    "time": "10:18",
+    "price": 1347.839966,
+    "avg_price": 1347.158447,
+    "vol": 166.0,
+    "market": 1,
+    "raw": {
+     "Minute": "618",
+     "Now": "1347.839966",
+     "Average": "1347.158447",
+     "NowVol": "166",
+     "VolInStock": "0",
+     "Lead": "0.000000"
+    }
+   },
+   {
+    "code": "600519",
+    "time": "10:19",
+    "price": 1348.0,
+    "avg_price": 1347.164429,
+    "vol": 124.0,
+    "market": 1,
+    "raw": {
+     "Minute": "619",
+     "Now": "1348.000000",
+     "Average": "1347.164429",
+     "NowVol": "124",
+     "VolInStock": "0",
+     "Lead": "0.000000"
+    }
+   },
+   {
+    "code": "600519",
+    "time": "10:20",
+    "price": 1348.0,
+    "avg_price": 1347.170288,
+    "vol": 88.0,
+    "market": 1,
+    "raw": {
+     "Minute": "620",
+     "Now": "1348.000000",
+     "Average": "1347.170288",
+     "NowVol": "88",
+     "VolInStock": "0",
+     "Lead": "0.000000"
+    }
+   },
+   {
+    "code": "600519",
+    "time": "10:21",
+    "price": 1348.0,
+    "avg_price": 1347.175903,
+    "vol": 121.0,
+    "market": 1,
+    "raw": {
+     "Minute": "621",
+     "Now": "1348.000000",
+     "Average": "1347.175903",
+     "NowVol": "121",
+     "VolInStock": "0",
+     "Lead": "0.000000"
+    }
+   },
+   {
+    "code": "600519",
+    "time": "10:22",
+    "price": 1349.51001,
+    "avg_price": 1347.187378,
+    "vol": 163.0,
+    "market": 1,
+    "raw": {
+     "Minute": "622",
+     "Now": "1349.510010",
+     "Average": "1347.187378",
+     "NowVol": "163",
+     "VolInStock": "0",
+     "Lead": "0.000000"
+    }
+   },
+   {
+    "code": "600519",
+    "time": "10:23",
+    "price": 1347.619995,
+    "avg_price": 1347.191284,
+    "vol": 52.0,
+    "market": 1,
+    "raw": {
+     "Minute": "623",
+     "Now": "1347.619995",
+     "Average": "1347.191284",
+     "NowVol": "52",
+     "VolInStock": "0",
+     "Lead": "0.000000"
+    }
+   },
+   {
+    "code": "600519",
+    "time": "10:24",
+    "price": 1347.98999,
+    "avg_price": 1347.194824,
+    "vol": 63.0,
+    "market": 1,
+    "raw": {
+     "Minute": "624",
+     "Now": "1347.989990",
+     "Average": "1347.194824",
+     "NowVol": "63",
+     "VolInStock": "0",
+     "Lead": "0.000000"
+    }
+   },
+   {
+    "code": "600519",
+    "time": "10:25",
+    "price": 1347.97998,
+    "avg_price": 1347.197021,
+    "vol": 53.0,
+    "market": 1,
+    "raw": {
+     "Minute": "625",
+     "Now": "1347.979980",
+     "Average": "1347.197021",
+     "NowVol": "53",
+     "VolInStock": "0",
+     "Lead": "0.000000"
+    }
+   },
+   {
+    "code": "600519",
+    "time": "10:26",
+    "price": 1350.98999,
+    "avg_price": 1347.25,
+    "vol": 385.0,
+    "market": 1,
+    "raw": {
+     "Minute": "626",
+     "Now": "1350.989990",
+     "Average": "1347.250000",
+     "NowVol": "385",
+     "VolInStock": "0",
+     "Lead": "0.000000"
+    }
+   },
+   {
+    "code": "600519",
+    "time": "10:27",
+    "price": 1350.23999,
+    "avg_price": 1347.348389,
+    "vol": 305.0,
+    "market": 1,
+    "raw": {
+     "Minute": "627",
+     "Now": "1350.239990",
+     "Average": "1347.348389",
+     "NowVol": "305",
+     "VolInStock": "0",
+     "Lead": "0.000000"
+    }
+   },
+   {
+    "code": "600519",
+    "time": "10:28",
+    "price": 1350.209961,
+    "avg_price": 1347.372681,
+    "vol": 85.0,
+    "market": 1,
+    "raw": {
+     "Minute": "628",
+     "Now": "1350.209961",
+     "Average": "1347.372681",
+     "NowVol": "85",
+     "VolInStock": "0",
+     "Lead": "0.000000"
+    }
+   },
+   {
+    "code": "600519",
+    "time": "10:29",
+    "price": 1350.0,
+    "avg_price": 1347.387817,
+    "vol": 71.0,
+    "market": 1,
+    "raw": {
+     "Minute": "629",
+     "Now": "1350.000000",
+     "Average": "1347.387817",
+     "NowVol": "71",
+     "VolInStock": "0",
+     "Lead": "0.000000"
+    }
+   },
+   {
+    "code": "600519",
+    "time": "10:30",
+    "price": 1349.699951,
+    "avg_price": 1347.401245,
+    "vol": 60.0,
+    "market": 1,
+    "raw": {
+     "Minute": "630",
+     "Now": "1349.699951",
+     "Average": "1347.401245",
+     "NowVol": "60",
+     "VolInStock": "0",
+     "Lead": "0.000000"
+    }
+   },
+   {
+    "code": "600519",
+    "time": "10:31",
+    "price": 1350.51001,
+    "avg_price": 1347.419678,
+    "vol": 73.0,
+    "market": 1,
+    "raw": {
+     "Minute": "631",
+     "Now": "1350.510010",
+     "Average": "1347.419678",
+     "NowVol": "73",
+     "VolInStock": "0",
+     "Lead": "0.000000"
+    }
+   },
+   {
+    "code": "600519",
+    "time": "10:32",
+    "price": 1351.800049,
+    "avg_price": 1347.458862,
+    "vol": 127.0,
+    "market": 1,
+    "raw": {
+     "Minute": "632",
+     "Now": "1351.800049",
+     "Average": "1347.458862",
+     "NowVol": "127",
+     "VolInStock": "0",
+     "Lead": "0.000000"
+    }
+   },
+   {
+    "code": "600519",
+    "time": "10:33",
+    "price": 1351.0,
+    "avg_price": 1347.553101,
+    "vol": 312.0,
+    "market": 1,
+    "raw": {
+     "Minute": "633",
+     "Now": "1351.000000",
+     "Average": "1347.553101",
+     "NowVol": "312",
+     "VolInStock": "0",
+     "Lead": "0.000000"
+    }
+   },
+   {
+    "code": "600519",
+    "time": "10:34",
+    "price": 1351.0,
+    "avg_price": 1347.565186,
+    "vol": 53.0,
+    "market": 1,
+    "raw": {
+     "Minute": "634",
+     "Now": "1351.000000",
+     "Average": "1347.565186",
+     "NowVol": "53",
+     "VolInStock": "0",
+     "Lead": "0.000000"
+    }
+   },
+   {
+    "code": "600519",
+    "time": "10:35",
+    "price": 1350.170044,
+    "avg_price": 1347.576294,
+    "vol": 53.0,
+    "market": 1,
+    "raw": {
+     "Minute": "635",
+     "Now": "1350.170044",
+     "Average": "1347.576294",
+     "NowVol": "53",
+     "VolInStock": "0",
+     "Lead": "0.000000"
+    }
+   },
+   {
+    "code": "600519",
+    "time": "10:36",
+    "price": 1350.0,
+    "avg_price": 1347.582764,
+    "vol": 41.0,
+    "market": 1,
+    "raw": {
+     "Minute": "636",
+     "Now": "1350.000000",
+     "Average": "1347.582764",
+     "NowVol": "41",
+     "VolInStock": "0",
+     "Lead": "0.000000"
+    }
+   },
+   {
+    "code": "600519",
+    "time": "10:37",
+    "price": 1350.869995,
+    "avg_price": 1347.590454,
+    "vol": 42.0,
+    "market": 1,
+    "raw": {
+     "Minute": "637",
+     "Now": "1350.869995",
+     "Average": "1347.590454",
+     "NowVol": "42",
+     "VolInStock": "0",
+     "Lead": "0.000000"
+    }
+   },
+   {
+    "code": "600519",
+    "time": "10:38",
+    "price": 1349.97998,
+    "avg_price": 1347.596558,
+    "vol": 34.0,
+    "market": 1,
+    "raw": {
+     "Minute": "638",
+     "Now": "1349.979980",
+     "Average": "1347.596558",
+     "NowVol": "34",
+     "VolInStock": "0",
+     "Lead": "0.000000"
+    }
+   },
+   {
+    "code": "600519",
+    "time": "10:39",
+    "price": 1350.0,
+    "avg_price": 1347.607056,
+    "vol": 62.0,
+    "market": 1,
+    "raw": {
+     "Minute": "639",
+     "Now": "1350.000000",
+     "Average": "1347.607056",
+     "NowVol": "62",
+     "VolInStock": "0",
+     "Lead": "0.000000"
+    }
+   },
+   {
+    "code": "600519",
+    "time": "10:40",
+    "price": 1350.0,
+    "avg_price": 1347.619751,
+    "vol": 64.0,
+    "market": 1,
+    "raw": {
+     "Minute": "640",
+     "Now": "1350.000000",
+     "Average": "1347.619751",
+     "NowVol": "64",
+     "VolInStock": "0",
+     "Lead": "0.000000"
+    }
+   },
+   {
+    "code": "600519",
+    "time": "10:41",
+    "price": 1349.930054,
+    "avg_price": 1347.628784,
+    "vol": 48.0,
+    "market": 1,
+    "raw": {
+     "Minute": "641",
+     "Now": "1349.930054",
+     "Average": "1347.628784",
+     "NowVol": "48",
+     "VolInStock": "0",
+     "Lead": "0.000000"
+    }
+   },
+   {
+    "code": "600519",
+    "time": "10:42",
+    "price": 1350.439941,
+    "avg_price": 1347.638306,
+    "vol": 56.0,
+    "market": 1,
+    "raw": {
+     "Minute": "642",
+     "Now": "1350.439941",
+     "Average": "1347.638306",
+     "NowVol": "56",
+     "VolInStock": "0",
+     "Lead": "0.000000"
+    }
+   },
+   {
+    "code": "600519",
+    "time": "10:43",
+    "price": 1350.380005,
+    "avg_price": 1347.648804,
+    "vol": 64.0,
+    "market": 1,
+    "raw": {
+     "Minute": "643",
+     "Now": "1350.380005",
+     "Average": "1347.648804",
+     "NowVol": "64",
+     "VolInStock": "0",
+     "Lead": "0.000000"
+    }
+   },
+   {
+    "code": "600519",
+    "time": "10:44",
+    "price": 1350.369995,
+    "avg_price": 1347.659668,
+    "vol": 66.0,
+    "market": 1,
+    "raw": {
+     "Minute": "644",
+     "Now": "1350.369995",
+     "Average": "1347.659668",
+     "NowVol": "66",
+     "VolInStock": "0",
+     "Lead": "0.000000"
+    }
+   },
+   {
+    "code": "600519",
+    "time": "10:45",
+    "price": 1350.410034,
+    "avg_price": 1347.667236,
+    "vol": 46.0,
+    "market": 1,
+    "raw": {
+     "Minute": "645",
+     "Now": "1350.410034",
+     "Average": "1347.667236",
+     "NowVol": "46",
+     "VolInStock": "0",
+     "Lead": "0.000000"
+    }
+   },
+   {
+    "code": "600519",
+    "time": "10:46",
+    "price": 1350.0,
+    "avg_price": 1347.68042,
+    "vol": 89.0,
+    "market": 1,
+    "raw": {
+     "Minute": "646",
+     "Now": "1350.000000",
+     "Average": "1347.680420",
+     "NowVol": "89",
+     "VolInStock": "0",
+     "Lead": "0.000000"
+    }
+   },
+   {
+    "code": "600519",
+    "time": "10:47",
+    "price": 1350.400024,
+    "avg_price": 1347.688965,
+    "vol": 54.0,
+    "market": 1,
+    "raw": {
+     "Minute": "647",
+     "Now": "1350.400024",
+     "Average": "1347.688965",
+     "NowVol": "54",
+     "VolInStock": "0",
+     "Lead": "0.000000"
+    }
+   },
+   {
+    "code": "600519",
+    "time": "10:48",
+    "price": 1349.199951,
+    "avg_price": 1347.696533,
+    "vol": 49.0,
+    "market": 1,
+    "raw": {
+     "Minute": "648",
+     "Now": "1349.199951",
+     "Average": "1347.696533",
+     "NowVol": "49",
+     "VolInStock": "0",
+     "Lead": "0.000000"
+    }
+   },
+   {
+    "code": "600519",
+    "time": "10:49",
+    "price": 1350.300049,
+    "avg_price": 1347.707275,
+    "vol": 70.0,
+    "market": 1,
+    "raw": {
+     "Minute": "649",
+     "Now": "1350.300049",
+     "Average": "1347.707275",
+     "NowVol": "70",
+     "VolInStock": "0",
+     "Lead": "0.000000"
+    }
+   },
+   {
+    "code": "600519",
+    "time": "10:50",
+    "price": 1350.449951,
+    "avg_price": 1347.722412,
+    "vol": 84.0,
+    "market": 1,
+    "raw": {
+     "Minute": "650",
+     "Now": "1350.449951",
+     "Average": "1347.722412",
+     "NowVol": "84",
+     "VolInStock": "0",
+     "Lead": "0.000000"
+    }
+   },
+   {
+    "code": "600519",
+    "time": "10:51",
+    "price": 1350.349976,
+    "avg_price": 1347.747437,
+    "vol": 130.0,
+    "market": 1,
+    "raw": {
+     "Minute": "651",
+     "Now": "1350.349976",
+     "Average": "1347.747437",
+     "NowVol": "130",
+     "VolInStock": "0",
+     "Lead": "0.000000"
+    }
+   },
+   {
+    "code": "600519",
+    "time": "10:52",
+    "price": 1350.199951,
+    "avg_price": 1347.75708,
+    "vol": 69.0,
+    "market": 1,
+    "raw": {
+     "Minute": "652",
+     "Now": "1350.199951",
+     "Average": "1347.757080",
+     "NowVol": "69",
+     "VolInStock": "0",
+     "Lead": "0.000000"
+    }
+   },
+   {
+    "code": "600519",
+    "time": "10:53",
+    "price": 1350.5,
+    "avg_price": 1347.770508,
+    "vol": 76.0,
+    "market": 1,
+    "raw": {
+     "Minute": "653",
+     "Now": "1350.500000",
+     "Average": "1347.770508",
+     "NowVol": "76",
+     "VolInStock": "0",
+     "Lead": "0.000000"
+    }
+   },
+   {
+    "code": "600519",
+    "time": "10:54",
+    "price": 1350.880005,
+    "avg_price": 1347.786621,
+    "vol": 85.0,
+    "market": 1,
+    "raw": {
+     "Minute": "654",
+     "Now": "1350.880005",
+     "Average": "1347.786621",
+     "NowVol": "85",
+     "VolInStock": "0",
+     "Lead": "0.000000"
+    }
+   },
+   {
+    "code": "600519",
+    "time": "10:55",
+    "price": 1350.800049,
+    "avg_price": 1347.804443,
+    "vol": 87.0,
+    "market": 1,
+    "raw": {
+     "Minute": "655",
+     "Now": "1350.800049",
+     "Average": "1347.804443",
+     "NowVol": "87",
+     "VolInStock": "0",
+     "Lead": "0.000000"
+    }
+   },
+   {
+    "code": "600519",
+    "time": "10:56",
+    "price": 1351.0,
+    "avg_price": 1347.817627,
+    "vol": 64.0,
+    "market": 1,
+    "raw": {
+     "Minute": "656",
+     "Now": "1351.000000",
+     "Average": "1347.817627",
+     "NowVol": "64",
+     "VolInStock": "0",
+     "Lead": "0.000000"
+    }
+   },
+   {
+    "code": "600519",
+    "time": "10:57",
+    "price": 1350.97998,
+    "avg_price": 1347.832153,
+    "vol": 70.0,
+    "market": 1,
+    "raw": {
+     "Minute": "657",
+     "Now": "1350.979980",
+     "Average": "1347.832153",
+     "NowVol": "70",
+     "VolInStock": "0",
+     "Lead": "0.000000"
+    }
+   },
+   {
+    "code": "600519",
+    "time": "10:58",
+    "price": 1350.97998,
+    "avg_price": 1347.845215,
+    "vol": 66.0,
+    "market": 1,
+    "raw": {
+     "Minute": "658",
+     "Now": "1350.979980",
+     "Average": "1347.845215",
+     "NowVol": "66",
+     "VolInStock": "0",
+     "Lead": "0.000000"
+    }
+   },
+   {
+    "code": "600519",
+    "time": "10:59",
+    "price": 1350.97998,
+    "avg_price": 1347.860596,
+    "vol": 83.0,
+    "market": 1,
+    "raw": {
+     "Minute": "659",
+     "Now": "1350.979980",
+     "Average": "1347.860596",
+     "NowVol": "83",
+     "VolInStock": "0",
+     "Lead": "0.000000"
+    }
+   },
+   {
+    "code": "600519",
+    "time": "11:00",
+    "price": 1349.5,
+    "avg_price": 1347.871094,
+    "vol": 62.0,
+    "market": 1,
+    "raw": {
+     "Minute": "660",
+     "Now": "1349.500000",
+     "Average": "1347.871094",
+     "NowVol": "62",
+     "VolInStock": "0",
+     "Lead": "0.000000"
+    }
+   },
+   {
+    "code": "600519",
+    "time": "11:01",
+    "price": 1350.0,
+    "avg_price": 1347.877808,
+    "vol": 50.0,
+    "market": 1,
+    "raw": {
+     "Minute": "661",
+     "Now": "1350.000000",
+     "Average": "1347.877808",
+     "NowVol": "50",
+     "VolInStock": "0",
+     "Lead": "0.000000"
+    }
+   },
+   {
+    "code": "600519",
+    "time": "11:02",
+    "price": 1349.0,
+    "avg_price": 1347.884277,
+    "vol": 62.0,
+    "market": 1,
+    "raw": {
+     "Minute": "662",
+     "Now": "1349.000000",
+     "Average": "1347.884277",
+     "NowVol": "62",
+     "VolInStock": "0",
+     "Lead": "0.000000"
+    }
+   },
+   {
+    "code": "600519",
+    "time": "11:03",
+    "price": 1349.76001,
+    "avg_price": 1347.889038,
+    "vol": 64.0,
+    "market": 1,
+    "raw": {
+     "Minute": "663",
+     "Now": "1349.760010",
+     "Average": "1347.889038",
+     "NowVol": "64",
+     "VolInStock": "0",
+     "Lead": "0.000000"
+    }
+   },
+   {
+    "code": "600519",
+    "time": "11:04",
+    "price": 1350.0,
+    "avg_price": 1347.895996,
+    "vol": 57.0,
+    "market": 1,
+    "raw": {
+     "Minute": "664",
+     "Now": "1350.000000",
+     "Average": "1347.895996",
+     "NowVol": "57",
+     "VolInStock": "0",
+     "Lead": "0.000000"
+    }
+   },
+   {
+    "code": "600519",
+    "time": "11:05",
+    "price": 1350.0,
+    "avg_price": 1347.899536,
+    "vol": 28.0,
+    "market": 1,
+    "raw": {
+     "Minute": "665",
+     "Now": "1350.000000",
+     "Average": "1347.899536",
+     "NowVol": "28",
+     "VolInStock": "0",
+     "Lead": "0.000000"
+    }
+   },
+   {
+    "code": "600519",
+    "time": "11:06",
+    "price": 1348.930054,
+    "avg_price": 1347.907349,
+    "vol": 78.0,
+    "market": 1,
+    "raw": {
+     "Minute": "666",
+     "Now": "1348.930054",
+     "Average": "1347.907349",
+     "NowVol": "78",
+     "VolInStock": "0",
+     "Lead": "0.000000"
+    }
+   },
+   {
+    "code": "600519",
+    "time": "11:07",
+    "price": 1349.699951,
+    "avg_price": 1347.911865,
+    "vol": 56.0,
+    "market": 1,
+    "raw": {
+     "Minute": "667",
+     "Now": "1349.699951",
+     "Average": "1347.911865",
+     "NowVol": "56",
+     "VolInStock": "0",
+     "Lead": "0.000000"
+    }
+   },
+   {
+    "code": "600519",
+    "time": "11:08",
+    "price": 1348.119995,
+    "avg_price": 1347.915039,
+    "vol": 53.0,
+    "market": 1,
+    "raw": {
+     "Minute": "668",
+     "Now": "1348.119995",
+     "Average": "1347.915039",
+     "NowVol": "53",
+     "VolInStock": "0",
+     "Lead": "0.000000"
+    }
+   },
+   {
+    "code": "600519",
+    "time": "11:09",
+    "price": 1349.0,
+    "avg_price": 1347.914795,
+    "vol": 77.0,
+    "market": 1,
+    "raw": {
+     "Minute": "669",
+     "Now": "1349.000000",
+     "Average": "1347.914795",
+     "NowVol": "77",
+     "VolInStock": "0",
+     "Lead": "0.000000"
+    }
+   },
+   {
+    "code": "600519",
+    "time": "11:10",
+    "price": 1349.0,
+    "avg_price": 1347.916626,
+    "vol": 59.0,
+    "market": 1,
+    "raw": {
+     "Minute": "670",
+     "Now": "1349.000000",
+     "Average": "1347.916626",
+     "NowVol": "59",
+     "VolInStock": "0",
+     "Lead": "0.000000"
+    }
+   },
+   {
+    "code": "600519",
+    "time": "11:11",
+    "price": 1348.810059,
+    "avg_price": 1347.917725,
+    "vol": 63.0,
+    "market": 1,
+    "raw": {
+     "Minute": "671",
+     "Now": "1348.810059",
+     "Average": "1347.917725",
+     "NowVol": "63",
+     "VolInStock": "0",
+     "Lead": "0.000000"
+    }
+   },
+   {
+    "code": "600519",
+    "time": "11:12",
+    "price": 1348.839966,
+    "avg_price": 1347.919067,
+    "vol": 84.0,
+    "market": 1,
+    "raw": {
+     "Minute": "672",
+     "Now": "1348.839966",
+     "Average": "1347.919067",
+     "NowVol": "84",
+     "VolInStock": "0",
+     "Lead": "0.000000"
+    }
+   },
+   {
+    "code": "600519",
+    "time": "11:13",
+    "price": 1348.73999,
+    "avg_price": 1347.921265,
+    "vol": 62.0,
+    "market": 1,
+    "raw": {
+     "Minute": "673",
+     "Now": "1348.739990",
+     "Average": "1347.921265",
+     "NowVol": "62",
+     "VolInStock": "0",
+     "Lead": "0.000000"
+    }
+   },
+   {
+    "code": "600519",
+    "time": "11:14",
+    "price": 1349.0,
+    "avg_price": 1347.924316,
+    "vol": 76.0,
+    "market": 1,
+    "raw": {
+     "Minute": "674",
+     "Now": "1349.000000",
+     "Average": "1347.924316",
+     "NowVol": "76",
+     "VolInStock": "0",
+     "Lead": "0.000000"
+    }
+   },
+   {
+    "code": "600519",
+    "time": "11:15",
+    "price": 1349.51001,
+    "avg_price": 1347.929321,
+    "vol": 56.0,
+    "market": 1,
+    "raw": {
+     "Minute": "675",
+     "Now": "1349.510010",
+     "Average": "1347.929321",
+     "NowVol": "56",
+     "VolInStock": "0",
+     "Lead": "0.000000"
+    }
+   },
+   {
+    "code": "600519",
+    "time": "11:16",
+    "price": 1349.47998,
+    "avg_price": 1347.937012,
+    "vol": 78.0,
+    "market": 1,
+    "raw": {
+     "Minute": "676",
+     "Now": "1349.479980",
+     "Average": "1347.937012",
+     "NowVol": "78",
+     "VolInStock": "0",
+     "Lead": "0.000000"
+    }
+   },
+   {
+    "code": "600519",
+    "time": "11:17",
+    "price": 1349.98999,
+    "avg_price": 1347.943115,
+    "vol": 63.0,
+    "market": 1,
+    "raw": {
+     "Minute": "677",
+     "Now": "1349.989990",
+     "Average": "1347.943115",
+     "NowVol": "63",
+     "VolInStock": "0",
+     "Lead": "0.000000"
+    }
+   },
+   {
+    "code": "600519",
+    "time": "11:18",
+    "price": 1349.98999,
+    "avg_price": 1347.951294,
+    "vol": 73.0,
+    "market": 1,
+    "raw": {
+     "Minute": "678",
+     "Now": "1349.989990",
+     "Average": "1347.951294",
+     "NowVol": "73",
+     "VolInStock": "0",
+     "Lead": "0.000000"
+    }
+   },
+   {
+    "code": "600519",
+    "time": "11:19",
+    "price": 1349.02002,
+    "avg_price": 1347.963989,
+    "vol": 106.0,
+    "market": 1,
+    "raw": {
+     "Minute": "679",
+     "Now": "1349.020020",
+     "Average": "1347.963989",
+     "NowVol": "106",
+     "VolInStock": "0",
+     "Lead": "0.000000"
+    }
+   },
+   {
+    "code": "600519",
+    "time": "11:20",
+    "price": 1349.5,
+    "avg_price": 1347.970825,
+    "vol": 83.0,
+    "market": 1,
+    "raw": {
+     "Minute": "680",
+     "Now": "1349.500000",
+     "Average": "1347.970825",
+     "NowVol": "83",
+     "VolInStock": "0",
+     "Lead": "0.000000"
+    }
+   },
+   {
+    "code": "600519",
+    "time": "11:21",
+    "price": 1349.98999,
+    "avg_price": 1347.978394,
+    "vol": 67.0,
+    "market": 1,
+    "raw": {
+     "Minute": "681",
+     "Now": "1349.989990",
+     "Average": "1347.978394",
+     "NowVol": "67",
+     "VolInStock": "0",
+     "Lead": "0.000000"
+    }
+   },
+   {
+    "code": "600519",
+    "time": "11:22",
+    "price": 1349.130005,
+    "avg_price": 1347.983398,
+    "vol": 50.0,
+    "market": 1,
+    "raw": {
+     "Minute": "682",
+     "Now": "1349.130005",
+     "Average": "1347.983398",
+     "NowVol": "50",
+     "VolInStock": "0",
+     "Lead": "0.000000"
+    }
+   },
+   {
+    "code": "600519",
+    "time": "11:23",
+    "price": 1349.140015,
+    "avg_price": 1347.987915,
+    "vol": 53.0,
+    "market": 1,
+    "raw": {
+     "Minute": "683",
+     "Now": "1349.140015",
+     "Average": "1347.987915",
+     "NowVol": "53",
+     "VolInStock": "0",
+     "Lead": "0.000000"
+    }
+   },
+   {
+    "code": "600519",
+    "time": "11:24",
+    "price": 1349.800049,
+    "avg_price": 1347.997437,
+    "vol": 89.0,
+    "market": 1,
+    "raw": {
+     "Minute": "684",
+     "Now": "1349.800049",
+     "Average": "1347.997437",
+     "NowVol": "89",
+     "VolInStock": "0",
+     "Lead": "0.000000"
+    }
+   },
+   {
+    "code": "600519",
+    "time": "11:25",
+    "price": 1349.97998,
+    "avg_price": 1348.00415,
+    "vol": 65.0,
+    "market": 1,
+    "raw": {
+     "Minute": "685",
+     "Now": "1349.979980",
+     "Average": "1348.004150",
+     "NowVol": "65",
+     "VolInStock": "0",
+     "Lead": "0.000000"
+    }
+   },
+   {
+    "code": "600519",
+    "time": "11:26",
+    "price": 1348.939941,
+    "avg_price": 1348.009766,
+    "vol": 59.0,
+    "market": 1,
+    "raw": {
+     "Minute": "686",
+     "Now": "1348.939941",
+     "Average": "1348.009766",
+     "NowVol": "59",
+     "VolInStock": "0",
+     "Lead": "0.000000"
+    }
+   },
+   {
+    "code": "600519",
+    "time": "11:27",
+    "price": 1349.640015,
+    "avg_price": 1348.014282,
+    "vol": 60.0,
+    "market": 1,
+    "raw": {
+     "Minute": "687",
+     "Now": "1349.640015",
+     "Average": "1348.014282",
+     "NowVol": "60",
+     "VolInStock": "0",
+     "Lead": "0.000000"
+    }
+   },
+   {
+    "code": "600519",
+    "time": "11:28",
+    "price": 1349.439941,
+    "avg_price": 1348.020264,
+    "vol": 78.0,
+    "market": 1,
+    "raw": {
+     "Minute": "688",
+     "Now": "1349.439941",
+     "Average": "1348.020264",
+     "NowVol": "78",
+     "VolInStock": "0",
+     "Lead": "0.000000"
+    }
+   },
+   {
+    "code": "600519",
+    "time": "11:29",
+    "price": 1348.0,
+    "avg_price": 1348.023926,
+    "vol": 70.0,
+    "market": 1,
+    "raw": {
+     "Minute": "689",
+     "Now": "1348.000000",
+     "Average": "1348.023926",
+     "NowVol": "70",
+     "VolInStock": "0",
+     "Lead": "0.000000"
+    }
+   },
+   {
+    "code": "600519",
+    "time": "13:00",
+    "price": 1346.76001,
+    "avg_price": 1348.001343,
+    "vol": 273.0,
+    "market": 1,
+    "raw": {
+     "Minute": "780",
+     "Now": "1346.760010",
+     "Average": "1348.001343",
+     "NowVol": "273",
+     "VolInStock": "0",
+     "Lead": "0.000000"
+    }
+   },
+   {
+    "code": "600519",
+    "time": "13:01",
+    "price": 1346.430054,
+    "avg_price": 1347.995483,
+    "vol": 74.0,
+    "market": 1,
+    "raw": {
+     "Minute": "781",
+     "Now": "1346.430054",
+     "Average": "1347.995483",
+     "NowVol": "74",
+     "VolInStock": "0",
+     "Lead": "0.000000"
+    }
+   },
+   {
+    "code": "600519",
+    "time": "13:02",
+    "price": 1345.599976,
+    "avg_price": 1347.990723,
+    "vol": 41.0,
+    "market": 1,
+    "raw": {
+     "Minute": "782",
+     "Now": "1345.599976",
+     "Average": "1347.990723",
+     "NowVol": "41",
+     "VolInStock": "0",
+     "Lead": "0.000000"
+    }
+   },
+   {
+    "code": "600519",
+    "time": "13:03",
+    "price": 1345.560059,
+    "avg_price": 1347.981934,
+    "vol": 72.0,
+    "market": 1,
+    "raw": {
+     "Minute": "783",
+     "Now": "1345.560059",
+     "Average": "1347.981934",
+     "NowVol": "72",
+     "VolInStock": "0",
+     "Lead": "0.000000"
+    }
+   },
+   {
+    "code": "600519",
+    "time": "13:04",
+    "price": 1347.410034,
+    "avg_price": 1347.974121,
+    "vol": 82.0,
+    "market": 1,
+    "raw": {
+     "Minute": "784",
+     "Now": "1347.410034",
+     "Average": "1347.974121",
+     "NowVol": "82",
+     "VolInStock": "0",
+     "Lead": "0.000000"
+    }
+   },
+   {
+    "code": "600519",
+    "time": "13:05",
+    "price": 1347.97998,
+    "avg_price": 1347.973877,
+    "vol": 79.0,
+    "market": 1,
+    "raw": {
+     "Minute": "785",
+     "Now": "1347.979980",
+     "Average": "1347.973877",
+     "NowVol": "79",
+     "VolInStock": "0",
+     "Lead": "0.000000"
+    }
+   },
+   {
+    "code": "600519",
+    "time": "13:06",
+    "price": 1349.5,
+    "avg_price": 1347.97998,
+    "vol": 320.0,
+    "market": 1,
+    "raw": {
+     "Minute": "786",
+     "Now": "1349.500000",
+     "Average": "1347.979980",
+     "NowVol": "320",
+     "VolInStock": "0",
+     "Lead": "0.000000"
+    }
+   },
+   {
+    "code": "600519",
+    "time": "13:07",
+    "price": 1349.48999,
+    "avg_price": 1347.985962,
+    "vol": 72.0,
+    "market": 1,
+    "raw": {
+     "Minute": "787",
+     "Now": "1349.489990",
+     "Average": "1347.985962",
+     "NowVol": "72",
+     "VolInStock": "0",
+     "Lead": "0.000000"
+    }
+   },
+   {
+    "code": "600519",
+    "time": "13:08",
+    "price": 1350.400024,
+    "avg_price": 1348.005249,
+    "vol": 191.0,
+    "market": 1,
+    "raw": {
+     "Minute": "788",
+     "Now": "1350.400024",
+     "Average": "1348.005249",
+     "NowVol": "191",
+     "VolInStock": "0",
+     "Lead": "0.000000"
+    }
+   },
+   {
+    "code": "600519",
+    "time": "13:09",
+    "price": 1351.140015,
+    "avg_price": 1348.062866,
+    "vol": 330.0,
+    "market": 1,
+    "raw": {
+     "Minute": "789",
+     "Now": "1351.140015",
+     "Average": "1348.062866",
+     "NowVol": "330",
+     "VolInStock": "0",
+     "Lead": "0.000000"
+    }
+   },
+   {
+    "code": "600519",
+    "time": "13:10",
+    "price": 1350.369995,
+    "avg_price": 1348.074097,
+    "vol": 100.0,
+    "market": 1,
+    "raw": {
+     "Minute": "790",
+     "Now": "1350.369995",
+     "Average": "1348.074097",
+     "NowVol": "100",
+     "VolInStock": "0",
+     "Lead": "0.000000"
+    }
+   },
+   {
+    "code": "600519",
+    "time": "13:11",
+    "price": 1351.469971,
+    "avg_price": 1348.087769,
+    "vol": 85.0,
+    "market": 1,
+    "raw": {
+     "Minute": "791",
+     "Now": "1351.469971",
+     "Average": "1348.087769",
+     "NowVol": "85",
+     "VolInStock": "0",
+     "Lead": "0.000000"
+    }
+   },
+   {
+    "code": "600519",
+    "time": "13:12",
+    "price": 1351.26001,
+    "avg_price": 1348.103394,
+    "vol": 89.0,
+    "market": 1,
+    "raw": {
+     "Minute": "792",
+     "Now": "1351.260010",
+     "Average": "1348.103394",
+     "NowVol": "89",
+     "VolInStock": "0",
+     "Lead": "0.000000"
+    }
+   },
+   {
+    "code": "600519",
+    "time": "13:13",
+    "price": 1350.01001,
+    "avg_price": 1348.112915,
+    "vol": 76.0,
+    "market": 1,
+    "raw": {
+     "Minute": "793",
+     "Now": "1350.010010",
+     "Average": "1348.112915",
+     "NowVol": "76",
+     "VolInStock": "0",
+     "Lead": "0.000000"
+    }
+   },
+   {
+    "code": "600519",
+    "time": "13:14",
+    "price": 1349.040039,
+    "avg_price": 1348.120117,
+    "vol": 83.0,
+    "market": 1,
+    "raw": {
+     "Minute": "794",
+     "Now": "1349.040039",
+     "Average": "1348.120117",
+     "NowVol": "83",
+     "VolInStock": "0",
+     "Lead": "0.000000"
+    }
+   },
+   {
+    "code": "600519",
+    "time": "13:15",
+    "price": 1348.640015,
+    "avg_price": 1348.129639,
+    "vol": 106.0,
+    "market": 1,
+    "raw": {
+     "Minute": "795",
+     "Now": "1348.640015",
+     "Average": "1348.129639",
+     "NowVol": "106",
+     "VolInStock": "0",
+     "Lead": "0.000000"
+    }
+   },
+   {
+    "code": "600519",
+    "time": "13:16",
+    "price": 1349.290039,
+    "avg_price": 1348.138428,
+    "vol": 90.0,
+    "market": 1,
+    "raw": {
+     "Minute": "796",
+     "Now": "1349.290039",
+     "Average": "1348.138428",
+     "NowVol": "90",
+     "VolInStock": "0",
+     "Lead": "0.000000"
+    }
+   },
+   {
+    "code": "600519",
+    "time": "13:17",
+    "price": 1350.569946,
+    "avg_price": 1348.149414,
+    "vol": 90.0,
+    "market": 1,
+    "raw": {
+     "Minute": "797",
+     "Now": "1350.569946",
+     "Average": "1348.149414",
+     "NowVol": "90",
+     "VolInStock": "0",
+     "Lead": "0.000000"
+    }
+   },
+   {
+    "code": "600519",
+    "time": "13:18",
+    "price": 1349.98999,
+    "avg_price": 1348.160767,
+    "vol": 113.0,
+    "market": 1,
+    "raw": {
+     "Minute": "798",
+     "Now": "1349.989990",
+     "Average": "1348.160767",
+     "NowVol": "113",
+     "VolInStock": "0",
+     "Lead": "0.000000"
+    }
+   },
+   {
+    "code": "600519",
+    "time": "13:19",
+    "price": 1350.310059,
+    "avg_price": 1348.171631,
+    "vol": 99.0,
+    "market": 1,
+    "raw": {
+     "Minute": "799",
+     "Now": "1350.310059",
+     "Average": "1348.171631",
+     "NowVol": "99",
+     "VolInStock": "0",
+     "Lead": "0.000000"
+    }
+   },
+   {
+    "code": "600519",
+    "time": "13:20",
+    "price": 1350.52002,
+    "avg_price": 1348.184204,
+    "vol": 105.0,
+    "market": 1,
+    "raw": {
+     "Minute": "800",
+     "Now": "1350.520020",
+     "Average": "1348.184204",
+     "NowVol": "105",
+     "VolInStock": "0",
+     "Lead": "0.000000"
+    }
+   },
+   {
+    "code": "600519",
+    "time": "13:21",
+    "price": 1350.0,
+    "avg_price": 1348.192017,
+    "vol": 67.0,
+    "market": 1,
+    "raw": {
+     "Minute": "801",
+     "Now": "1350.000000",
+     "Average": "1348.192017",
+     "NowVol": "67",
+     "VolInStock": "0",
+     "Lead": "0.000000"
+    }
+   },
+   {
+    "code": "600519",
+    "time": "13:22",
+    "price": 1350.439941,
+    "avg_price": 1348.199463,
+    "vol": 65.0,
+    "market": 1,
+    "raw": {
+     "Minute": "802",
+     "Now": "1350.439941",
+     "Average": "1348.199463",
+     "NowVol": "65",
+     "VolInStock": "0",
+     "Lead": "0.000000"
+    }
+   },
+   {
+    "code": "600519",
+    "time": "13:23",
+    "price": 1350.48999,
+    "avg_price": 1348.210083,
+    "vol": 93.0,
+    "market": 1,
+    "raw": {
+     "Minute": "803",
+     "Now": "1350.489990",
+     "Average": "1348.210083",
+     "NowVol": "93",
+     "VolInStock": "0",
+     "Lead": "0.000000"
+    }
+   },
+   {
+    "code": "600519",
+    "time": "13:24",
+    "price": 1350.560059,
+    "avg_price": 1348.222412,
+    "vol": 108.0,
+    "market": 1,
+    "raw": {
+     "Minute": "804",
+     "Now": "1350.560059",
+     "Average": "1348.222412",
+     "NowVol": "108",
+     "VolInStock": "0",
+     "Lead": "0.000000"
+    }
+   },
+   {
+    "code": "600519",
+    "time": "13:25",
+    "price": 1350.329956,
+    "avg_price": 1348.23645,
+    "vol": 112.0,
+    "market": 1,
+    "raw": {
+     "Minute": "805",
+     "Now": "1350.329956",
+     "Average": "1348.236450",
+     "NowVol": "112",
+     "VolInStock": "0",
+     "Lead": "0.000000"
+    }
+   },
+   {
+    "code": "600519",
+    "time": "13:26",
+    "price": 1350.98999,
+    "avg_price": 1348.246948,
+    "vol": 86.0,
+    "market": 1,
+    "raw": {
+     "Minute": "806",
+     "Now": "1350.989990",
+     "Average": "1348.246948",
+     "NowVol": "86",
+     "VolInStock": "0",
+     "Lead": "0.000000"
+    }
+   },
+   {
+    "code": "600519",
+    "time": "13:27",
+    "price": 1350.920044,
+    "avg_price": 1348.261597,
+    "vol": 129.0,
+    "market": 1,
+    "raw": {
+     "Minute": "807",
+     "Now": "1350.920044",
+     "Average": "1348.261597",
+     "NowVol": "129",
+     "VolInStock": "0",
+     "Lead": "0.000000"
+    }
+   },
+   {
+    "code": "600519",
+    "time": "13:28",
+    "price": 1351.900024,
+    "avg_price": 1348.296631,
+    "vol": 242.0,
+    "market": 1,
+    "raw": {
+     "Minute": "808",
+     "Now": "1351.900024",
+     "Average": "1348.296631",
+     "NowVol": "242",
+     "VolInStock": "0",
+     "Lead": "0.000000"
+    }
+   },
+   {
+    "code": "600519",
+    "time": "13:29",
+    "price": 1352.439941,
+    "avg_price": 1348.359863,
+    "vol": 346.0,
+    "market": 1,
+    "raw": {
+     "Minute": "809",
+     "Now": "1352.439941",
+     "Average": "1348.359863",
+     "NowVol": "346",
+     "VolInStock": "0",
+     "Lead": "0.000000"
+    }
+   },
+   {
+    "code": "600519",
+    "time": "13:30",
+    "price": 1351.369995,
+    "avg_price": 1348.397217,
+    "vol": 224.0,
+    "market": 1,
+    "raw": {
+     "Minute": "810",
+     "Now": "1351.369995",
+     "Average": "1348.397217",
+     "NowVol": "224",
+     "VolInStock": "0",
+     "Lead": "0.000000"
+    }
+   },
+   {
+    "code": "600519",
+    "time": "13:31",
+    "price": 1352.0,
+    "avg_price": 1348.416626,
+    "vol": 134.0,
+    "market": 1,
+    "raw": {
+     "Minute": "811",
+     "Now": "1352.000000",
+     "Average": "1348.416626",
+     "NowVol": "134",
+     "VolInStock": "0",
+     "Lead": "0.000000"
+    }
+   },
+   {
+    "code": "600519",
+    "time": "13:32",
+    "price": 1351.73999,
+    "avg_price": 1348.447266,
+    "vol": 194.0,
+    "market": 1,
+    "raw": {
+     "Minute": "812",
+     "Now": "1351.739990",
+     "Average": "1348.447266",
+     "NowVol": "194",
+     "VolInStock": "0",
+     "Lead": "0.000000"
+    }
+   },
+   {
+    "code": "600519",
+    "time": "13:33",
+    "price": 1351.540039,
+    "avg_price": 1348.458252,
+    "vol": 80.0,
+    "market": 1,
+    "raw": {
+     "Minute": "813",
+     "Now": "1351.540039",
+     "Average": "1348.458252",
+     "NowVol": "80",
+     "VolInStock": "0",
+     "Lead": "0.000000"
+    }
+   },
+   {
+    "code": "600519",
+    "time": "13:34",
+    "price": 1350.400024,
+    "avg_price": 1348.476074,
+    "vol": 194.0,
+    "market": 1,
+    "raw": {
+     "Minute": "814",
+     "Now": "1350.400024",
+     "Average": "1348.476074",
+     "NowVol": "194",
+     "VolInStock": "0",
+     "Lead": "0.000000"
+    }
+   },
+   {
+    "code": "600519",
+    "time": "13:35",
+    "price": 1351.98999,
+    "avg_price": 1348.494507,
+    "vol": 128.0,
+    "market": 1,
+    "raw": {
+     "Minute": "815",
+     "Now": "1351.989990",
+     "Average": "1348.494507",
+     "NowVol": "128",
+     "VolInStock": "0",
+     "Lead": "0.000000"
+    }
+   },
+   {
+    "code": "600519",
+    "time": "13:36",
+    "price": 1353.680054,
+    "avg_price": 1348.585571,
+    "vol": 479.0,
+    "market": 1,
+    "raw": {
+     "Minute": "816",
+     "Now": "1353.680054",
+     "Average": "1348.585571",
+     "NowVol": "479",
+     "VolInStock": "0",
+     "Lead": "0.000000"
+    }
+   },
+   {
+    "code": "600519",
+    "time": "13:37",
+    "price": 1352.819946,
+    "avg_price": 1348.616699,
+    "vol": 149.0,
+    "market": 1,
+    "raw": {
+     "Minute": "817",
+     "Now": "1352.819946",
+     "Average": "1348.616699",
+     "NowVol": "149",
+     "VolInStock": "0",
+     "Lead": "0.000000"
+    }
+   },
+   {
+    "code": "600519",
+    "time": "13:38",
+    "price": 1353.650024,
+    "avg_price": 1348.6698,
+    "vol": 275.0,
+    "market": 1,
+    "raw": {
+     "Minute": "818",
+     "Now": "1353.650024",
+     "Average": "1348.669800",
+     "NowVol": "275",
+     "VolInStock": "0",
+     "Lead": "0.000000"
+    }
+   },
+   {
+    "code": "600519",
+    "time": "13:39",
+    "price": 1353.5,
+    "avg_price": 1348.710571,
+    "vol": 187.0,
+    "market": 1,
+    "raw": {
+     "Minute": "819",
+     "Now": "1353.500000",
+     "Average": "1348.710571",
+     "NowVol": "187",
+     "VolInStock": "0",
+     "Lead": "0.000000"
+    }
+   },
+   {
+    "code": "600519",
+    "time": "13:40",
+    "price": 1353.98999,
+    "avg_price": 1348.750122,
+    "vol": 174.0,
+    "market": 1,
+    "raw": {
+     "Minute": "820",
+     "Now": "1353.989990",
+     "Average": "1348.750122",
+     "NowVol": "174",
+     "VolInStock": "0",
+     "Lead": "0.000000"
+    }
+   },
+   {
+    "code": "600519",
+    "time": "13:41",
+    "price": 1353.390015,
+    "avg_price": 1348.784424,
+    "vol": 163.0,
+    "market": 1,
+    "raw": {
+     "Minute": "821",
+     "Now": "1353.390015",
+     "Average": "1348.784424",
+     "NowVol": "163",
+     "VolInStock": "0",
+     "Lead": "0.000000"
+    }
+   },
+   {
+    "code": "600519",
+    "time": "13:42",
+    "price": 1353.98999,
+    "avg_price": 1348.828125,
+    "vol": 194.0,
+    "market": 1,
+    "raw": {
+     "Minute": "822",
+     "Now": "1353.989990",
+     "Average": "1348.828125",
+     "NowVol": "194",
+     "VolInStock": "0",
+     "Lead": "0.000000"
+    }
+   },
+   {
+    "code": "600519",
+    "time": "13:43",
+    "price": 1354.680054,
+    "avg_price": 1348.860962,
+    "vol": 144.0,
+    "market": 1,
+    "raw": {
+     "Minute": "823",
+     "Now": "1354.680054",
+     "Average": "1348.860962",
+     "NowVol": "144",
+     "VolInStock": "0",
+     "Lead": "0.000000"
+    }
+   },
+   {
+    "code": "600519",
+    "time": "13:44",
+    "price": 1354.790039,
+    "avg_price": 1348.894531,
+    "vol": 152.0,
+    "market": 1,
+    "raw": {
+     "Minute": "824",
+     "Now": "1354.790039",
+     "Average": "1348.894531",
+     "NowVol": "152",
+     "VolInStock": "0",
+     "Lead": "0.000000"
+    }
+   },
+   {
+    "code": "600519",
+    "time": "13:45",
+    "price": 1354.880005,
+    "avg_price": 1348.936523,
+    "vol": 170.0,
+    "market": 1,
+    "raw": {
+     "Minute": "825",
+     "Now": "1354.880005",
+     "Average": "1348.936523",
+     "NowVol": "170",
+     "VolInStock": "0",
+     "Lead": "0.000000"
+    }
+   },
+   {
+    "code": "600519",
+    "time": "13:46",
+    "price": 1354.01001,
+    "avg_price": 1348.97583,
+    "vol": 159.0,
+    "market": 1,
+    "raw": {
+     "Minute": "826",
+     "Now": "1354.010010",
+     "Average": "1348.975830",
+     "NowVol": "159",
+     "VolInStock": "0",
+     "Lead": "0.000000"
+    }
+   },
+   {
+    "code": "600519",
+    "time": "13:47",
+    "price": 1354.97998,
+    "avg_price": 1349.001831,
+    "vol": 106.0,
+    "market": 1,
+    "raw": {
+     "Minute": "827",
+     "Now": "1354.979980",
+     "Average": "1349.001831",
+     "NowVol": "106",
+     "VolInStock": "0",
+     "Lead": "0.000000"
+    }
+   },
+   {
+    "code": "600519",
+    "time": "13:48",
+    "price": 1354.959961,
+    "avg_price": 1349.046387,
+    "vol": 182.0,
+    "market": 1,
+    "raw": {
+     "Minute": "828",
+     "Now": "1354.959961",
+     "Average": "1349.046387",
+     "NowVol": "182",
+     "VolInStock": "0",
+     "Lead": "0.000000"
+    }
+   },
+   {
+    "code": "600519",
+    "time": "13:49",
+    "price": 1354.959961,
+    "avg_price": 1349.082153,
+    "vol": 148.0,
+    "market": 1,
+    "raw": {
+     "Minute": "829",
+     "Now": "1354.959961",
+     "Average": "1349.082153",
+     "NowVol": "148",
+     "VolInStock": "0",
+     "Lead": "0.000000"
+    }
+   },
+   {
+    "code": "600519",
+    "time": "13:50",
+    "price": 1354.939941,
+    "avg_price": 1349.116943,
+    "vol": 153.0,
+    "market": 1,
+    "raw": {
+     "Minute": "830",
+     "Now": "1354.939941",
+     "Average": "1349.116943",
+     "NowVol": "153",
+     "VolInStock": "0",
+     "Lead": "0.000000"
+    }
+   },
+   {
+    "code": "600519",
+    "time": "13:51",
+    "price": 1355.98999,
+    "avg_price": 1349.317749,
+    "vol": 840.0,
+    "market": 1,
+    "raw": {
+     "Minute": "831",
+     "Now": "1355.989990",
+     "Average": "1349.317749",
+     "NowVol": "840",
+     "VolInStock": "0",
+     "Lead": "0.000000"
+    }
+   },
+   {
+    "code": "600519",
+    "time": "13:52",
+    "price": 1355.98999,
+    "avg_price": 1349.36499,
+    "vol": 181.0,
+    "market": 1,
+    "raw": {
+     "Minute": "832",
+     "Now": "1355.989990",
+     "Average": "1349.364990",
+     "NowVol": "181",
+     "VolInStock": "0",
+     "Lead": "0.000000"
+    }
+   },
+   {
+    "code": "600519",
+    "time": "13:53",
+    "price": 1356.060059,
+    "avg_price": 1349.408569,
+    "vol": 169.0,
+    "market": 1,
+    "raw": {
+     "Minute": "833",
+     "Now": "1356.060059",
+     "Average": "1349.408569",
+     "NowVol": "169",
+     "VolInStock": "0",
+     "Lead": "0.000000"
+    }
+   },
+   {
+    "code": "600519",
+    "time": "13:54",
+    "price": 1356.130005,
+    "avg_price": 1349.447998,
+    "vol": 153.0,
+    "market": 1,
+    "raw": {
+     "Minute": "834",
+     "Now": "1356.130005",
+     "Average": "1349.447998",
+     "NowVol": "153",
+     "VolInStock": "0",
+     "Lead": "0.000000"
+    }
+   },
+   {
+    "code": "600519",
+    "time": "13:55",
+    "price": 1356.280029,
+    "avg_price": 1349.484131,
+    "vol": 140.0,
+    "market": 1,
+    "raw": {
+     "Minute": "835",
+     "Now": "1356.280029",
+     "Average": "1349.484131",
+     "NowVol": "140",
+     "VolInStock": "0",
+     "Lead": "0.000000"
+    }
+   },
+   {
+    "code": "600519",
+    "time": "13:56",
+    "price": 1356.48999,
+    "avg_price": 1349.528809,
+    "vol": 170.0,
+    "market": 1,
+    "raw": {
+     "Minute": "836",
+     "Now": "1356.489990",
+     "Average": "1349.528809",
+     "NowVol": "170",
+     "VolInStock": "0",
+     "Lead": "0.000000"
+    }
+   },
+   {
+    "code": "600519",
+    "time": "13:57",
+    "price": 1356.76001,
+    "avg_price": 1349.564209,
+    "vol": 131.0,
+    "market": 1,
+    "raw": {
+     "Minute": "837",
+     "Now": "1356.760010",
+     "Average": "1349.564209",
+     "NowVol": "131",
+     "VolInStock": "0",
+     "Lead": "0.000000"
+    }
+   },
+   {
+    "code": "600519",
+    "time": "13:58",
+    "price": 1356.51001,
+    "avg_price": 1349.600952,
+    "vol": 138.0,
+    "market": 1,
+    "raw": {
+     "Minute": "838",
+     "Now": "1356.510010",
+     "Average": "1349.600952",
+     "NowVol": "138",
+     "VolInStock": "0",
+     "Lead": "0.000000"
+    }
+   },
+   {
+    "code": "600519",
+    "time": "13:59",
+    "price": 1355.920044,
+    "avg_price": 1349.65271,
+    "vol": 207.0,
+    "market": 1,
+    "raw": {
+     "Minute": "839",
+     "Now": "1355.920044",
+     "Average": "1349.652710",
+     "NowVol": "207",
+     "VolInStock": "0",
+     "Lead": "0.000000"
+    }
+   },
+   {
+    "code": "600519",
+    "time": "14:00",
+    "price": 1354.339966,
+    "avg_price": 1349.678589,
+    "vol": 119.0,
+    "market": 1,
+    "raw": {
+     "Minute": "840",
+     "Now": "1354.339966",
+     "Average": "1349.678589",
+     "NowVol": "119",
+     "VolInStock": "0",
+     "Lead": "0.000000"
+    }
+   },
+   {
+    "code": "600519",
+    "time": "14:01",
+    "price": 1355.22998,
+    "avg_price": 1349.701782,
+    "vol": 112.0,
+    "market": 1,
+    "raw": {
+     "Minute": "841",
+     "Now": "1355.229980",
+     "Average": "1349.701782",
+     "NowVol": "112",
+     "VolInStock": "0",
+     "Lead": "0.000000"
+    }
+   },
+   {
+    "code": "600519",
+    "time": "14:02",
+    "price": 1355.0,
+    "avg_price": 1349.720215,
+    "vol": 98.0,
+    "market": 1,
+    "raw": {
+     "Minute": "842",
+     "Now": "1355.000000",
+     "Average": "1349.720215",
+     "NowVol": "98",
+     "VolInStock": "0",
+     "Lead": "0.000000"
+    }
+   },
+   {
+    "code": "600519",
+    "time": "14:03",
+    "price": 1354.98999,
+    "avg_price": 1349.73645,
+    "vol": 90.0,
+    "market": 1,
+    "raw": {
+     "Minute": "843",
+     "Now": "1354.989990",
+     "Average": "1349.736450",
+     "NowVol": "90",
+     "VolInStock": "0",
+     "Lead": "0.000000"
+    }
+   },
+   {
+    "code": "600519",
+    "time": "14:04",
+    "price": 1355.0,
+    "avg_price": 1349.753296,
+    "vol": 91.0,
+    "market": 1,
+    "raw": {
+     "Minute": "844",
+     "Now": "1355.000000",
+     "Average": "1349.753296",
+     "NowVol": "91",
+     "VolInStock": "0",
+     "Lead": "0.000000"
+    }
+   },
+   {
+    "code": "600519",
+    "time": "14:05",
+    "price": 1354.969971,
+    "avg_price": 1349.766235,
+    "vol": 71.0,
+    "market": 1,
+    "raw": {
+     "Minute": "845",
+     "Now": "1354.969971",
+     "Average": "1349.766235",
+     "NowVol": "71",
+     "VolInStock": "0",
+     "Lead": "0.000000"
+    }
+   },
+   {
+    "code": "600519",
+    "time": "14:06",
+    "price": 1354.97998,
+    "avg_price": 1349.783325,
+    "vol": 102.0,
+    "market": 1,
+    "raw": {
+     "Minute": "846",
+     "Now": "1354.979980",
+     "Average": "1349.783325",
+     "NowVol": "102",
+     "VolInStock": "0",
+     "Lead": "0.000000"
+    }
+   },
+   {
+    "code": "600519",
+    "time": "14:07",
+    "price": 1354.180054,
+    "avg_price": 1349.800415,
+    "vol": 101.0,
+    "market": 1,
+    "raw": {
+     "Minute": "847",
+     "Now": "1354.180054",
+     "Average": "1349.800415",
+     "NowVol": "101",
+     "VolInStock": "0",
+     "Lead": "0.000000"
+    }
+   },
+   {
+    "code": "600519",
+    "time": "14:08",
+    "price": 1355.800049,
+    "avg_price": 1349.832031,
+    "vol": 166.0,
+    "market": 1,
+    "raw": {
+     "Minute": "848",
+     "Now": "1355.800049",
+     "Average": "1349.832031",
+     "NowVol": "166",
+     "VolInStock": "0",
+     "Lead": "0.000000"
+    }
+   },
+   {
+    "code": "600519",
+    "time": "14:09",
+    "price": 1356.910034,
+    "avg_price": 1349.884888,
+    "vol": 227.0,
+    "market": 1,
+    "raw": {
+     "Minute": "849",
+     "Now": "1356.910034",
+     "Average": "1349.884888",
+     "NowVol": "227",
+     "VolInStock": "0",
+     "Lead": "0.000000"
+    }
+   },
+   {
+    "code": "600519",
+    "time": "14:10",
+    "price": 1356.77002,
+    "avg_price": 1349.90686,
+    "vol": 89.0,
+    "market": 1,
+    "raw": {
+     "Minute": "850",
+     "Now": "1356.770020",
+     "Average": "1349.906860",
+     "NowVol": "89",
+     "VolInStock": "0",
+     "Lead": "0.000000"
+    }
+   },
+   {
+    "code": "600519",
+    "time": "14:11",
+    "price": 1356.97998,
+    "avg_price": 1349.95459,
+    "vol": 191.0,
+    "market": 1,
+    "raw": {
+     "Minute": "851",
+     "Now": "1356.979980",
+     "Average": "1349.954590",
+     "NowVol": "191",
+     "VolInStock": "0",
+     "Lead": "0.000000"
+    }
+   },
+   {
+    "code": "600519",
+    "time": "14:12",
+    "price": 1356.910034,
+    "avg_price": 1349.974731,
+    "vol": 83.0,
+    "market": 1,
+    "raw": {
+     "Minute": "852",
+     "Now": "1356.910034",
+     "Average": "1349.974731",
+     "NowVol": "83",
+     "VolInStock": "0",
+     "Lead": "0.000000"
+    }
+   },
+   {
+    "code": "600519",
+    "time": "14:13",
+    "price": 1355.640015,
+    "avg_price": 1349.993896,
+    "vol": 86.0,
+    "market": 1,
+    "raw": {
+     "Minute": "853",
+     "Now": "1355.640015",
+     "Average": "1349.993896",
+     "NowVol": "86",
+     "VolInStock": "0",
+     "Lead": "0.000000"
+    }
+   },
+   {
+    "code": "600519",
+    "time": "14:14",
+    "price": 1355.920044,
+    "avg_price": 1350.018921,
+    "vol": 130.0,
+    "market": 1,
+    "raw": {
+     "Minute": "854",
+     "Now": "1355.920044",
+     "Average": "1350.018921",
+     "NowVol": "130",
+     "VolInStock": "0",
+     "Lead": "0.000000"
+    }
+   },
+   {
+    "code": "600519",
+    "time": "14:15",
+    "price": 1355.5,
+    "avg_price": 1350.041016,
+    "vol": 110.0,
+    "market": 1,
+    "raw": {
+     "Minute": "855",
+     "Now": "1355.500000",
+     "Average": "1350.041016",
+     "NowVol": "110",
+     "VolInStock": "0",
+     "Lead": "0.000000"
+    }
+   },
+   {
+    "code": "600519",
+    "time": "14:16",
+    "price": 1354.52002,
+    "avg_price": 1350.060425,
+    "vol": 115.0,
+    "market": 1,
+    "raw": {
+     "Minute": "856",
+     "Now": "1354.520020",
+     "Average": "1350.060425",
+     "NowVol": "115",
+     "VolInStock": "0",
+     "Lead": "0.000000"
+    }
+   },
+   {
+    "code": "600519",
+    "time": "14:17",
+    "price": 1356.0,
+    "avg_price": 1350.0896,
+    "vol": 158.0,
+    "market": 1,
+    "raw": {
+     "Minute": "857",
+     "Now": "1356.000000",
+     "Average": "1350.089600",
+     "NowVol": "158",
+     "VolInStock": "0",
+     "Lead": "0.000000"
+    }
+   },
+   {
+    "code": "600519",
+    "time": "14:18",
+    "price": 1354.640015,
+    "avg_price": 1350.1073,
+    "vol": 90.0,
+    "market": 1,
+    "raw": {
+     "Minute": "858",
+     "Now": "1354.640015",
+     "Average": "1350.107300",
+     "NowVol": "90",
+     "VolInStock": "0",
+     "Lead": "0.000000"
+    }
+   },
+   {
+    "code": "600519",
+    "time": "14:19",
+    "price": 1355.869995,
+    "avg_price": 1350.127686,
+    "vol": 106.0,
+    "market": 1,
+    "raw": {
+     "Minute": "859",
+     "Now": "1355.869995",
+     "Average": "1350.127686",
+     "NowVol": "106",
+     "VolInStock": "0",
+     "Lead": "0.000000"
+    }
+   },
+   {
+    "code": "600519",
+    "time": "14:20",
+    "price": 1355.459961,
+    "avg_price": 1350.141235,
+    "vol": 73.0,
+    "market": 1,
+    "raw": {
+     "Minute": "860",
+     "Now": "1355.459961",
+     "Average": "1350.141235",
+     "NowVol": "73",
+     "VolInStock": "0",
+     "Lead": "0.000000"
+    }
+   },
+   {
+    "code": "600519",
+    "time": "14:21",
+    "price": 1355.300049,
+    "avg_price": 1350.17627,
+    "vol": 194.0,
+    "market": 1,
+    "raw": {
+     "Minute": "861",
+     "Now": "1355.300049",
+     "Average": "1350.176270",
+     "NowVol": "194",
+     "VolInStock": "0",
+     "Lead": "0.000000"
+    }
+   },
+   {
+    "code": "600519",
+    "time": "14:22",
+    "price": 1356.0,
+    "avg_price": 1350.211182,
+    "vol": 180.0,
+    "market": 1,
+    "raw": {
+     "Minute": "862",
+     "Now": "1356.000000",
+     "Average": "1350.211182",
+     "NowVol": "180",
+     "VolInStock": "0",
+     "Lead": "0.000000"
+    }
+   },
+   {
+    "code": "600519",
+    "time": "14:23",
+    "price": 1355.52002,
+    "avg_price": 1350.225464,
+    "vol": 78.0,
+    "market": 1,
+    "raw": {
+     "Minute": "863",
+     "Now": "1355.520020",
+     "Average": "1350.225464",
+     "NowVol": "78",
+     "VolInStock": "0",
+     "Lead": "0.000000"
+    }
+   },
+   {
+    "code": "600519",
+    "time": "14:24",
+    "price": 1356.5,
+    "avg_price": 1350.256226,
+    "vol": 156.0,
+    "market": 1,
+    "raw": {
+     "Minute": "864",
+     "Now": "1356.500000",
+     "Average": "1350.256226",
+     "NowVol": "156",
+     "VolInStock": "0",
+     "Lead": "0.000000"
+    }
+   },
+   {
+    "code": "600519",
+    "time": "14:25",
+    "price": 1356.800049,
+    "avg_price": 1350.289429,
+    "vol": 154.0,
+    "market": 1,
+    "raw": {
+     "Minute": "865",
+     "Now": "1356.800049",
+     "Average": "1350.289429",
+     "NowVol": "154",
+     "VolInStock": "0",
+     "Lead": "0.000000"
+    }
+   },
+   {
+    "code": "600519",
+    "time": "14:26",
+    "price": 1357.0,
+    "avg_price": 1350.33252,
+    "vol": 195.0,
+    "market": 1,
+    "raw": {
+     "Minute": "866",
+     "Now": "1357.000000",
+     "Average": "1350.332520",
+     "NowVol": "195",
+     "VolInStock": "0",
+     "Lead": "0.000000"
+    }
+   },
+   {
+    "code": "600519",
+    "time": "14:27",
+    "price": 1356.97998,
+    "avg_price": 1350.35437,
+    "vol": 103.0,
+    "market": 1,
+    "raw": {
+     "Minute": "867",
+     "Now": "1356.979980",
+     "Average": "1350.354370",
+     "NowVol": "103",
+     "VolInStock": "0",
+     "Lead": "0.000000"
+    }
+   },
+   {
+    "code": "600519",
+    "time": "14:28",
+    "price": 1356.839966,
+    "avg_price": 1350.381836,
+    "vol": 127.0,
+    "market": 1,
+    "raw": {
+     "Minute": "868",
+     "Now": "1356.839966",
+     "Average": "1350.381836",
+     "NowVol": "127",
+     "VolInStock": "0",
+     "Lead": "0.000000"
+    }
+   },
+   {
+    "code": "600519",
+    "time": "14:29",
+    "price": 1355.949951,
+    "avg_price": 1350.428833,
+    "vol": 221.0,
+    "market": 1,
+    "raw": {
+     "Minute": "869",
+     "Now": "1355.949951",
+     "Average": "1350.428833",
+     "NowVol": "221",
+     "VolInStock": "0",
+     "Lead": "0.000000"
+    }
+   },
+   {
+    "code": "600519",
+    "time": "14:30",
+    "price": 1356.670044,
+    "avg_price": 1350.467773,
+    "vol": 186.0,
+    "market": 1,
+    "raw": {
+     "Minute": "870",
+     "Now": "1356.670044",
+     "Average": "1350.467773",
+     "NowVol": "186",
+     "VolInStock": "0",
+     "Lead": "0.000000"
+    }
+   },
+   {
+    "code": "600519",
+    "time": "14:31",
+    "price": 1355.709961,
+    "avg_price": 1350.474731,
+    "vol": 39.0,
+    "market": 1,
+    "raw": {
+     "Minute": "871",
+     "Now": "1355.709961",
+     "Average": "1350.474731",
+     "NowVol": "39",
+     "VolInStock": "0",
+     "Lead": "0.000000"
+    }
+   },
+   {
+    "code": "600519",
+    "time": "14:32",
+    "price": 1356.390015,
+    "avg_price": 1350.499023,
+    "vol": 135.0,
+    "market": 1,
+    "raw": {
+     "Minute": "872",
+     "Now": "1356.390015",
+     "Average": "1350.499023",
+     "NowVol": "135",
+     "VolInStock": "0",
+     "Lead": "0.000000"
+    }
+   },
+   {
+    "code": "600519",
+    "time": "14:33",
+    "price": 1356.0,
+    "avg_price": 1350.513794,
+    "vol": 83.0,
+    "market": 1,
+    "raw": {
+     "Minute": "873",
+     "Now": "1356.000000",
+     "Average": "1350.513794",
+     "NowVol": "83",
+     "VolInStock": "0",
+     "Lead": "0.000000"
+    }
+   },
+   {
+    "code": "600519",
+    "time": "14:34",
+    "price": 1355.890015,
+    "avg_price": 1350.531738,
+    "vol": 102.0,
+    "market": 1,
+    "raw": {
+     "Minute": "874",
+     "Now": "1355.890015",
+     "Average": "1350.531738",
+     "NowVol": "102",
+     "VolInStock": "0",
+     "Lead": "0.000000"
+    }
+   },
+   {
+    "code": "600519",
+    "time": "14:35",
+    "price": 1356.410034,
+    "avg_price": 1350.57019,
+    "vol": 212.0,
+    "market": 1,
+    "raw": {
+     "Minute": "875",
+     "Now": "1356.410034",
+     "Average": "1350.570190",
+     "NowVol": "212",
+     "VolInStock": "0",
+     "Lead": "0.000000"
+    }
+   },
+   {
+    "code": "600519",
+    "time": "14:36",
+    "price": 1356.290039,
+    "avg_price": 1350.59082,
+    "vol": 116.0,
+    "market": 1,
+    "raw": {
+     "Minute": "876",
+     "Now": "1356.290039",
+     "Average": "1350.590820",
+     "NowVol": "116",
+     "VolInStock": "0",
+     "Lead": "0.000000"
+    }
+   },
+   {
+    "code": "600519",
+    "time": "14:37",
+    "price": 1356.75,
+    "avg_price": 1350.610352,
+    "vol": 101.0,
+    "market": 1,
+    "raw": {
+     "Minute": "877",
+     "Now": "1356.750000",
+     "Average": "1350.610352",
+     "NowVol": "101",
+     "VolInStock": "0",
+     "Lead": "0.000000"
+    }
+   },
+   {
+    "code": "600519",
+    "time": "14:38",
+    "price": 1356.699951,
+    "avg_price": 1350.626709,
+    "vol": 84.0,
+    "market": 1,
+    "raw": {
+     "Minute": "878",
+     "Now": "1356.699951",
+     "Average": "1350.626709",
+     "NowVol": "84",
+     "VolInStock": "0",
+     "Lead": "0.000000"
+    }
+   },
+   {
+    "code": "600519",
+    "time": "14:39",
+    "price": 1356.72998,
+    "avg_price": 1350.652466,
+    "vol": 134.0,
+    "market": 1,
+    "raw": {
+     "Minute": "879",
+     "Now": "1356.729980",
+     "Average": "1350.652466",
+     "NowVol": "134",
+     "VolInStock": "0",
+     "Lead": "0.000000"
+    }
+   },
+   {
+    "code": "600519",
+    "time": "14:40",
+    "price": 1356.569946,
+    "avg_price": 1350.685059,
+    "vol": 173.0,
+    "market": 1,
+    "raw": {
+     "Minute": "880",
+     "Now": "1356.569946",
+     "Average": "1350.685059",
+     "NowVol": "173",
+     "VolInStock": "0",
+     "Lead": "0.000000"
+    }
+   },
+   {
+    "code": "600519",
+    "time": "14:41",
+    "price": 1356.689941,
+    "avg_price": 1350.72522,
+    "vol": 219.0,
+    "market": 1,
+    "raw": {
+     "Minute": "881",
+     "Now": "1356.689941",
+     "Average": "1350.725220",
+     "NowVol": "219",
+     "VolInStock": "0",
+     "Lead": "0.000000"
+    }
+   },
+   {
+    "code": "600519",
+    "time": "14:42",
+    "price": 1356.900024,
+    "avg_price": 1350.786133,
+    "vol": 330.0,
+    "market": 1,
+    "raw": {
+     "Minute": "882",
+     "Now": "1356.900024",
+     "Average": "1350.786133",
+     "NowVol": "330",
+     "VolInStock": "0",
+     "Lead": "0.000000"
+    }
+   },
+   {
+    "code": "600519",
+    "time": "14:43",
+    "price": 1357.0,
+    "avg_price": 1350.827881,
+    "vol": 221.0,
+    "market": 1,
+    "raw": {
+     "Minute": "883",
+     "Now": "1357.000000",
+     "Average": "1350.827881",
+     "NowVol": "221",
+     "VolInStock": "0",
+     "Lead": "0.000000"
+    }
+   },
+   {
+    "code": "600519",
+    "time": "14:44",
+    "price": 1356.869995,
+    "avg_price": 1350.884521,
+    "vol": 316.0,
+    "market": 1,
+    "raw": {
+     "Minute": "884",
+     "Now": "1356.869995",
+     "Average": "1350.884521",
+     "NowVol": "316",
+     "VolInStock": "0",
+     "Lead": "0.000000"
+    }
+   },
+   {
+    "code": "600519",
+    "time": "14:45",
+    "price": 1356.72998,
+    "avg_price": 1350.925537,
+    "vol": 244.0,
+    "market": 1,
+    "raw": {
+     "Minute": "885",
+     "Now": "1356.729980",
+     "Average": "1350.925537",
+     "NowVol": "244",
+     "VolInStock": "0",
+     "Lead": "0.000000"
+    }
+   },
+   {
+    "code": "600519",
+    "time": "14:46",
+    "price": 1356.920044,
+    "avg_price": 1350.981934,
+    "vol": 321.0,
+    "market": 1,
+    "raw": {
+     "Minute": "886",
+     "Now": "1356.920044",
+     "Average": "1350.981934",
+     "NowVol": "321",
+     "VolInStock": "0",
+     "Lead": "0.000000"
+    }
+   },
+   {
+    "code": "600519",
+    "time": "14:47",
+    "price": 1356.329956,
+    "avg_price": 1351.035278,
+    "vol": 347.0,
+    "market": 1,
+    "raw": {
+     "Minute": "887",
+     "Now": "1356.329956",
+     "Average": "1351.035278",
+     "NowVol": "347",
+     "VolInStock": "0",
+     "Lead": "0.000000"
+    }
+   },
+   {
+    "code": "600519",
+    "time": "14:48",
+    "price": 1356.959961,
+    "avg_price": 1351.085693,
+    "vol": 313.0,
+    "market": 1,
+    "raw": {
+     "Minute": "888",
+     "Now": "1356.959961",
+     "Average": "1351.085693",
+     "NowVol": "313",
+     "VolInStock": "0",
+     "Lead": "0.000000"
+    }
+   },
+   {
+    "code": "600519",
+    "time": "14:49",
+    "price": 1356.930054,
+    "avg_price": 1351.140625,
+    "vol": 323.0,
+    "market": 1,
+    "raw": {
+     "Minute": "889",
+     "Now": "1356.930054",
+     "Average": "1351.140625",
+     "NowVol": "323",
+     "VolInStock": "0",
+     "Lead": "0.000000"
+    }
+   },
+   {
+    "code": "600519",
+    "time": "14:50",
+    "price": 1356.949951,
+    "avg_price": 1351.189697,
+    "vol": 303.0,
+    "market": 1,
+    "raw": {
+     "Minute": "890",
+     "Now": "1356.949951",
+     "Average": "1351.189697",
+     "NowVol": "303",
+     "VolInStock": "0",
+     "Lead": "0.000000"
+    }
+   },
+   {
+    "code": "600519",
+    "time": "14:51",
+    "price": 1356.51001,
+    "avg_price": 1351.263916,
+    "vol": 465.0,
+    "market": 1,
+    "raw": {
+     "Minute": "891",
+     "Now": "1356.510010",
+     "Average": "1351.263916",
+     "NowVol": "465",
+     "VolInStock": "0",
+     "Lead": "0.000000"
+    }
+   },
+   {
+    "code": "600519",
+    "time": "14:52",
+    "price": 1356.900024,
+    "avg_price": 1351.328003,
+    "vol": 430.0,
+    "market": 1,
+    "raw": {
+     "Minute": "892",
+     "Now": "1356.900024",
+     "Average": "1351.328003",
+     "NowVol": "430",
+     "VolInStock": "0",
+     "Lead": "0.000000"
+    }
+   },
+   {
+    "code": "600519",
+    "time": "14:53",
+    "price": 1356.079956,
+    "avg_price": 1351.380249,
+    "vol": 377.0,
+    "market": 1,
+    "raw": {
+     "Minute": "893",
+     "Now": "1356.079956",
+     "Average": "1351.380249",
+     "NowVol": "377",
+     "VolInStock": "0",
+     "Lead": "0.000000"
+    }
+   },
+   {
+    "code": "600519",
+    "time": "14:54",
+    "price": 1356.170044,
+    "avg_price": 1351.434692,
+    "vol": 466.0,
+    "market": 1,
+    "raw": {
+     "Minute": "894",
+     "Now": "1356.170044",
+     "Average": "1351.434692",
+     "NowVol": "466",
+     "VolInStock": "0",
+     "Lead": "0.000000"
+    }
+   },
+   {
+    "code": "600519",
+    "time": "14:55",
+    "price": 1355.089966,
+    "avg_price": 1351.478882,
+    "vol": 381.0,
+    "market": 1,
+    "raw": {
+     "Minute": "895",
+     "Now": "1355.089966",
+     "Average": "1351.478882",
+     "NowVol": "381",
+     "VolInStock": "0",
+     "Lead": "0.000000"
+    }
+   },
+   {
+    "code": "600519",
+    "time": "14:56",
+    "price": 1355.900024,
+    "avg_price": 1351.515015,
+    "vol": 352.0,
+    "market": 1,
+    "raw": {
+     "Minute": "896",
+     "Now": "1355.900024",
+     "Average": "1351.515015",
+     "NowVol": "352",
+     "VolInStock": "0",
+     "Lead": "0.000000"
+    }
+   },
+   {
+    "code": "600519",
+    "time": "14:57",
+    "price": 1355.900024,
+    "avg_price": 1351.515137,
+    "vol": 1.0,
+    "market": 1,
+    "raw": {
+     "Minute": "897",
+     "Now": "1355.900024",
+     "Average": "1351.515137",
+     "NowVol": "1",
+     "VolInStock": "0",
+     "Lead": "0.000000"
+    }
+   },
+   {
+    "code": "600519",
+    "time": "14:58",
+    "price": 1355.900024,
+    "avg_price": 1351.515137,
+    "vol": 0.0,
+    "market": 1,
+    "raw": {
+     "Minute": "898",
+     "Now": "1355.900024",
+     "Average": "1351.515137",
+     "NowVol": "0",
+     "VolInStock": "0",
+     "Lead": "0.000000"
+    }
+   },
+   {
+    "code": "600519",
+    "time": "14:59",
+    "price": 1355.900024,
+    "avg_price": 1351.671875,
+    "vol": 1382.0,
+    "market": 1,
+    "raw": {
+     "Minute": "899",
+     "Now": "1355.900024",
+     "Average": "1351.671875",
+     "NowVol": "1382",
+     "VolInStock": "0",
+     "Lead": "0.000000"
+    }
+   }
+  ]
+ }
+}

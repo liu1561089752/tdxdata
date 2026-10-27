@@ -111,9 +111,21 @@ def _complete(payload: bytes) -> bool:
 
 # ── 会话 ──────────────────────────────────────────────────────────────────
 class Session:
-    """一条 7615 长连接（自动握手、自动换服务器重连）。"""
+    """一条 7615 长连接（自动握手、自动换服务器重连）。
 
-    def __init__(self, host: str | None = None, timeout: float = 15.0):
+    `pin`（阶段 5，keyword-only，**默认 False = 行为不变**）
+    --------------------------------------------------------
+    `pin=True` 表示这条连接**钉死**在 `host` 上：建连失败不轮换、被踢也不换机
+    （`switch_host()` 退化成"同机重连"）。给 `Client(concurrency>1)` 的 lane 用 ——
+    "第 i 条 lane 钉 HOSTS[i]"这句话只有在 Session 层面被强制时才成立，
+    否则一次失败就悄悄跑到别的机器上，per-host 槽位和实际流量就对不上了。
+
+    ⚠️ 默认 `False` 时**每一行代码路径都和改造前一致**（照样跳过冷却中的服务器、
+    照样轮换、照样在被踢时 `note_limited()`）。
+    """
+
+    def __init__(self, host: str | None = None, timeout: float = 15.0, *,
+                 pin: bool = False):
         self.host = host or HOSTS[0]
         self.timeout = timeout
         self.sock: socket.socket | None = None
@@ -121,6 +133,8 @@ class Session:
         self._last_io = 0.0            # 上次收发时刻（用于空闲判断）
         self._lock = threading.RLock()  # 一条 socket 不能被两个线程同时写
         self.idle_reconnect = IDLE_RECONNECT
+        #: 是否钉死在本机（见类文档）。`False` = 旧行为。
+        self.pin = bool(pin)
 
     # -- 生命周期 --------------------------------------------------------
     def connect(self, tries: int = 2) -> "Session":
@@ -136,14 +150,19 @@ class Session:
 
         pacer = get_pacer()
         last: Exception | None = None
-        order = list(HOSTS)
-        # 从当前 host 开始，按顺序轮；跳过冷却中的
-        if self.host in order:
-            i = order.index(self.host)
-            order = order[i:] + order[:i]
+        if self.pin:
+            # 钉死的连接：**只**连这一台。偷偷换机 = "第 i 条 lane 钉 HOSTS[i]"
+            # 这句话失效，per-host 槽位就和实际流量对不上了。
+            order = [self.host]
+        else:
+            order = list(HOSTS)
+            # 从当前 host 开始，按顺序轮；跳过冷却中的
+            if self.host in order:
+                i = order.index(self.host)
+                order = order[i:] + order[:i]
 
         for host in order:
-            if not pacer.ready(host):
+            if not self.pin and not pacer.ready(host):
                 continue
             for attempt in range(tries):
                 try:
@@ -166,7 +185,11 @@ class Session:
                                              ConnectionAbortedError)) \
                         or getattr(e, "winerror", None) in (10053, 10054)
                     if limited:
-                        pacer.note_limited()
+                        # 钉死的连接要连带推该主机的槽位（Pacer 内部同时推全局）
+                        if self.pin:
+                            pacer.note_limited(host)
+                        else:
+                            pacer.note_limited()
                         pacer.block(host)
                         break                   # 这台被踢了，直接换下一台
                     time.sleep(0.6 * (attempt + 1))
@@ -327,11 +350,18 @@ class Session:
             except OSError:
                 self._kill()
                 time.sleep(0.5 * (attempt + 1))
+        if self.pin:
+            # 钉死的连接**不许**退化成换机：换机就破坏了 lane 的主机绑定，
+            # 而且会让 per-host 槽位记在错的机器上。连不上就如实报。
+            raise ConnectionError("7615 同机重连失败（pin 住 %s，不换机）" % host)
         # 同机实在连不上，退化为换机
         return self.switch_host()
 
     def switch_host(self, cooldown: float | None = None) -> None:
-        """断开并换一台**不在冷却中**的服务器重连。全都在冷却则等最短路。"""
+        """断开并换一台**不在冷却中**的服务器重连。全都在冷却则等最短路。
+
+        `pin=True` 的连接不换机：退化成"同机重连"（见类文档）。
+        """
         with self._lock:
             return self._switch_host_locked(cooldown)
 
@@ -343,6 +373,10 @@ class Session:
         self._kill()
         if cooldown:
             pacer.block(bad, cooldown)
+
+        if self.pin:
+            # 钉死：同机重连。**不要**改成 switch_host() —— 会无限递归。
+            return self._reconnect_locked()
 
         for _ in range(len(HOSTS)):
             self._idx += 1

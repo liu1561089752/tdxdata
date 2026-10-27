@@ -8,9 +8,9 @@
 """
 from __future__ import annotations
 
-from enum import IntEnum
+from enum import Enum, IntEnum
 
-__all__ = ["Market", "KlinePeriod", "Adjust"]
+__all__ = ["Market", "KlinePeriod", "Adjust", "Status"]
 
 
 class Market(IntEnum):
@@ -63,3 +63,26 @@ class Adjust(IntEnum):
     NONE = 0
     QFQ = 1
     HFQ = 2
+
+
+class Status(str, Enum):
+    """**时效四态**：这个值"是什么时候的、是不是最终值"。
+
+    为什么不是布尔 `is_final`
+    ------------------------
+    "还没生成"（`PENDING`）和"会变"（`PROVISIONAL`）和"数据本身滞后"（`DELAYED`）
+    是三件不同的事，压成一个 `False` 会让调用方只能猜。而**猜错的代价已经被实测过**：
+    同一交易日内，14:44 盘中取两市成交额 13,130.88 亿，收盘后是 14,609.58 亿（+11.3%），
+    足以让"60 日最低"这类结论直接反转。所以四态是**语义层的第一等公民**。
+
+    ⚠️ `Status` 是**字符串枚举**（`Status.FINAL == "final"`），可以直接进 JSON / 日志。
+
+    ⚠️ 判 `FINAL` **只表示"这个口径定稿了"**，不表示"今天全世界的数据都在里面"：
+    「收盘口径的日线」和「含盘后固定价格交易的全市场成交额」是两个口径，
+    日线通道给不了含盘后的量（`Bar.raw` 里没有任何字段能区分盘后成交）。
+    要那个口径只能走逐笔自聚合。
+    """
+    FINAL = "final"              # 最终值
+    PROVISIONAL = "provisional"  # 盘中/当根未走完，会变
+    PENDING = "pending"          # 今天的还没生成（如盘中查涨停清单）
+    DELAYED = "delayed"          # 数据本身滞后（两融 T+1、行业统计 T-1）

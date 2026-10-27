@@ -22,7 +22,8 @@
 """
 import sys
 
-sys.stdout.reconfigure(encoding="utf-8")
+if hasattr(sys.stdout, "reconfigure"):      # 被 redirect_stdout/io.StringIO 换掉时没有这个方法
+    sys.stdout.reconfigure(encoding="utf-8")
 
 WIRE_VARINT, WIRE_64, WIRE_LEN, WIRE_32 = 0, 1, 2, 5
 

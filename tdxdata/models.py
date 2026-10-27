@@ -11,9 +11,12 @@ from __future__ import annotations
 from dataclasses import dataclass, field
 from typing import Any
 
+from .timeliness import parse_yyyymmdd
+
 __all__ = [
     "Bar", "MinutePoint", "Table", "Row", "Dataset", "ProductInfo",
     "Quote", "Tick", "SecurityInfo",
+    "Series", "Bars", "Quotes", "Ticks", "Minutes",
 ]
 
 
@@ -57,6 +60,10 @@ class Bar:
     time: str = ""            # HH:MM，仅分钟线
     raw: dict[str, Any] = field(default_factory=dict)
     adjust: str = "NONE"      # 复权口径，见 enums.Adjust / hq_pb.ADJUST_*
+    #: 本根是不是**盘中未定稿**的当根值（当根日线 / 当根分钟）。
+    #: 判定规则见 `tdxdata/timeliness.py`（`judge_bar`），口径写在 `enums.Status`。
+    #: ⚠️ 必须留在**最后**：`slots=True` 下位置参数会变，插在中间会把既有调用错位。
+    provisional: bool = False
 
     @property
     def symbol(self) -> str:
@@ -154,6 +161,22 @@ class Quote:
         return symbol_of(self.market, self.code)
 
 
+#: **声明式不可用**字段（机器可读，不靠 docstring 记性）。
+#:
+#: 为什么要有这个常量：光在文档里写"不提供"没人能自动检查；写成常量以后
+#: `tests/test_tick_fields.py` 可以对着**真实形状的样本**断言「它确实恒为 None」，
+#: 而且一旦服务端哪天开始给这个字段，那条断言会红 —— 逼我们更新声明。
+#: 这就是把"死字段"变成"有检查的不可用"。
+UNPROVIDED_TICK_FIELDS: dict[str, str] = {
+    "bs_flag": ("服务端无可判定买卖方向的字段：实测 raw[InOutFlag] 的 0/1 与"
+                "相对上一笔涨跌只有 65.9%/76.8% 一致（相关 ≠ 实证），"
+                "映射错会把整批方向搞反，故不映射；原始列仍在 tick.raw 里"),
+    "trade_count": ("`PBTickEx` 的**一行就是一笔**成交，协议里没有「笔数」字段。"
+                    "这个字段恒为 None —— 早前填 0 是凭空造数（会被 sum() 当真）；"
+                    "要数笔数请自己 `len(ticks)`"),
+}
+
+
 @dataclass(slots=True)
 class Tick:
     """一笔**逐笔成交**（`HQServ:PBTickEx`，2026-10-27 打通）。
@@ -162,26 +185,79 @@ class Tick:
     `MinutePoint.vol` **同单位**）；`time` 为 `HH:MM:SS`（服务端给的是**当日秒数**，
     例如 `40978` → `11:22:58`）。
 
-    ⚠️ `trade_count` / `bs_flag` **服务端没有对应字段，恒为 `None`**。
-    早前给它们填 0 / 2 是**编数据**（`bs_flag=2` 会被读成"卖"），已改掉：
+    **`bs_flag` 是「声明式不可用」，不是"忘了填"**
+    （机器可读的清单见模块级 `UNPROVIDED_TICK_FIELDS`）：
+    服务端**没有**可判定买卖方向的字段，所以它恒为 `None`。
+    早前给它填 2 是**编数据**（`bs_flag=2` 会被下游读成"卖"），已改掉：
     **拿不到就是 `None`，不填 0 冒充**（本库红线）。
-    真实的方向信息其实在 `raw["InOutFlag"]`（`0`/`1`）里，只是"0 是买还是卖"**未定**
-    —— 所以本库不映射成 `bs_flag`，让用户自己看 `raw`。
-    `VolInStockDiff` / `InOutFlag` / `HKTTFlag` / `HKInOutFlag` **语义未定**，
-    原样放在 `raw` 里（`HKTTFlag` 实测会是 `\x01` 这种控制字符）。
+
+    为什么保留而不是删掉：这个**概念**是真的，用户会来找它；服务端只是不给。
+    删掉会让既有读 `.bs_flag` 的脚本 `AttributeError` —— 为了一个本来就拿不到的
+    东西制造破坏。`None` 才是诚实的"不知道"。
+
+    ⚠️ **`trade_count` 同为「声明式不可用」（阶段 4 判定，最终保留字段）**：
+    `PBTickEx` 一行就是**一笔**成交，协议里**根本没有"笔数"字段**。
+    它恒为 `None`——早前填 0 会被 `sum()` 当真、是凭空造数。
+    **为什么保留而不删**：冻结的黄金样本证明既有行为本来就是 `null`（不是 0），
+    所以删掉**没有任何诚实性增益**，却要为它赔一次样本重录 + 让既有读
+    `t.trade_count` 的脚本报 `AttributeError`。要数笔数直接 `len(ticks)`。
+    （判定依据见 `UNPROVIDED_TICK_FIELDS`；「永远为 None 的字段」由
+    `tests/test_tick_fields.py` 的声明式断言管，服务端哪天开始给值该断言会红。）
+
+    方向相关的原始列在 `raw` 里，自己看、自己判：
+      * `InOutFlag`：实测 4 个取值。`0` 相对上一笔涨 65.9%、`1` 跌 76.8%
+        （**只是相关**，13%~34% 对不上，所以本库不映射）；
+        `5` 的 20 笔**全在 15:05–15:30 且成交价 = 收盘价** = 盘后固定价格交易；
+        `2` 零星（含 15:00:01 收盘集合竞价那笔）。
+      * `HKTTFlag`：`InOutFlag` 的**单字节回声**（300/300 相等，会是 `\x01` 这种控制字符）。
+      * `HKInOutFlag` 实测恒 `"0"`；`VolInStockDiff` 与 `NowVol` 只 77/300 相等 → 不是重复列。
+    这些**语义未定**，原样放在 `raw` 里，本库不解释也不删。
     """
     market: int
     code: str
     time: str | None = None   # HH:MM:SS（拿不到就是 None）
     price: float | None = None
     vol: float | None = None  # 手
-    trade_count: int | None = None   # 服务端无此字段 → None（不填 0 冒充）
-    bs_flag: int | None = None       # 服务端无此字段 → None（不猜方向）
+    trade_count: int | None = None    # **声明式不可用**：见 UNPROVIDED_TICK_FIELDS
+    bs_flag: int | None = None       # **声明式不可用**：见 UNPROVIDED_TICK_FIELDS
     raw: dict[str, Any] = field(default_factory=dict)
 
     @property
     def symbol(self) -> str:
         return symbol_of(self.market, self.code)
+
+    #: 逐字段说明（README 的字段表**从这里生成**，别手改 README 那一节）。
+    #: 形状：(字段, 含义, 是否有值, 依据/口径)
+    #: ⚠️ **不能写类型注解**：`@dataclass(slots=True)` 会把带注解的类属性当成字段
+    #: 收进 `__slots__`，`Tick.FIELDS_DOC` 就变成一个 member_descriptor 了（实测踩过）。
+    FIELDS_DOC = (
+        ("market", "市场号", "有", "0=深 1=沪 2=北（与 `Quote`/`Tick.symbol` 同口径）"),
+        ("code", "股票代码", "有", "6 位字符串"),
+        ("time", "成交时刻", "有", "`HH:MM:SS`；服务端给当日秒数（如 40978 → 11:22:58）"),
+        ("price", "成交价", "有", "元；与 `raw[Now]` 逐笔相等（300/300 实测）"),
+        ("vol", "成交量", "有", "**手**；与 `Bar.vol`/`Quote.vol`/`MinutePoint.vol` 同单位"),
+        ("trade_count", "笔数", "**不提供（声明式不可用）**",
+         "原因见 `models.UNPROVIDED_TICK_FIELDS`：`PBTickEx` 一行就是一笔，"
+         "协议里没有「笔数」字段；要数笔数请 `len(ticks)`"),
+        ("bs_flag", "买卖方向", "**不提供（声明式不可用）**",
+         "原因见 `models.UNPROVIDED_TICK_FIELDS`：服务端无可判定字段，"
+         "`raw[InOutFlag]` 0/1 与涨跌只有 65.9%/76.8% 相关，映射会整批搞反"),
+        ("raw", "原始行", "有",
+         "服务端原列：`Second`/`Now`/`NowVol`/`VolInStockDiff`/`InOutFlag`/"
+         "`HKTTFlag`/`HKInOutFlag`，本库不解释"),
+    )
+
+    @classmethod
+    def as_markdown_table(cls) -> str:
+        """`Tick` 字段表（markdown）——README 那一节是它的**逐字副本**。
+
+        为什么由代码生成：字段"有没有值"是**事实**，会随实证变化（`bs_flag` 就从
+        "恒 2" 变过 "恒 None"）。手写表格必然漂移，而漂移的文档比没有文档更坏。
+        """
+        out = ["| 字段 | 含义 | 有值？ | 依据 / 口径 |", "|---|---|---|---|"]
+        for name, mean, has, why in cls.FIELDS_DOC:
+            out.append("| `%s` | %s | %s | %s |" % (name, mean, has, why))
+        return "\n".join(out)
 
 
 @dataclass(slots=True)
@@ -197,6 +273,121 @@ class SecurityInfo:
     @property
     def symbol(self) -> str:
         return symbol_of(self.market, self.code)
+
+
+class Series(list):
+    """带 `meta` 的 **list 子类**：`for` / `len` / 切片 / 索引 / `== [...]` 全兼容。
+
+    为什么是 list 子类，而不是"新的信封类型"
+    ----------------------------------------
+    语义层要给每次取数挂上「这是什么时刻的、是不是最终值」（`as_of` / `status` /
+    `fetched_at` / `source` / `elapsed`）。做成 `{"data": [...], "meta": {...}}`
+    这种信封会**破坏**所有既有用法：`len(x)`、`x[0]`、`for bar in x`、
+    `x[-1].close`、`json.dumps(x)` 全得改。而本次改造的底线是"只许扩展"。
+
+    于是把 meta 挂在**实例属性**上：`isinstance(bars, list)` 仍为真，
+    老代码一行不用改，新代码 `bars.status` 就能问到。代价是 `json.dumps(bars)`
+    看不见 meta（那是 JSON 序列化器的语义，不是本类的缺陷）。
+
+    ⚠️ **不要**给它加 `@dataclass(slots=True)`：list 子类要能挂实例属性，
+    `slots` 会把这个能力拿掉。
+
+    ⚠️ `meta` 里出现 `status=FINAL` **只表示"这个口径定稿了"**，
+    不表示"今天全市场成交都在里面"（日线口径不含盘后固定价格交易，
+    详见 `tdxdata/timeliness.py` 模块头）。
+    """
+
+    def __init__(self, iterable=(), meta=None):
+        super().__init__(iterable)
+        self.meta = dict(meta or {})
+
+    # -- 切片/复制要**保住类型与 meta** ------------------------------------
+    def __getitem__(self, key):
+        """`bars[10:]` 仍返回 `Bars`（而不是退化成 `list`），并**带着同一份 meta**。
+
+        为什么必须管：切片是最常用的取子集方式（`bars[-60:]` 算 60 日均线之类）。
+        若切片退化成 `list`，用户拿到的子集就**悄悄丢了 `status`/`as_of`** ——
+        而"这批数是不是定稿的"恰恰是切完片之后才要判的事。
+        语义层的信息不能因为一次切片而蒸发。
+        """
+        got = super().__getitem__(key)
+        if isinstance(key, slice):
+            return type(self)(got, meta=dict(self.meta))
+        return got
+
+    def copy(self):
+        """`copy()` 也保住类型与 meta（`list.copy()` 会退回普通 `list`）。"""
+        return type(self)(self, meta=dict(self.meta))
+
+    # -- 便捷只读属性（读不到就是 None，**不编默认值**）--------------------
+    @property
+    def as_of(self):
+        """这批数据"是什么时候的"（末根的日期/时间，或报价的 `server_time`）。"""
+        return self.meta.get("as_of")
+
+    @property
+    def fetched_at(self):
+        """这批数据"是什么时候取的"。"""
+        return self.meta.get("fetched_at")
+
+    @property
+    def status(self):
+        """时效四态（`enums.Status` 的取值字符串，没判出就是 `None`）。"""
+        return self.meta.get("status")
+
+    @property
+    def source(self):
+        """来源：**固定 5 键**的 dict —— `{host, cmd, ctl, clock, cached}`。
+
+        · `host` —— 哪台服务器（取不到就是 `None`，**键一定在**，不编主机名）；
+        · `cmd` / `ctl` —— 走的哪条命令及其 ctl（如 `cmd="HQServ.PBFXT"`, `ctl=14`）；
+        · `clock` —— `"server"` / `"local"`，同 `fetch_clock`；
+        · `cached` —— 是否命中了 `Client(cache=...)` 的缓存（那 `elapsed` 会≈0）。
+
+        ⚠️ 这个**键集是契约**（`client.META_SOURCE_KEYS`），不许再长 ——
+        它跟黄金样本"允许新增键"白名单是同一套工程约束，多一个键要动三处契约文件。
+        ⚠️ `Client.last_call["source"]` 刻意是精简三元组 `(host, cmd, ctl)`：
+        那是一行日志，这里是可序列化的结构。
+        """
+        return self.meta.get("source")
+
+    @property
+    def elapsed(self):
+        """这次调用实际花了多少秒（缓存命中≈0）。"""
+        return self.meta.get("elapsed")
+
+    @property
+    def fetch_clock(self):
+        """这批数据的**时刻来源**：`"server"`（服务端时刻）/ `"local"`（本机兜底）。
+
+        ⚠️ 这是**一等字段**，不是自由文本：`"local"` 就意味着 `fetched_at` 不可全信，
+        此时时效判定会自动降级成更保守的一档（见 `tdxdata/timeliness.py`）。
+        """
+        return self.meta.get("fetch_clock")
+
+    @property
+    def clock_note(self):
+        """时钟降级说明（没问题时是 `None`）。"""
+        return self.meta.get("clock_note")
+
+    def __repr__(self) -> str:
+        return "%s(%d 条, meta=%r)" % (type(self).__name__, len(self), self.meta)
+
+
+class Bars(Series):
+    """K 线序列（`get_bars` 的返回）。元素是 `Bar`。"""
+
+
+class Quotes(Series):
+    """报价序列（`get_quotes` / `get_market_page` / `get_universe` / `board_page`）。"""
+
+
+class Ticks(Series):
+    """逐笔成交序列（`get_ticks`）。元素是 `Tick`。"""
+
+
+class Minutes(Series):
+    """当日分时序列（`get_minutes`）。元素是 `MinutePoint`。"""
 
 
 class Row(dict):
@@ -332,6 +523,17 @@ class Table:
         """(行数, 列数)。"""
         return len(self.rows), len(self.cols)
 
+    # -- 语义层便捷属性（只读，读 `meta`；**结构不变**）--------------------
+    @property
+    def as_of(self):
+        """这张表的数据时刻（`meta["as_of"]`；判不出来就是 `None`，不编）。"""
+        return self.meta.get("as_of")
+
+    @property
+    def status(self):
+        """时效四态（`meta["status"]`；没登记过时效口径的表不会是 `final`）。"""
+        return self.meta.get("status")
+
     def to_dicts(self) -> list[dict[str, Any]]:
         """转普通 dict 列表（可直接 `json.dumps`）。"""
         return [dict(r) for r in self.rows]
@@ -358,6 +560,37 @@ class Table:
         self.rows = [_make_row(self.cols, r) for r in self.rows]
         return self
 
+    def inherit_meta(self, *sources, **extra) -> "Table":
+        """**继承上游 meta**，再叠本次的键（`extra` 优先）。就地改，返回 `self`。
+
+        为什么要有它（而不是在每个调用点手工 `dict(src.meta)`）
+        ------------------------------------------------------
+        `sections/*` 里的 `_shape()` 会**重建**一张 `Table`（换标准列名、补 `raw`）。
+        重建时若从空 meta 开始，上游 `client.call()` 刚盖上去的
+        `as_of` / `status` / `fetched_at` / `elapsed` / `source` 就**全丢了** ——
+        这正是复核者判的那条阻断（`sections/boards.py` 的收尾重建点）。
+        逐点手工 copy 是**必然**会漏的（本项目已有 5 处直造点漏过），
+        所以做成一个**单点**工具：所有"由 `Table` 派生出 `Table`"的地方都调它。
+
+        用法::
+
+            return Table(cols=…, rows=…).inherit_meta(src, unavailable=["change_pct"])
+
+        `sources` 里可以有 `Table`、任何带 `.meta` 的对象（如 `Series`/`Bars`）、
+        也可以直接给 `dict`；靠前的先铺、靠后的覆盖，最后 `extra` 覆盖一切。
+        """
+        base: dict[str, Any] = {}
+        for src in sources:
+            if isinstance(src, dict):
+                base.update(src)
+                continue
+            meta = getattr(src, "meta", None)      # Table / Series / Bars …
+            if isinstance(meta, dict):
+                base.update(meta)
+        base.update(extra)          # ⚠️ 不过滤 None：「知道它是 None」也是有信息量的
+        self.meta = base
+        return self
+
 
 @dataclass(slots=True)
 class Dataset:
@@ -379,6 +612,32 @@ class Dataset:
     @property
     def rows(self) -> list[dict[str, Any]]:
         return self.table.rows
+
+    @property
+    def data_date(self):
+        """这张表的**数据日**（`datetime.date`）；判不出来就是 `None`。
+
+        取值顺序：
+          1. `table.meta["data_date"]`（谁知道的谁写，最可靠）；
+          2. 从首行 `N001` 推 —— 7615 数据中心产品的第一列惯例就是日期
+             （`"20261027"` / `"2026-10-27"` 两种形态都认）。
+
+        ⚠️ **推不出来就给 `None`**：绝不许拿 `0`、空串或"今天"顶替。
+        本项目红线是 **unknown ≠ 0** —— "不知道是哪天的"和"今天的"是两件事，
+        混成一个会让下游把过期数据当今日数据用（那正是本项目出过事故的形态）。
+        """
+        meta_date = parse_yyyymmdd(self.table.meta.get("data_date"))
+        if meta_date is not None:
+            return meta_date
+        rows = self.table.rows
+        if not rows:
+            return None
+        first = rows[0]
+        try:
+            got = first.get("N001")
+        except AttributeError:                    # 不是 dict 形态（理论上不会发生）
+            return None
+        return parse_yyyymmdd(got)
 
 
 @dataclass(slots=True)

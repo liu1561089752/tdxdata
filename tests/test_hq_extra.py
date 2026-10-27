@@ -594,8 +594,10 @@ def _page(span, seconds, base_price=10.0):
 def test_tick_has_no_invented_defaults():
     """`trade_count` / `bs_flag` 服务端没有 → 必须 `None`，**不许填 0 / 2**。
 
-    `bs_flag=2` 会被用户很自然地读成"卖"，`trade_count=0` 会被 `sum()` 当真 ——
-    注释救不了数据，所以默认值本身就得是 `None`（本库红线：拿不到就给 None）。
+    阶段 4 判定：两者都进 `models.UNPROVIDED_TICK_FIELDS`（声明式不可用）。
+    `PBTickEx` 一行就是一笔，协议里没有「笔数」字段（填 0 会被 `sum()` 当真）；
+    `bs_flag=2` 会被用户很自然地读成"卖"。所以默认值本身就得是 `None`
+    （本库红线：拿不到就给 None），原因写在 `UNPROVIDED_TICK_FIELDS` 里，机器可读。
     真实方向信息在 `raw["InOutFlag"]`，只是"0 是买还是卖"未定。
     """
     tk = _tick_from_row({"Second": "40978", "Now": "1349.13", "NowVol": "2",

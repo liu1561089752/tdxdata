@@ -1,0 +1,1254 @@
+{
+  "format": "TDXGF1",
+  "generated_at": "2026-10-27T19:07:47+08:00",
+  "recorded_at": {
+    "started": "2026-10-27T19:07:29+08:00",
+    "finished": "2026-10-27T19:07:47+08:00",
+    "final_cutoff_hhmm": "15:35"
+  },
+  "server_time": "2026-10-27 15:30:03",
+  "git_head": "04463f31e6081e4578feb97c5ccf625887f6f514",
+  "python": "3.14.2",
+  "tdxdata_version": "0.2.0",
+  "base_dir": "F:\\TDX_stock_data\\tdxdata\\tests\\fixtures\\golden",
+  "recorded_seconds": 17.8,
+  "count": 68,
+  "entries": [
+    {
+      "seq": 1,
+      "sample": "quotes_indices",
+      "file": "0001_HQServ_PBCombHQ_0x11.bin",
+      "transport": "send",
+      "cmd": "HQServ:PBCombHQ",
+      "ctl": 17,
+      "args_len": 299,
+      "args_sha256": "bb0f33e17ff9bc058933b804f56eb8054f033b6c7bafacd5afcfd27d071cf11c",
+      "resp_len": 1864,
+      "resp_sha256": "8a73c80720ad95cfaf7dd4a14f56bfceacddf9b097e892fd1a851505f4707e40",
+      "raw_len": 945
+    },
+    {
+      "seq": 2,
+      "sample": "bars_day_300",
+      "file": "0002_HQServ_PBFXT_0x0E.bin",
+      "transport": "send",
+      "cmd": "HQServ.PBFXT",
+      "ctl": 14,
+      "args_len": 40,
+      "args_sha256": "bdb03ae889bff9954500c94370561a4b3033eb85dbd30b2f519d683bcc353c3b",
+      "resp_len": 45735,
+      "resp_sha256": "5c799d0605d388d1f3b2701c807a755c830c145c25a576d8b04e5887b860830e",
+      "raw_len": 10076
+    },
+    {
+      "seq": 3,
+      "sample": "bars_5m_300",
+      "file": "0003_HQServ_PBFXT_0x0E.bin",
+      "transport": "send",
+      "cmd": "HQServ.PBFXT",
+      "ctl": 14,
+      "args_len": 40,
+      "args_sha256": "24766fac61a4b3f0fdab1068d6e4add45480ae638bfe750611d249ceaf7d5e7d",
+      "resp_len": 45437,
+      "resp_sha256": "badf77159c4cf17369cffe1b8571abb180be44849183a4491d2ac9969681a335",
+      "raw_len": 8727
+    },
+    {
+      "seq": 4,
+      "sample": "bars_60m_300",
+      "file": "0004_HQServ_PBFXT_0x0E.bin",
+      "transport": "send",
+      "cmd": "HQServ.PBFXT",
+      "ctl": 14,
+      "args_len": 40,
+      "args_sha256": "b42c19753b9aee96ec108da5096b0e0ecb538fad7c47c1d779da1743fdd7e32a",
+      "resp_len": 46397,
+      "resp_sha256": "53b1292263656c8e60fb3e879e019d922d2f09ee6c57ca0c3ad864b49e4c4d36",
+      "raw_len": 9657
+    },
+    {
+      "seq": 5,
+      "sample": "minutes",
+      "file": "0005_HQServ_PBZST_0x0E.bin",
+      "transport": "send",
+      "cmd": "HQServ.PBZST",
+      "ctl": 14,
+      "args_len": 26,
+      "args_sha256": "07d01dfca283544e1aa50d4c9d0aa33344f7abdb8b3410202ec83ba826258eed",
+      "resp_len": 12219,
+      "resp_sha256": "ba118032d58ac81adcade1cad70861b66161a94a5ce43a6772a4310eaca3bb48",
+      "raw_len": 3289
+    },
+    {
+      "seq": 6,
+      "sample": "ticks",
+      "file": "0006_HQServ_PBTickEx_0x11.bin",
+      "transport": "send",
+      "cmd": "HQServ:PBTickEx",
+      "ctl": 17,
+      "args_len": 43,
+      "args_sha256": "ff3140bbbe917225b7e5541db08e00df9d8b872d7cb47f4fd088dab48e2e3dc9",
+      "resp_len": 5188,
+      "resp_sha256": "41c6c1e9b779e3070782b09c92229b4a17bbf59e9cb029797f065e4d58eb7d03",
+      "raw_len": 1480
+    },
+    {
+      "seq": 7,
+      "sample": "ticks",
+      "file": "0007_HQServ_PBTickEx_0x11.bin",
+      "transport": "send",
+      "cmd": "HQServ:PBTickEx",
+      "ctl": 17,
+      "args_len": 47,
+      "args_sha256": "11b225c2218227605010d810677570e4643de073105a0abcaf66cb7549756e18",
+      "resp_len": 5212,
+      "resp_sha256": "8c0f14d3c6ab93240caabee39a3d74524f65b3e65f6e95e79c29dbc1b65784f0",
+      "raw_len": 1470
+    },
+    {
+      "seq": 8,
+      "sample": "bars_880005",
+      "file": "0008_HQServ_PBFXT_0x0E.bin",
+      "transport": "send",
+      "cmd": "HQServ.PBFXT",
+      "ctl": 14,
+      "args_len": 39,
+      "args_sha256": "49f0393ebb54df418757452a6776ecdaa28857a3d344532ca396a51e605d570b",
+      "resp_len": 1737,
+      "resp_sha256": "420334366c23680f7b9e15807064c0ba2a520e09dad4d37df75a758295a9d645",
+      "raw_len": 575
+    },
+    {
+      "seq": 9,
+      "sample": "bars_880006",
+      "file": "0009_HQServ_PBFXT_0x0E.bin",
+      "transport": "send",
+      "cmd": "HQServ.PBFXT",
+      "ctl": 14,
+      "args_len": 39,
+      "args_sha256": "f995e79c8814a9338eacb33e62c3ee8a1c75ed269c65db4539e4413e680c4651",
+      "resp_len": 1663,
+      "resp_sha256": "821772ca18498aebb5cf7410febb3c6b4d36aafb1c4890ca0e01dfb3de4002ba",
+      "raw_len": 528
+    },
+    {
+      "seq": 10,
+      "sample": "bars_880866",
+      "file": "0010_HQServ_PBFXT_0x0E.bin",
+      "transport": "send",
+      "cmd": "HQServ.PBFXT",
+      "ctl": 14,
+      "args_len": 39,
+      "args_sha256": "da431b3c2f3dfbf3979d6a05c17875d5e1316b51c1147b6f75dde2833012e7ed",
+      "resp_len": 1662,
+      "resp_sha256": "2c986ec4898e47b451653d281aa15d0ac9737ce6116a0e5436f57da31ca7609e",
+      "raw_len": 612
+    },
+    {
+      "seq": 11,
+      "sample": "bars_510300",
+      "file": "0011_HQServ_PBFXT_0x0E.bin",
+      "transport": "send",
+      "cmd": "HQServ.PBFXT",
+      "ctl": 14,
+      "args_len": 39,
+      "args_sha256": "20a38604db1d57308c48db295280bbde60d314267e6d566ea4c4cf5baca75c90",
+      "resp_len": 4375,
+      "resp_sha256": "a7203ef6a4e14f6dd4f758b6778964eb0552493649b2f391fdfa3abb8df286e3",
+      "raw_len": 1093
+    },
+    {
+      "seq": 48,
+      "sample": "product_lrmx",
+      "file": "0048_CWServ_ph_zt_lrzt_lrmx_0x18.bin",
+      "transport": "ask",
+      "cmd": "CWServ.ph_zt_lrzt_lrmx",
+      "ctl": 24,
+      "args_len": 49,
+      "args_sha256": "5f9b83d7133becf06ef273410aaf9f9dc7a4d9efcb12ac903e0ecb1bd358e446",
+      "resp_len": 11067,
+      "resp_sha256": "6e2698c4c38b904af5214399536bbec06cdca3f449e856d515a04a8ccb5ec5e3",
+      "raw_len": 0
+    },
+    {
+      "seq": 49,
+      "sample": "product_north",
+      "file": "0049_CWServ_ph_tdxdatacenter_hsgt_0x1E.bin",
+      "transport": "ask",
+      "cmd": "CWServ.ph_tdxdatacenter_hsgt",
+      "ctl": 30,
+      "args_len": 32,
+      "args_sha256": "52b3468a9a6aeb721207bd3ab7e7e2eef10b0e4a57d308f79d6f0070495695e1",
+      "resp_len": 4204,
+      "resp_sha256": "31dcd3d9c398e656dc08c46d3f89b17b537de0957dde370e161f164fcb650816",
+      "raw_len": 0
+    },
+    {
+      "seq": 50,
+      "sample": "product_ztqd",
+      "file": "0050_CWServ_ph_tdxdatacenter_ztqd_0x1E.bin",
+      "transport": "ask",
+      "cmd": "CWServ.ph_tdxdatacenter_ztqd",
+      "ctl": 30,
+      "args_len": 55,
+      "args_sha256": "161cd0d28192cb13e9ecf5cac93ee2537c452a00dfa3770312cf775e0ec37bd1",
+      "resp_len": 597,
+      "resp_sha256": "c34e2e371845ae1d4732e083aea97e3767fb05836528b34bc39fb7d65d4a9a0e",
+      "raw_len": 0
+    },
+    {
+      "seq": 51,
+      "sample": "f10_gsjj",
+      "file": "0051_CWServ_ph_agf10_gsjj_0x16.bin",
+      "transport": "ask",
+      "cmd": "CWServ.ph_agf10_gsjj",
+      "ctl": 22,
+      "args_len": 36,
+      "args_sha256": "304aa8ffede10b4ca9cce776067331a3a7ac2f5f183c8996f9b4526e9defc013",
+      "resp_len": 564,
+      "resp_sha256": "1b8fc07456a2e0d8df141f8246569540394d7bc2b4abd59ba91827f5309d2419",
+      "raw_len": 0
+    },
+    {
+      "seq": 52,
+      "sample": "finance_zcfz",
+      "file": "0052_CWServ_ph_agf10_cw_zcfzb_0x1A.bin",
+      "transport": "ask",
+      "cmd": "CWServ.ph_agf10_cw_zcfzb",
+      "ctl": 26,
+      "args_len": 22,
+      "args_sha256": "e13f1f17526496d014b7102013819788491be71218fd3257d8b29d117837c20b",
+      "resp_len": 21582,
+      "resp_sha256": "86c49fc0da852284e6e912e4271f44e6ebf80c68a847ab4631d7a23e52d89e18",
+      "raw_len": 0
+    },
+    {
+      "seq": 53,
+      "sample": "err_bars_000300",
+      "file": "0053_HQServ_PBFXT_0x0E.bin",
+      "transport": "send",
+      "cmd": "HQServ.PBFXT",
+      "ctl": 14,
+      "args_len": 39,
+      "args_sha256": "0d31e25a6cbb353d300833d684373d05dc3092c360f74f30d10c6176423b7e45",
+      "resp_len": 96,
+      "resp_sha256": "eb82a7c9b76a84c23d01f6a9f9d777cf2a7c52df0eb2bbadfd45f9402010712e",
+      "raw_len": 110
+    },
+    {
+      "seq": 54,
+      "sample": "err_bars_932000",
+      "file": "0054_HQServ_PBFXT_0x0E.bin",
+      "transport": "send",
+      "cmd": "HQServ.PBFXT",
+      "ctl": 14,
+      "args_len": 39,
+      "args_sha256": "f8cd2df217d88dcbfb408066439466a94f8ce4a86d30c5699de51d7b0a35a1ad",
+      "resp_len": 96,
+      "resp_sha256": "bec8f85eb29da8ce2079fcb8bad98c8736d198d8df1da4e0a3f1c4d9c71373ba",
+      "raw_len": 110
+    },
+    {
+      "seq": 55,
+      "sample": "err_bars_880005",
+      "file": "0055_HQServ_PBFXT_0x0E.bin",
+      "transport": "send",
+      "cmd": "HQServ.PBFXT",
+      "ctl": 14,
+      "args_len": 39,
+      "args_sha256": "49f0393ebb54df418757452a6776ecdaa28857a3d344532ca396a51e605d570b",
+      "resp_len": 1737,
+      "resp_sha256": "420334366c23680f7b9e15807064c0ba2a520e09dad4d37df75a758295a9d645",
+      "raw_len": 575
+    },
+    {
+      "seq": 56,
+      "sample": "breadth_880005",
+      "file": "0056_HQServ_PBFXT_0x0E.bin",
+      "transport": "send",
+      "cmd": "HQServ.PBFXT",
+      "ctl": 14,
+      "args_len": 39,
+      "args_sha256": "3f7adc72423fba91a0d00f54a5108c0e79009f6547b5e8bc33a64d0b26c1fae7",
+      "resp_len": 5034,
+      "resp_sha256": "25dce95def1d57591875eccd74a071967269584e56a2ebb162c4a170ebd241ba",
+      "raw_len": 1374
+    },
+    {
+      "seq": 57,
+      "sample": "breadth_880005",
+      "file": "0057_HQServ_PBCombHQ_0x11.bin",
+      "transport": "send",
+      "cmd": "HQServ:PBCombHQ",
+      "ctl": 17,
+      "args_len": 227,
+      "args_sha256": "9f3a4036f203a86f88695bf500c79678a89a5255964a5ed74c8acdc320a0fd9f",
+      "resp_len": 497,
+      "resp_sha256": "7ddb8cdf345973d9b9e6b870894e331c4b3e9f3c5e08bc4ce9e67e87f6d516a4",
+      "raw_len": 511
+    },
+    {
+      "seq": 58,
+      "sample": "breadth_880006",
+      "file": "0058_HQServ_PBFXT_0x0E.bin",
+      "transport": "send",
+      "cmd": "HQServ.PBFXT",
+      "ctl": 14,
+      "args_len": 39,
+      "args_sha256": "dcfd237b01812389fa01a61b9ed072156d0feaaec97fdc8ccb182869c467a678",
+      "resp_len": 4804,
+      "resp_sha256": "3486e277e7029c9e1db55246132d11965715773261ae815ac29e72c55c421c63",
+      "raw_len": 1264
+    },
+    {
+      "seq": 59,
+      "sample": "breadth_880866",
+      "file": "0059_HQServ_PBFXT_0x0E.bin",
+      "transport": "send",
+      "cmd": "HQServ.PBFXT",
+      "ctl": 14,
+      "args_len": 39,
+      "args_sha256": "5d9376ce23270d6df2cfcba41d0cc150e8fc2584f7f9f21c303cf4dc6741d77b",
+      "resp_len": 4724,
+      "resp_sha256": "c74ef538aab4334491130170bda5e1511014d05e1dbee8da2cc830497eca9824",
+      "raw_len": 1410
+    },
+    {
+      "seq": 60,
+      "sample": "breadth_880641",
+      "file": "0060_HQServ_PBFXT_0x0E.bin",
+      "transport": "send",
+      "cmd": "HQServ.PBFXT",
+      "ctl": 14,
+      "args_len": 39,
+      "args_sha256": "06548b9e4ab2f5a9f4ec1078555b8b7a66a2c989c608b0beaff5072741d7da10",
+      "resp_len": 4416,
+      "resp_sha256": "0d81f6797599b7470c631c58926421b10345c04a8da2372a8112ff705f094ffb",
+      "raw_len": 1302
+    },
+    {
+      "seq": 62,
+      "sample": "market_stat_updown",
+      "file": "0062_CWServ_sys_fn_jyr_v3_0x16.bin",
+      "transport": "ask",
+      "cmd": "CWServ.sys_fn_jyr_v3",
+      "ctl": 22,
+      "args_len": 14,
+      "args_sha256": "b08b35edf514086aca0767a585fc1e257fbbe03c4107f30c3376e38370de8b64",
+      "resp_len": 103,
+      "resp_sha256": "82d1172669d38a67d2805627bb4343b4a25b5a71c19d077405e31507ccb7c96a",
+      "raw_len": 0
+    },
+    {
+      "seq": 63,
+      "sample": "market_stat_updown",
+      "file": "0063_CWServ_ph_datacenter_zdt_zdfx_0x1F.bin",
+      "transport": "ask",
+      "cmd": "CWServ.ph_datacenter_zdt_zdfx",
+      "ctl": 31,
+      "args_len": 41,
+      "args_sha256": "eb7b7782dfc36d13cc1f565a164baefb319ba5fce5174edf239c11934b06b382",
+      "resp_len": 830,
+      "resp_sha256": "f07328eeb1584729295cd232489e729f94c830d1199d4b09e972245182c63dc5",
+      "raw_len": 0
+    },
+    {
+      "seq": 64,
+      "sample": "market_stat_sentiment",
+      "file": "0064_CWServ_sys_fn_jyr_v3_0x16.bin",
+      "transport": "ask",
+      "cmd": "CWServ.sys_fn_jyr_v3",
+      "ctl": 22,
+      "args_len": 14,
+      "args_sha256": "b08b35edf514086aca0767a585fc1e257fbbe03c4107f30c3376e38370de8b64",
+      "resp_len": 132,
+      "resp_sha256": "c3f93c49a5e4778471d0fdaf4e48237ddcf74fd2a58a18b6319e0a7a05f90666",
+      "raw_len": 0
+    },
+    {
+      "seq": 65,
+      "sample": "market_stat_sentiment",
+      "file": "0065_CWServ_ph_pcwebcall_hy_bkldscnx_0x21.bin",
+      "transport": "ask",
+      "cmd": "CWServ.ph_pcwebcall_hy_bkldscnx",
+      "ctl": 33,
+      "args_len": 33,
+      "args_sha256": "8e04a5148b1676b7c20b647a8f6f9f5b984b5500864c05f480fa52bf3ad2c305",
+      "resp_len": 470,
+      "resp_sha256": "767bc8c3ce3bfed00312db76a440f2b8957f9445472d8f5c7f5f8688748a40b1",
+      "raw_len": 0
+    },
+    {
+      "seq": 66,
+      "sample": "market_stat_industry",
+      "file": "0066_CWServ_ph_tdxdatacenter_hyfx_sy_0x21.bin",
+      "transport": "ask",
+      "cmd": "CWServ.ph_tdxdatacenter_hyfx_sy",
+      "ctl": 33,
+      "args_len": 22,
+      "args_sha256": "7dfb8415c0e6b74285997b14da3dde468fe99819ef39381de34aa69f4b4fba0b",
+      "resp_len": 635,
+      "resp_sha256": "63835c656b6f9a2d806cc70057ee60fb8d18490739e66301db4ea67355ad81a0",
+      "raw_len": 0
+    },
+    {
+      "seq": 67,
+      "sample": "market_stat_industry",
+      "file": "0067_CWServ_ph_tdxdatacenter_hyfx_sy_0x21.bin",
+      "transport": "ask",
+      "cmd": "CWServ.ph_tdxdatacenter_hyfx_sy",
+      "ctl": 33,
+      "args_len": 22,
+      "args_sha256": "67b723e7365e9df95d78837d7ed2cd6ac8945d7202111bf74ae1174c5fc9290d",
+      "resp_len": 455,
+      "resp_sha256": "3ea3dfcc7465f0bc005d836237b1017d0dcb89ee2794ef033789ac9b80ed5231",
+      "raw_len": 0
+    },
+    {
+      "seq": 68,
+      "sample": "market_stat_industry",
+      "file": "0068_CWServ_ph_tdxdatacenter_hyfx_sy_0x21.bin",
+      "transport": "ask",
+      "cmd": "CWServ.ph_tdxdatacenter_hyfx_sy",
+      "ctl": 33,
+      "args_len": 22,
+      "args_sha256": "dbc5712f41b66fba1b349f5d66066a35ca3b26f94e0f8d43bc35e971f48bc083",
+      "resp_len": 716,
+      "resp_sha256": "e80b03ef89663bcadcb16f48cb159c1726d5d56e2fa1434e97dfa5bfb2bfd49c",
+      "raw_len": 0
+    },
+    {
+      "seq": 69,
+      "sample": "market_stat_industry",
+      "file": "0069_CWServ_ph_tdxdatacenter_hyfx_sy_0x21.bin",
+      "transport": "ask",
+      "cmd": "CWServ.ph_tdxdatacenter_hyfx_sy",
+      "ctl": 33,
+      "args_len": 22,
+      "args_sha256": "08b7acbda0c9204e8f67652c5f7c71d8a0c80cfc27cb478f4c339d7cc1333110",
+      "resp_len": 3196,
+      "resp_sha256": "fc37b1e399b554f873f058603803e41ae43192a7d635da918b769127033941ec",
+      "raw_len": 0
+    },
+    {
+      "seq": 70,
+      "sample": "market_stat_industry",
+      "file": "0070_CWServ_ph_tdxdatacenter_hyfx_sy_0x21.bin",
+      "transport": "ask",
+      "cmd": "CWServ.ph_tdxdatacenter_hyfx_sy",
+      "ctl": 33,
+      "args_len": 22,
+      "args_sha256": "9731aa34bab7c5462623e312f727044b109f2a8cdc47c57fd2d534dbbe733ad2",
+      "resp_len": 702,
+      "resp_sha256": "b3a46307e397d70b26e4d393bfc0c2c03c7620b1212849616dd4b1275b0b48c3",
+      "raw_len": 0
+    },
+    {
+      "seq": 71,
+      "sample": "market_stat_industry",
+      "file": "0071_CWServ_ph_tdxdatacenter_hyfx_sy_0x21.bin",
+      "transport": "ask",
+      "cmd": "CWServ.ph_tdxdatacenter_hyfx_sy",
+      "ctl": 33,
+      "args_len": 22,
+      "args_sha256": "ad763563bae6d698efcb73f2d1454847ac083c7ad77f24eb1d25d9d448d0200c",
+      "resp_len": 1405,
+      "resp_sha256": "19d4a8e1c3208fa407b1011f59407fe76bc9e59da861bea0aa66d4fab17cebca",
+      "raw_len": 0
+    },
+    {
+      "seq": 72,
+      "sample": "market_stat_industry",
+      "file": "0072_CWServ_ph_tdxdatacenter_hyfx_sy_0x21.bin",
+      "transport": "ask",
+      "cmd": "CWServ.ph_tdxdatacenter_hyfx_sy",
+      "ctl": 33,
+      "args_len": 22,
+      "args_sha256": "349c1a5d9b09284dd5e3df93f87eb0eb7cc223c14f7c51d6ef20953af88118df",
+      "resp_len": 1036,
+      "resp_sha256": "2f178d6b22ce2d9ebff93c1a687ac65e57bb6f4ee945253a15a1c36dd629b6cc",
+      "raw_len": 0
+    },
+    {
+      "seq": 73,
+      "sample": "market_stat_industry",
+      "file": "0073_CWServ_ph_tdxdatacenter_hyfx_sy_0x21.bin",
+      "transport": "ask",
+      "cmd": "CWServ.ph_tdxdatacenter_hyfx_sy",
+      "ctl": 33,
+      "args_len": 22,
+      "args_sha256": "f8f2fdacd9746d0ec0af910c13ae4f0f5b05cab8b70122aef217e2324cd4cea8",
+      "resp_len": 1622,
+      "resp_sha256": "0cae85ae4cfa7b45034904149623ec43d2f0a7d6b46d05afb5d79e4f113c8fd1",
+      "raw_len": 0
+    },
+    {
+      "seq": 74,
+      "sample": "market_stat_industry",
+      "file": "0074_CWServ_ph_tdxdatacenter_hyfx_sy_0x21.bin",
+      "transport": "ask",
+      "cmd": "CWServ.ph_tdxdatacenter_hyfx_sy",
+      "ctl": 33,
+      "args_len": 22,
+      "args_sha256": "fe175ddf60814abc66c9e0f0e161210236356487d243206c6877e35467c24bec",
+      "resp_len": 1470,
+      "resp_sha256": "e6eaaf5487b52837bddfdfed329b49513923b9f098764c7071a7913e0213e119",
+      "raw_len": 0
+    },
+    {
+      "seq": 75,
+      "sample": "market_stat_industry",
+      "file": "0075_CWServ_ph_tdxdatacenter_hyfx_sy_0x21.bin",
+      "transport": "ask",
+      "cmd": "CWServ.ph_tdxdatacenter_hyfx_sy",
+      "ctl": 33,
+      "args_len": 22,
+      "args_sha256": "0f2dd1ea83ad34eb3e6583f4e8886d21ad4ed0a3074f43f4ac83ef472ed923fd",
+      "resp_len": 1110,
+      "resp_sha256": "26eb39f1b9b6c2cf9fdcd21ae31aa0a1a066d8caaa2101adb4838512cd127571",
+      "raw_len": 0
+    },
+    {
+      "seq": 76,
+      "sample": "market_stat_industry",
+      "file": "0076_CWServ_ph_tdxdatacenter_hyfx_sy_0x21.bin",
+      "transport": "ask",
+      "cmd": "CWServ.ph_tdxdatacenter_hyfx_sy",
+      "ctl": 33,
+      "args_len": 22,
+      "args_sha256": "9f1e484349d64204bd845ad71b9323295ff22e13864bf4cd1dddbaba55d46ab1",
+      "resp_len": 1238,
+      "resp_sha256": "b9c616d921434034f9c88f81fdde47146397db861ecd38402f9d312e2650c605",
+      "raw_len": 0
+    },
+    {
+      "seq": 77,
+      "sample": "market_stat_industry",
+      "file": "0077_CWServ_ph_tdxdatacenter_hyfx_sy_0x21.bin",
+      "transport": "ask",
+      "cmd": "CWServ.ph_tdxdatacenter_hyfx_sy",
+      "ctl": 33,
+      "args_len": 22,
+      "args_sha256": "8f9f48362f7ad4675d1f940f6bb43657a1d5c140ac2436a7ecc46c885790c902",
+      "resp_len": 1112,
+      "resp_sha256": "50daccba650bb222700a3047789b4c1db32c79468338886e69276e38f4ae9692",
+      "raw_len": 0
+    },
+    {
+      "seq": 78,
+      "sample": "market_stat_industry",
+      "file": "0078_CWServ_ph_tdxdatacenter_hyfx_sy_0x21.bin",
+      "transport": "ask",
+      "cmd": "CWServ.ph_tdxdatacenter_hyfx_sy",
+      "ctl": 33,
+      "args_len": 22,
+      "args_sha256": "cc201f8d2bc105b54bc6b06167ef1bc3463721e9d472c11064e847b7a65ac768",
+      "resp_len": 915,
+      "resp_sha256": "23b0005babf4c8b6cf1bef7389d86f6911786b61a2602ab23796ae968be12eac",
+      "raw_len": 0
+    },
+    {
+      "seq": 79,
+      "sample": "market_stat_industry",
+      "file": "0079_CWServ_ph_tdxdatacenter_hyfx_sy_0x21.bin",
+      "transport": "ask",
+      "cmd": "CWServ.ph_tdxdatacenter_hyfx_sy",
+      "ctl": 33,
+      "args_len": 22,
+      "args_sha256": "4e356df4aefc8e171cb50c717dde0231acbc4c242ea2277347a30c1e9f7a6145",
+      "resp_len": 1425,
+      "resp_sha256": "080be90b05d08a41cd1a949772f004fbe5564b42fe80fbd7f371dfa3259836e7",
+      "raw_len": 0
+    },
+    {
+      "seq": 80,
+      "sample": "market_stat_industry",
+      "file": "0080_CWServ_ph_tdxdatacenter_hyfx_sy_0x21.bin",
+      "transport": "ask",
+      "cmd": "CWServ.ph_tdxdatacenter_hyfx_sy",
+      "ctl": 33,
+      "args_len": 22,
+      "args_sha256": "f9f4b07aba3d5d019f98c7bdf48f4e766ce86ff826b972a53611cd35f9f72047",
+      "resp_len": 2033,
+      "resp_sha256": "2f6b8e370166db5cb3809e692dff173de39ec4342624c6431f56b1cee7350f37",
+      "raw_len": 0
+    },
+    {
+      "seq": 81,
+      "sample": "market_stat_industry",
+      "file": "0081_CWServ_ph_tdxdatacenter_hyfx_sy_0x21.bin",
+      "transport": "ask",
+      "cmd": "CWServ.ph_tdxdatacenter_hyfx_sy",
+      "ctl": 33,
+      "args_len": 22,
+      "args_sha256": "fed2f162a5503299214a3208f326cd3b67558a19da44a90d6d8440adbddf7320",
+      "resp_len": 1810,
+      "resp_sha256": "92197a8bc72da250ffe661fd4326566750c376928c0a39aa32841b12aeffbc7b",
+      "raw_len": 0
+    },
+    {
+      "seq": 82,
+      "sample": "market_stat_industry",
+      "file": "0082_CWServ_ph_tdxdatacenter_hyfx_sy_0x21.bin",
+      "transport": "ask",
+      "cmd": "CWServ.ph_tdxdatacenter_hyfx_sy",
+      "ctl": 33,
+      "args_len": 22,
+      "args_sha256": "696a69771c9ab5bc4fffe3733dbdd07fbfedfd4948d00a892d2ebe47dbb862b0",
+      "resp_len": 525,
+      "resp_sha256": "51789a16945446e438ca0b370957b3b679b6ac2961af5badd23e167a209f8e73",
+      "raw_len": 0
+    },
+    {
+      "seq": 83,
+      "sample": "market_stat_industry",
+      "file": "0083_CWServ_ph_tdxdatacenter_hyfx_sy_0x21.bin",
+      "transport": "ask",
+      "cmd": "CWServ.ph_tdxdatacenter_hyfx_sy",
+      "ctl": 33,
+      "args_len": 22,
+      "args_sha256": "710f935017c932300fea266b56986be028db5b45f96467d4c47ad555d427e76d",
+      "resp_len": 1909,
+      "resp_sha256": "54f7def2c59fd0fa0c03a9c527dfde3117d969b016029be4b720283991beb43d",
+      "raw_len": 0
+    },
+    {
+      "seq": 84,
+      "sample": "market_stat_industry",
+      "file": "0084_CWServ_ph_tdxdatacenter_hyfx_sy_0x21.bin",
+      "transport": "ask",
+      "cmd": "CWServ.ph_tdxdatacenter_hyfx_sy",
+      "ctl": 33,
+      "args_len": 22,
+      "args_sha256": "45211cd8f7f1d0894bd6f582ccc50a7bc4aef1cf8694172dc7a3a933e897a4d6",
+      "resp_len": 1405,
+      "resp_sha256": "90b70d14e8dc331245ba41e4be53bcb921ce0a306d7dc224ac75f7a25f48b541",
+      "raw_len": 0
+    },
+    {
+      "seq": 85,
+      "sample": "market_stat_industry",
+      "file": "0085_CWServ_ph_tdxdatacenter_hyfx_sy_0x21.bin",
+      "transport": "ask",
+      "cmd": "CWServ.ph_tdxdatacenter_hyfx_sy",
+      "ctl": 33,
+      "args_len": 22,
+      "args_sha256": "6155190ecce1e85d66af33511627f957a6bb7dd48da970fd1ddb2f8fafac711e",
+      "resp_len": 1093,
+      "resp_sha256": "6c67c1484c71cfa54580b6f2c625ecf43cd2702785312c52db891afdc2ca29c6",
+      "raw_len": 0
+    },
+    {
+      "seq": 86,
+      "sample": "market_stat_industry",
+      "file": "0086_CWServ_ph_tdxdatacenter_hyfx_sy_0x21.bin",
+      "transport": "ask",
+      "cmd": "CWServ.ph_tdxdatacenter_hyfx_sy",
+      "ctl": 33,
+      "args_len": 22,
+      "args_sha256": "de37efce5e7929ab515757325fd36ea7212fdde7898b156a21e4a4f69bcabcab",
+      "resp_len": 1288,
+      "resp_sha256": "b30a65b7e9c8c44870ae914352e9419cdce5ec2ee3ea7b9a38715e002758f336",
+      "raw_len": 0
+    },
+    {
+      "seq": 87,
+      "sample": "market_stat_industry",
+      "file": "0087_CWServ_ph_tdxdatacenter_hyfx_sy_0x21.bin",
+      "transport": "ask",
+      "cmd": "CWServ.ph_tdxdatacenter_hyfx_sy",
+      "ctl": 33,
+      "args_len": 22,
+      "args_sha256": "81fa2c80c0e48d9ed3194efdefe0a1d6e8732e125adeec0528bde3d15d15be8b",
+      "resp_len": 1254,
+      "resp_sha256": "d08d4105cfcd778a3bf8c6f7a1e043777c5c8bf3fd80bf2d3a221a8242f58365",
+      "raw_len": 0
+    },
+    {
+      "seq": 88,
+      "sample": "market_stat_industry",
+      "file": "0088_CWServ_ph_tdxdatacenter_hyfx_sy_0x21.bin",
+      "transport": "ask",
+      "cmd": "CWServ.ph_tdxdatacenter_hyfx_sy",
+      "ctl": 33,
+      "args_len": 22,
+      "args_sha256": "2ca3830448630de79ad61689fc03be55e35becd80818d014b6749f9c65fb22ae",
+      "resp_len": 596,
+      "resp_sha256": "32dce7bc11f0e0b6be7e6a8342a40ec978f43d73466f54fc472e8d28a0f4fd7c",
+      "raw_len": 0
+    },
+    {
+      "seq": 89,
+      "sample": "market_stat_industry",
+      "file": "0089_CWServ_ph_tdxdatacenter_hyfx_sy_0x21.bin",
+      "transport": "ask",
+      "cmd": "CWServ.ph_tdxdatacenter_hyfx_sy",
+      "ctl": 33,
+      "args_len": 22,
+      "args_sha256": "8cb4990b53279a540622d2116a126822c9ab82d4233a243ad2f128142ba7be05",
+      "resp_len": 837,
+      "resp_sha256": "94a8212552befb15c97772c5dee3a790b8a465e12ca780e5efee83bdebb84bca",
+      "raw_len": 0
+    },
+    {
+      "seq": 90,
+      "sample": "market_stat_industry",
+      "file": "0090_CWServ_ph_tdxdatacenter_hyfx_sy_0x21.bin",
+      "transport": "ask",
+      "cmd": "CWServ.ph_tdxdatacenter_hyfx_sy",
+      "ctl": 33,
+      "args_len": 22,
+      "args_sha256": "abafce9f1bbf6588b2b8eb49ab58d3638e96ca4981b93ed7425f8c35b1fb1476",
+      "resp_len": 926,
+      "resp_sha256": "4a3993468582239a14a06e35db3776462b0e711e07fbe77cea480f1e56ad8535",
+      "raw_len": 0
+    },
+    {
+      "seq": 91,
+      "sample": "market_stat_industry",
+      "file": "0091_CWServ_ph_tdxdatacenter_hyfx_sy_0x21.bin",
+      "transport": "ask",
+      "cmd": "CWServ.ph_tdxdatacenter_hyfx_sy",
+      "ctl": 33,
+      "args_len": 22,
+      "args_sha256": "0aadb68dbb430ad9de600a6bb77349c2ab633646cc5667ebd9b968d54a7f66b4",
+      "resp_len": 657,
+      "resp_sha256": "eb196ba1b3f17b476104a8b3003614d5a47f35ac6532c2946c9c3026b6b5a9b9",
+      "raw_len": 0
+    },
+    {
+      "seq": 92,
+      "sample": "market_stat_industry",
+      "file": "0092_CWServ_ph_tdxdatacenter_hyfx_sy_0x21.bin",
+      "transport": "ask",
+      "cmd": "CWServ.ph_tdxdatacenter_hyfx_sy",
+      "ctl": 33,
+      "args_len": 22,
+      "args_sha256": "3da794bcd798e82d45d5f2fd3cf6f9ee6572fd27381231265c70b52512241141",
+      "resp_len": 1103,
+      "resp_sha256": "6ca058a0bb7141adb4e2306ff0b883f2583187e66126c3f61514f8320b954bd8",
+      "raw_len": 0
+    },
+    {
+      "seq": 93,
+      "sample": "market_stat_industry",
+      "file": "0093_CWServ_ph_tdxdatacenter_hyfx_sy_0x21.bin",
+      "transport": "ask",
+      "cmd": "CWServ.ph_tdxdatacenter_hyfx_sy",
+      "ctl": 33,
+      "args_len": 22,
+      "args_sha256": "eca5f7219dd98f5c74c0f25809925364c12f24ad5c7bb1b6ab361d13d44b1d36",
+      "resp_len": 1226,
+      "resp_sha256": "4b3f217e75dfa621828354715f2d325bc33ca68cef4304c42ea6cdeb5ec7c4bc",
+      "raw_len": 0
+    },
+    {
+      "seq": 94,
+      "sample": "market_stat_industry",
+      "file": "0094_CWServ_ph_tdxdatacenter_hyfx_sy_0x21.bin",
+      "transport": "ask",
+      "cmd": "CWServ.ph_tdxdatacenter_hyfx_sy",
+      "ctl": 33,
+      "args_len": 22,
+      "args_sha256": "b930aadcc756bce4dbfaa7a6ec8a7a694d451ce97433f21faebac2c27b713d9b",
+      "resp_len": 846,
+      "resp_sha256": "f1272b0d7824389c3c8750fb3d3807f998abb6249a419496fbb1fbc648777613",
+      "raw_len": 0
+    },
+    {
+      "seq": 95,
+      "sample": "market_stat_industry",
+      "file": "0095_CWServ_ph_tdxdatacenter_hyfx_sy_0x21.bin",
+      "transport": "ask",
+      "cmd": "CWServ.ph_tdxdatacenter_hyfx_sy",
+      "ctl": 33,
+      "args_len": 22,
+      "args_sha256": "eca87966c5422742929695d9f4f121beed74ad2fdab571d91edfabbdad2b59e5",
+      "resp_len": 659,
+      "resp_sha256": "199774f20a518cac94dd3ba3edfaeee58d626f8df9e73f3ae50b21b130870ea3",
+      "raw_len": 0
+    },
+    {
+      "seq": 96,
+      "sample": "market_stat_industry",
+      "file": "0096_CWServ_ph_tdxdatacenter_hyfx_sy_0x21.bin",
+      "transport": "ask",
+      "cmd": "CWServ.ph_tdxdatacenter_hyfx_sy",
+      "ctl": 33,
+      "args_len": 22,
+      "args_sha256": "255b8f29250d741994893b4edddafa3345ceda12797405375c77adc3c0dbcf20",
+      "resp_len": 201,
+      "resp_sha256": "463f53f3630251aa7d8ce31dc683f4e6d8b3d9685c8481a56b9da43c88de2f5f",
+      "raw_len": 0
+    },
+    {
+      "seq": 97,
+      "sample": "boards_industry_s4",
+      "file": "0097_CWServ_app_bklist_ag_0x16.bin",
+      "transport": "ask",
+      "cmd": "CWServ.app_bklist_ag",
+      "ctl": 22,
+      "args_len": 17,
+      "args_sha256": "38bb096a353bd4c79ab7a63b4165153e13e0cbbafe7347ced5f84de9f49079ee",
+      "resp_len": 9789,
+      "resp_sha256": "93fa42f741a25c92c0f87ba1ff152083bf3570003c3eb99487765fea9f7673cd",
+      "raw_len": 0
+    },
+    {
+      "seq": 98,
+      "sample": "boards_industry_s4",
+      "file": "0098_HQServ_PBCombHQ_0x11.bin",
+      "transport": "send",
+      "cmd": "HQServ:PBCombHQ",
+      "ctl": 17,
+      "args_len": 227,
+      "args_sha256": "9f3a4036f203a86f88695bf500c79678a89a5255964a5ed74c8acdc320a0fd9f",
+      "resp_len": 497,
+      "resp_sha256": "7ddb8cdf345973d9b9e6b870894e331c4b3e9f3c5e08bc4ce9e67e87f6d516a4",
+      "raw_len": 511
+    },
+    {
+      "seq": 99,
+      "sample": "boards_industry_s4",
+      "file": "0099_HQServ_PBMultiHQ_0x12.bin",
+      "transport": "send",
+      "cmd": "HQServ.PBMultiHQ",
+      "ctl": 18,
+      "args_len": 64,
+      "args_sha256": "7d252f608a901f2dea6e69ce4dbe28f06b3fb21ea3fac2df3bf00f2ea4d93786",
+      "resp_len": 2846,
+      "resp_sha256": "a00cf96e89007397a9c43296a46c77002204231273fff4ed70ba04b3bdc41b91",
+      "raw_len": 1476
+    },
+    {
+      "seq": 100,
+      "sample": "boards_industry_s4",
+      "file": "0100_HQServ_PBMultiHQ_0x12.bin",
+      "transport": "send",
+      "cmd": "HQServ.PBMultiHQ",
+      "ctl": 18,
+      "args_len": 64,
+      "args_sha256": "11f6396932f98f5da6286f2bff0eac0bee7d47d636e2ab0e59a2b7dafeb5b2a4",
+      "resp_len": 2882,
+      "resp_sha256": "3814b4cd33d7e308e99444d220e67f1af3da76d93184d9749b603dceedbff027",
+      "raw_len": 1530
+    },
+    {
+      "seq": 101,
+      "sample": "boards_industry_s4",
+      "file": "0101_HQServ_PBMultiHQ_0x12.bin",
+      "transport": "send",
+      "cmd": "HQServ.PBMultiHQ",
+      "ctl": 18,
+      "args_len": 64,
+      "args_sha256": "41d79e6678843eb7f92685f4114aa7be84ddce0c9c9963f41034a1cbe6f0e12a",
+      "resp_len": 2662,
+      "resp_sha256": "52dc70d01949b7773d31ae9c92966141a4269ed57d130a5e724e271121ced23b",
+      "raw_len": 1401
+    },
+    {
+      "seq": 102,
+      "sample": "boards_industry_s4",
+      "file": "0102_HQServ_PBMultiHQ_0x12.bin",
+      "transport": "send",
+      "cmd": "HQServ.PBMultiHQ",
+      "ctl": 18,
+      "args_len": 65,
+      "args_sha256": "fbb938de15a38a194ea8504ee7c4223e0f4c2a4b9b163e21cfcfe6cc4ca1d2c7",
+      "resp_len": 26,
+      "resp_sha256": "ae2bcb43a5ad444dd6d2427c8e7cf81cd1f5e85c95a628a2e17feac1ccf9832c",
+      "raw_len": 40
+    },
+    {
+      "seq": 103,
+      "sample": "boards_industry_s4",
+      "file": "0103_HQServ_PBMultiHQ_0x12.bin",
+      "transport": "send",
+      "cmd": "HQServ.PBMultiHQ",
+      "ctl": 18,
+      "args_len": 65,
+      "args_sha256": "eed76295266b8affafc2895b4958f82877f97660340fb39a3e9cd3a6350ee162",
+      "resp_len": 26,
+      "resp_sha256": "ae2bcb43a5ad444dd6d2427c8e7cf81cd1f5e85c95a628a2e17feac1ccf9832c",
+      "raw_len": 40
+    },
+    {
+      "seq": 104,
+      "sample": "boards_industry_s4",
+      "file": "0104_HQServ_PBMultiHQ_0x12.bin",
+      "transport": "send",
+      "cmd": "HQServ.PBMultiHQ",
+      "ctl": 18,
+      "args_len": 65,
+      "args_sha256": "cd6d1ad585c6a38103ad89874a0370e5e4214c891a57ec7c3f77d4197e7dfca4",
+      "resp_len": 26,
+      "resp_sha256": "ae2bcb43a5ad444dd6d2427c8e7cf81cd1f5e85c95a628a2e17feac1ccf9832c",
+      "raw_len": 40
+    },
+    {
+      "seq": 105,
+      "sample": "boards_industry_s4",
+      "file": "0105_HQServ_PBMultiHQ_0x12.bin",
+      "transport": "send",
+      "cmd": "HQServ.PBMultiHQ",
+      "ctl": 18,
+      "args_len": 65,
+      "args_sha256": "c3011f26a3b584d96dcce87f3680f37e36e4cf270a23bf6e70854b3205690dc4",
+      "resp_len": 26,
+      "resp_sha256": "ae2bcb43a5ad444dd6d2427c8e7cf81cd1f5e85c95a628a2e17feac1ccf9832c",
+      "raw_len": 40
+    }
+  ],
+  "samples": [
+    {
+      "name": "quotes_indices",
+      "file": "quotes_indices.json",
+      "frames": [
+        1
+      ],
+      "outcome": "ok",
+      "recording_id": null
+    },
+    {
+      "name": "bars_day_300",
+      "file": "bars_day_300.json",
+      "frames": [
+        2
+      ],
+      "outcome": "ok",
+      "recording_id": null
+    },
+    {
+      "name": "bars_5m_300",
+      "file": "bars_5m_300.json",
+      "frames": [
+        3
+      ],
+      "outcome": "ok",
+      "recording_id": null
+    },
+    {
+      "name": "bars_60m_300",
+      "file": "bars_60m_300.json",
+      "frames": [
+        4
+      ],
+      "outcome": "ok",
+      "recording_id": null
+    },
+    {
+      "name": "minutes",
+      "file": "minutes.json",
+      "frames": [
+        5
+      ],
+      "outcome": "ok",
+      "recording_id": null
+    },
+    {
+      "name": "ticks",
+      "file": "ticks.json",
+      "frames": [
+        6,
+        7
+      ],
+      "outcome": "ok",
+      "recording_id": null
+    },
+    {
+      "name": "bars_880005",
+      "file": "bars_880005.json",
+      "frames": [
+        8
+      ],
+      "outcome": "ok",
+      "recording_id": null,
+      "superseded": true
+    },
+    {
+      "name": "bars_880006",
+      "file": "bars_880006.json",
+      "frames": [
+        9
+      ],
+      "outcome": "ok",
+      "recording_id": null,
+      "superseded": true
+    },
+    {
+      "name": "bars_880866",
+      "file": "bars_880866.json",
+      "frames": [
+        10
+      ],
+      "outcome": "ok",
+      "recording_id": null,
+      "superseded": true
+    },
+    {
+      "name": "bars_510300",
+      "file": "bars_510300.json",
+      "frames": [
+        11
+      ],
+      "outcome": "ok",
+      "recording_id": null
+    },
+    {
+      "name": "product_lrmx",
+      "file": "product_lrmx.json",
+      "frames": [
+        48
+      ],
+      "outcome": "ok",
+      "recording_id": null
+    },
+    {
+      "name": "product_north",
+      "file": "product_north.json",
+      "frames": [
+        49
+      ],
+      "outcome": "ok",
+      "recording_id": null
+    },
+    {
+      "name": "product_ztqd",
+      "file": "product_ztqd.json",
+      "frames": [
+        50
+      ],
+      "outcome": "ok",
+      "recording_id": null
+    },
+    {
+      "name": "f10_gsjj",
+      "file": "f10_gsjj.json",
+      "frames": [
+        51
+      ],
+      "outcome": "ok",
+      "recording_id": null
+    },
+    {
+      "name": "finance_zcfz",
+      "file": "finance_zcfz.json",
+      "frames": [
+        52
+      ],
+      "outcome": "ok",
+      "recording_id": null
+    },
+    {
+      "name": "err_bars_000300",
+      "file": "err_bars_000300.json",
+      "frames": [
+        53
+      ],
+      "outcome": "error",
+      "recording_id": null
+    },
+    {
+      "name": "err_bars_932000",
+      "file": "err_bars_932000.json",
+      "frames": [
+        54
+      ],
+      "outcome": "error",
+      "recording_id": null
+    },
+    {
+      "name": "err_bars_880005",
+      "file": "err_bars_880005.json",
+      "frames": [
+        55
+      ],
+      "outcome": "ok",
+      "recording_id": null,
+      "superseded": true
+    },
+    {
+      "name": "breadth_880005",
+      "file": "breadth_880005.json",
+      "frames": [
+        56,
+        57
+      ],
+      "outcome": "ok",
+      "meta_sha256": "1a661cfa69c00918412a28911f827b118c072a8345fe8a02d67db7575bea9771",
+      "recording_id": null
+    },
+    {
+      "name": "breadth_880006",
+      "file": "breadth_880006.json",
+      "frames": [
+        58
+      ],
+      "outcome": "ok",
+      "meta_sha256": "896c8f599f68380a1cdba7b0c73726cbca0310b95b8d191d6827b35565272ab9",
+      "recording_id": null
+    },
+    {
+      "name": "breadth_880866",
+      "file": "breadth_880866.json",
+      "frames": [
+        59
+      ],
+      "outcome": "ok",
+      "meta_sha256": "8e87d2d5029bc6f09f6f555ccff5bd6adc706920e2938d936c64d5d68bcf3175",
+      "recording_id": null
+    },
+    {
+      "name": "breadth_880641",
+      "file": "breadth_880641.json",
+      "frames": [
+        60
+      ],
+      "outcome": "ok",
+      "meta_sha256": "3dc42bf0d69c0bed44531a032d2b3844ede09521fe341c35b44ee8e5d28b7c72",
+      "recording_id": null
+    },
+    {
+      "name": "reject_bars_880005",
+      "file": "reject_bars_880005.json",
+      "frames": "unavailable: 该调用在发出任何 wire 请求之前就失败了（tdxdata.errors.NotSupportedError），没有可回放的帧",
+      "outcome": "error",
+      "meta_sha256": "41a9f623fa1bcd1e98d09da239715b199460e0e283fa2fe02a6ac193e9df8716",
+      "recording_id": null
+    },
+    {
+      "name": "reject_bars_880006",
+      "file": "reject_bars_880006.json",
+      "frames": "unavailable: 该调用在发出任何 wire 请求之前就失败了（tdxdata.errors.NotSupportedError），没有可回放的帧",
+      "outcome": "error",
+      "meta_sha256": "8396fa00808e083c2ec1be43269d4ea3d081a88741ad88e348fed42657631d64",
+      "recording_id": null
+    },
+    {
+      "name": "reject_bars_880866",
+      "file": "reject_bars_880866.json",
+      "frames": "unavailable: 该调用在发出任何 wire 请求之前就失败了（tdxdata.errors.NotSupportedError），没有可回放的帧",
+      "outcome": "error",
+      "meta_sha256": "c1fd98c992478877f7e2549e62136a67a1ed7f9d3ec63d46b04071d8b253ad0f",
+      "recording_id": null
+    },
+    {
+      "name": "reject_bars_880641",
+      "file": "reject_bars_880641.json",
+      "frames": "unavailable: 该调用在发出任何 wire 请求之前就失败了（tdxdata.errors.NotSupportedError），没有可回放的帧",
+      "outcome": "error",
+      "meta_sha256": "e9ae1e5b62a3ddedf0e9c41d7c8bf289845ff1baf222165d5acbc3fc2f3ec9c2",
+      "recording_id": null
+    },
+    {
+      "name": "boards_industry",
+      "file": "boards_industry.json",
+      "frames": [
+        61
+      ],
+      "outcome": "ok",
+      "meta_sha256": "c01ec891a49787feddf045857350db1edb616b129a48961cfb023d41703961c9",
+      "recording_id": null,
+      "superseded": true
+    },
+    {
+      "name": "market_stat_updown",
+      "file": "market_stat_updown.json",
+      "frames": [
+        62,
+        63
+      ],
+      "outcome": "ok",
+      "meta_sha256": "68f8ec52b351e5327619f61f014eb630040650f2c02f632226e4595679b61705",
+      "recording_id": null
+    },
+    {
+      "name": "market_stat_sentiment",
+      "file": "market_stat_sentiment.json",
+      "frames": [
+        64,
+        65
+      ],
+      "outcome": "ok",
+      "meta_sha256": "6ccc794463aa1eecb79018fc94566d635dc649b88afe5a36eddecbad0e00eddd",
+      "recording_id": null
+    },
+    {
+      "name": "market_stat_industry",
+      "file": "market_stat_industry.json",
+      "frames": [
+        66,
+        67,
+        68,
+        69,
+        70,
+        71,
+        72,
+        73,
+        74,
+        75,
+        76,
+        77,
+        78,
+        79,
+        80,
+        81,
+        82,
+        83,
+        84,
+        85,
+        86,
+        87,
+        88,
+        89,
+        90,
+        91,
+        92,
+        93,
+        94,
+        95,
+        96
+      ],
+      "outcome": "ok",
+      "meta_sha256": "d76b804ef3d2d90939ee216b6f38e154b82a9bca5aca45a4924f07fc107fecf1",
+      "recording_id": null
+    },
+    {
+      "name": "err_bars_IF00",
+      "file": "err_bars_IF00.json",
+      "frames": "unavailable: 该调用在发出任何 wire 请求之前就失败了（tdxdata.errors.OutOfScope），没有可回放的帧",
+      "outcome": "error",
+      "meta_sha256": "361f07f41d7e4586bb058fa0df7a798377ab85eddca5a20e553a3b2d8a15f4c4",
+      "recording_id": "2026-10-27T18:21:24+08:00"
+    },
+    {
+      "name": "boards_industry_s4",
+      "file": "boards_industry_s4.json",
+      "frames": [
+        97,
+        98,
+        99,
+        100,
+        101,
+        102,
+        103,
+        104,
+        105
+      ],
+      "outcome": "ok",
+      "meta_sha256": "5253e539ac4aa0aec4ff5ec4684713298dafbbfd1375ecf611b63ca5f219fe0c",
+      "recording_id": "2026-10-27T19:07:29+08:00"
+    }
+  ],
+  "duplicate_keys": 1,
+  "conflicts": [
+    {
+      "seq": 64,
+      "first": 62,
+      "cmd": "CWServ.sys_fn_jyr_v3",
+      "ctl": 22,
+      "decoded_same": true
+    }
+  ],
+  "note": "同一 (transport, cmd, ctl, args) 被请求多次时只保留首次用于回放；duplicate_keys 列出重复的 seq，conflicts 只在两次回包字节不同时出现\n- 2026-10-27 阶段 4：删除陈旧帧 seq=61（sample=boards_industry，已归档）。它与在役样本 boards_industry_s4 的 seq=97 args 相同但回包不同（resp_len 9760 vs 9789），按 args 查帧会遮蔽在役帧。"
+}
