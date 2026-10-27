@@ -1,0 +1,19 @@
+# 缓存与构建产物
+__pycache__/
+*.py[cod]
+*.egg-info/
+build/
+dist/
+.pytest_cache/
+.venv/
+venv/
+
+# 本地运行产物
+*.log
+tmp_*.py
+probe_*.py
+
+# 编辑器
+.vscode/
+.idea/
+.DS_Store

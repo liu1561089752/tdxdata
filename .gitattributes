@@ -1,0 +1,17 @@
+# 本文件自身也必须 LF：若被检出成 CRLF，下面每条规则末尾都会多出 \r 而匹配不到
+.gitattributes  text eol=lf
+# 行尾策略（2026-10-27 新增）
+#
+# 背景：本机全局 D:/Git/etc/gitconfig 把 core.autocrlf 设成 true，而它是**全局**配置、
+# 不随仓库走 —— 任何人 clone 下来 .py 都会被转成 CRLF。仓库真正的不变量是
+# **index 里统一存 LF**，所以这里用 .gitattributes 把"检出时怎么落地"钉死，
+# 不再依赖各人的 git 配置。
+#
+# 约定：.py/.json/.toml 检出为 LF；.md 检出为 CRLF；*.bin 一律二进制（禁止任何换行转换）。
+*       text=auto
+*.py    text eol=lf
+*.md    text eol=crlf
+*.json  text eol=lf
+*.toml  text eol=lf
+*.bin   binary
+tests/fixtures/* binary

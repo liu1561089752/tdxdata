@@ -1,0 +1,47 @@
+[build-system]
+requires = ["setuptools>=61"]
+build-backend = "setuptools.build_meta"
+
+[project]
+name = "tdxdata"
+version = "0.2.0"
+description = "A 股行情与数据中心 Python 客户端：K 线 / 分时 / 逐笔 / 报价 + 421 个数据产品，纯标准库、零第三方依赖"
+readme = "README.md"
+requires-python = ">=3.9"
+license = { file = "LICENSE" }
+keywords = ["tdx", "通达信", "stock", "a-share", "market-data", "kline", "tick"]
+classifiers = [
+    "Development Status :: 3 - Alpha",
+    "Intended Audience :: Financial and Insurance Industry",
+    "License :: OSI Approved :: MIT License",
+    "Operating System :: OS Independent",
+    "Programming Language :: Python :: 3",
+    "Programming Language :: Python :: 3.9",
+    "Programming Language :: Python :: 3.10",
+    "Programming Language :: Python :: 3.11",
+    "Programming Language :: Python :: 3.12",
+    "Programming Language :: Python :: 3.13",
+    "Topic :: Office/Business :: Financial :: Investment",
+]
+dependencies = []                     # 刻意保持空：纯标准库
+
+[project.urls]
+Homepage = "https://github.com/liu1561089752/tdxdata"
+Changelog = "https://github.com/liu1561089752/tdxdata/blob/main/CHANGELOG.md"
+Issues = "https://github.com/liu1561089752/tdxdata/issues"
+
+[project.optional-dependencies]
+dev = ["pytest>=7"]
+
+[tool.setuptools]
+packages = ["tdxdata", "tdxdata._engine", "tdxdata.sections"]
+include-package-data = true
+
+[tool.setuptools.package-data]
+tdxdata = ["data/*.json", "_engine/catalog/*.json"]
+
+[tool.pytest.ini_options]
+testpaths = ["tests"]
+markers = [
+    "online: 需要真实网络（默认不跑）",
+]

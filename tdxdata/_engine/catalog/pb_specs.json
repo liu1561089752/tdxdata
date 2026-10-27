@@ -1,0 +1,249 @@
+{
+ "说明": "PB* 接口的实测规格。每一条都是 2026-10-23 实际调用验证过的，不是推断。",
+ "约定": {
+  "ctl": "十进制整数，与 iface_catalog.json 一致",
+  "kind": "table=列名+数据行 / json=JSON 对象 / pb=protobuf 非表结构",
+  "verified": "实测日期"
+ },
+ "HQServ.PBFXT": {
+  "kind": "table",
+  "ctl": [
+   14
+  ],
+  "ctl_alt": [
+   17
+  ],
+  "verified": "2026-10-24",
+  "内容": "K线（OHLCV），周期由 field4 选：0=5分 1=15分 2=30分 3=60分 4=日 5=周 7=1分",
+  "响应": "protobuf",
+  "规模": "12 列 × 120 行（单页上限 416 行）",
+  "参数": "Base64 protobuf：field2=代码 field3=市场(0深/1沪/2北) field4=周期 field6=起始偏移 field7=行数",
+  "参数解码": "field2=code, field3=market(1=沪,科创板也是1), field4=period(4=日线), field6=offset(翻页), field7=rows",
+  "列名": [
+   "Data",
+   "Second",
+   "Open",
+   "High",
+   "Low",
+   "Close",
+   "Amount",
+   "VolInStock",
+   "Volume",
+   "Settle",
+   "up",
+   "down"
+  ],
+  "列含义": {
+   "Data": "日期 YYYYMMDD",
+   "Second": "分钟级K的秒偏移（47700=13:15），日线及以上为 0",
+   "Open": "开盘价",
+   "High": "最高价",
+   "Low": "最低价",
+   "Close": "收盘价",
+   "Amount": "成交额（元）",
+   "VolInStock": "成交量（股）",
+   "Volume": "成交量（手）",
+   "Settle": "结算价（期货用，股票为 0）",
+   "up": "上涨家数/标记",
+   "down": "下跌家数/标记"
+  },
+  "示例": {
+   "Data": "20260427",
+   "Open": "78.360001",
+   "High": "80.160004",
+   "Low": "78.360001",
+   "Close": "79.080002",
+   "Amount": "223234112.000000"
+  },
+  "用途": "多周期K线，可用 field6 翻页取长历史；无复权字段",
+  "参数位说明": {
+   "field3": "市场码 0=深 1=沪 2=北",
+   "field4": "周期，同 PC 版 KlineCategory；6=月线/10=季线实测数据异常，勿用",
+   "field6": "起始偏移（从最新往回数多少根），实测 0/120/240 各回一段",
+   "field7": "行数，单页生效上限 416；调大不报错但会截断且末根不是最新"
+  }
+ },
+ "HQServ.PBZST": {
+  "kind": "table",
+  "ctl": [
+   14
+  ],
+  "verified": "2026-10-23",
+  "内容": "分时（分钟线）",
+  "响应": "protobuf",
+  "规模": "6 列 × 240 行",
+  "参数": "Base64 protobuf，code:'880885' 为行业指数",
+  "列名": [
+   "Minute",
+   "Now",
+   "Average",
+   "NowVol",
+   "VolInStock",
+   "Lead"
+  ],
+  "列含义": {
+   "Minute": "分钟序号，570=9:30（570=9*60+30），240 个覆盖全天",
+   "Now": "当前价",
+   "Average": "均价",
+   "NowVol": "本分钟成交量",
+   "VolInStock": "持仓量（指数为负值）",
+   "Lead": "涨跌/领先指标"
+  },
+  "示例": {
+   "Minute": "570",
+   "Now": "359.799988",
+   "Average": "359.803986",
+   "NowVol": "14285077",
+   "VolInStock": "-1134206910",
+   "Lead": "-0.014000"
+  },
+  "用途": "单只股票/指数当日分时走势"
+ },
+ "HQServ.PBMultiHQ": {
+  "kind": "table",
+  "ctl": [
+   18
+  ],
+  "verified": "2026-10-23",
+  "内容": "批量行情快照",
+  "响应": "protobuf",
+  "规模": "10 列 × 19 只",
+  "参数": "Base64 protobuf，含列名列表 + 股票代码列表",
+  "列名": [
+   "Code",
+   "Setcode",
+   "Name",
+   "CLOSE",
+   "NOW",
+   "BELONGHY",
+   "FLAG",
+   "XSFLAG",
+   "MISCFLAG",
+   "VAR0404"
+  ],
+  "列含义": {
+   "Code": "股票代码",
+   "Setcode": "市场代码 0=深 1=沪 2=北",
+   "Name": "名称",
+   "CLOSE": "昨收价",
+   "NOW": "现价",
+   "BELONGHY": "通达信行业代码（如 84202/83203/82701）",
+   "FLAG": "标志位",
+   "XSFLAG": "小数位/显示标志",
+   "MISCFLAG": "杂项标志",
+   "VAR0404": "扩展字段"
+  },
+  "示例": {
+   "Code": "920207",
+   "Setcode": "2",
+   "Name": "众诚科技",
+   "CLOSE": "21.80",
+   "NOW": "28.34",
+   "BELONGHY": "84202"
+  },
+  "用途": "一次拿多只股票的现价与昨收，比逐只请求省 19 倍"
+ },
+ "HQServ.PBZSTDDE": {
+  "kind": "json",
+  "ctl": [
+   17
+  ],
+  "verified": "2026-10-23",
+  "内容": "DDE 大单数据",
+  "响应": "**JSON**（不是 protobuf）",
+  "规模": "40 KB",
+  "参数": "JSON 字符串 {\"Head\":{\"Target\":0},\"Code\":\"880001\",\"Setcode\":\"1\",\"Type\":0}",
+  "结构": {
+   "Code": "证券代码",
+   "Setcode": "市场代码",
+   "num": "条数（实测 240）",
+   "zstddeDataList": "[{Value: float, Rate: [{value: [4 个数]}]}]"
+  },
+  "示例": "{\"Code\":\"880001\",\"Setcode\":1,\"num\":240,\"zstddeDataList\":[{\"Value\":7.23795722e+10,...}]}",
+  "用途": "大单资金流向"
+ },
+ "HQServ.PBSdstat": {
+  "kind": "pb",
+  "ctl": [
+   17
+  ],
+  "verified": "2026-10-23",
+  "内容": "统计分布（打包 float32）",
+  "响应": "protobuf",
+  "规模": "242 组（2026-10-24 复核：11861B 回包，顶层 field6 恰好 242 个重复子消息；此前记 243 有误）",
+  "结构": "field6 = 重复子消息 {field1: 40 字节 = 10 个 float32, field2: 4 字节 = 1 个 float32}",
+  "注意": "field1/field2 是 **little-endian float32**，不是文本，需要 struct.unpack('<%df')",
+  "用途": "统计分布，具体口径未确认"
+ },
+ "HQServ.PBPathFile": {
+  "kind": "empty",
+  "ctl": [
+   19
+  ],
+  "verified": "2026-10-23",
+  "内容": "文件路径类，实测返回空",
+  "响应": "protobuf（空）",
+  "说明": "可能需要在特定页面/会话状态下才有数据"
+ },
+ "未打通": {
+  "PBCombHQ": {
+   "ctl": [
+    17
+   ],
+   "现象": "WinError 10053 连接中止"
+  },
+  "PBXmlBlock": {
+   "ctl": [
+    19
+   ],
+   "现象": "WinError 10054 连接重置"
+  },
+  "PBDeepWarn": {
+   "ctl": [
+    19,
+    18
+   ],
+   "现象": "有响应但空；参数是 protobuf 且含股票代码 600215"
+  },
+  "PBHQInfo": {
+   "ctl": [
+    17
+   ],
+   "现象": "有响应但空"
+  },
+  "PBGPTips": {
+   "ctl": [
+    17
+   ],
+   "现象": "有响应但空"
+  },
+  "PBSample": {
+   "ctl": [
+    17
+   ],
+   "现象": "有响应但空"
+  },
+  "PBONEZJLX": {
+   "ctl": [
+    18
+   ],
+   "现象": "无响应"
+  },
+  "PBSYSINFO": {
+   "ctl": [
+    18
+   ],
+   "现象": "无响应"
+  },
+  "PBZSTDDE2": {
+   "ctl": [
+    17
+   ],
+   "现象": "无响应"
+  },
+  "PBHYStat": {
+   "状态": "C 组（有参数缺 ctl）",
+   "参数": "['00101','xxx']"
+  }
+ }
+}
