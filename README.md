@@ -118,7 +118,7 @@ with tdxdata.Client() as c:
 | `get_ticks()` | `list[Tick]` | `market` `code` `time` `price` `vol` `trade_count` `bs_flag` `raw` `as_markdown_table` `symbol` |
 | `get_quotes()` / `get_market_page()` | `list[Quote]` | `market` `code` `price` `pre_close` `open` `high` `low` `vol` `amount` `bid` `ask` `server_time` `name` `raw` `symbol` |
 | `get()` | `Dataset` | `name` `table` `params` `cols` `data_date` `rows` `to_dict()` `to_dicts()` `to_json()` |
-| `get_f10()` / `get_finance()` / `get_xdxr()` | `Table` | `cols` `rows` `cmd` `domain` `provenance` `as_of` `column()` `inherit_provenance()` `row()` `set_cols()` `shape` `status` `to_dict()` `to_dicts()` `to_json()` |
+| `get_f10()` / `get_finance()` / `get_xdxr()` | `Table` | `cols` `rows` `cmd` `domain` `provenance` `ragged` `as_of` `column()` `inherit_provenance()` `is_ragged` `row()` `set_cols()` `shape` `status` `to_dict()` `to_dicts()` `to_json()` |
 <!-- END: api_types -->
 
 **每个对象都带 `.raw`** —— 原始行原值，字段没覆盖到的部分可以自己从里面取。
@@ -975,6 +975,7 @@ with tdxdata.Client() as c:
 | `Table` | `cmd` | str | `''` |
 | `Table` | `domain` | str | `''` |
 | `Table` | `provenance` | Provenance \| None | `None` |
+| `Table` | `ragged` | tuple[int, int] \| None | `None` |
 | `Dataset` | `name` | str | **必填** |
 | `Dataset` | `table` | Table | **必填** |
 | `Dataset` | `params` | Any | `None` |

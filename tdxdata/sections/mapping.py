@@ -1171,18 +1171,59 @@ def _row_width(table: Table):
     return None
 
 
+def _allowed_shapes(product: str) -> list[list[str]]:
+    """该产品**登记过的所有合法列形状**（`COL_GUARD` 主形状 + `COL_GUARD_MORE` + 文档清单）."""
+    out: list[list[str]] = []
+    guard = COL_GUARD.get(product)
+    if guard:
+        out.append(list(guard))
+    for s in COL_GUARD_MORE.get(product, ()):
+        out.append(list(s))
+    tpl = _TEMPLATE_COLS.get(product)
+    if tpl:
+        out.append(list(tpl))
+    return out
+
+
 def _resolve_cols(table: Table, product: str):
     """定出「与行内下标一一对应」的列名清单，返回 `(cols, 来源标记)`。
 
-    来源标记：
-      `server`        `table.cols` 与行宽一致 → 直接用（协议层的正常形态，最可信）
-      `doc-template`  只有 cols 与行宽不一致（畸形表 / 旧回包）时才回落到文档清单，
-                      **并且只在长度刚好对上时**才这么干；否则抛 NotSupportedError。
+    来源标记（`provenance.extra["cols_align"]`）：
 
-    `Table.__post_init__` 会把 list 行转成 `Row`（键 = cols），正常情况下
-    `len(table.cols) == len(row)` 恒成立，走 `server` 分支。
+      `server`         `table.cols` 与行宽一致 → 直接用（协议层正常形态，最可信）
+      `server-prefix`  服务端列名**比行长多，多出来的在尾部** → 取前 `width` 个
+      `server-suffix`  服务端列名**比行长多，多出来的在头部** → 取后 `width` 个
+      `doc-template`   无从判断时回落到文档清单（长度刚好对上才算）；否则抛错
+
+    为什么必须两种都试、并且**只在唯一命中时**才动手（挖掘轮 M8，见 notes/12）：
+    语料里 2529 条表有 **424 条（16.8%）** 列名数 ≠ 行长，两种形态都真实存在 ——
+
+    * **尾部多**：`ph_bigdata_xtld_zdsl` 12 名 / 8 值，多出来的
+      `EndDate/AdjustingFactor/AdjustingConst/fq` 是**行情复权附加列**，行里没有值；
+      此时前缀窗口 `cols[:8]` 正好等于登记的 8 列形状 → 判 `server-prefix`。
+    * **头部多**：`ph_agf10_cw_xjllb` 65 名 / 64 值，多出来的 `isjr`（是否金融）不是
+      逐行数据；此时后缀窗口 `cols[-64:]` 等于登记的 64 列形状 → 判 `server-suffix`。
+      `hq_nlp_*` 家族同理（`ans/date/time/total_num` 是多出来的头部）。
+
+    若前缀窗口和后缀窗口**都**命中登记形状（周期性列名才会出现），或者都不命中，
+    **一律不猜**：返回原 `cols`（下游 `COL_GUARD` 自然挡下，一列都不映射）。
     """
     cols = [str(c) for c in table.cols]
+    # ① 列名比行长多（`Table.ragged` 记着原始行宽，因为 `__post_init__` 已把行补成
+    #    列名数，`_row_width()` 看到的永远是 `len(cols)`，不先看这里就永远走不到分支②）。
+    ragged = getattr(table, "ragged", None)
+    if ragged and ragged[0] == len(cols) and 0 < ragged[1] < len(cols):
+        true_width = ragged[1]
+        shapes = _allowed_shapes(product)
+        cands = [("server-prefix", cols[:true_width]),
+                 ("server-suffix", cols[-true_width:])]
+        hits = [(tag, c) for tag, c in cands if c in shapes]
+        if len(hits) == 1:
+            tag, aligned = hits[0]
+            return aligned, tag
+        # 0 个或 2 个命中 → 不猜（2 个说明列名周期性重复，切哪边都可能错）
+        return cols, "server"
+
     width = _row_width(table)
     if width is None or len(cols) == width:
         return cols, "server"
@@ -1286,6 +1327,14 @@ def apply(table: Table, product: str) -> Table:
             # 行业变体 / 换了参数的另一张表：同一套 N0xx 含义不同 → 一列都不映射
             skipped = "cols-guard"
             mapping = {}
+        elif table.is_ragged and align == "server":
+            # 列名数 ≠ 行长，且前缀/后缀窗口都没命中登记形状（`_resolve_cols` 已判「不猜」）。
+            # 这时**列名不足以说明值的归属**：实证反例 `ph_zt_lrzt_lrmx` 9 名 / 6 值，
+            # 行首是日期 `2026-04-16` 而 `FIELD_MAP` 把 N001 登记成 `margin_balance_yuan`
+            # —— 照旧映射就会把日期塞进"融资余额"，值本身没错、名字全错。
+            # 旧的守卫拿「补齐后的行宽」比，所以看不出来；现在按真实行宽挡下。
+            skipped = "cols-guard-ragged"
+            mapping = {}
 
     # 标准字段的顺序 = **映射表顺序**（产品自己定的稳定顺序，不随服务端列序漂移）；
     # 这一张返回里没出现的列（例如银行股的利润表是 57 列）就不出现。
@@ -1295,10 +1344,19 @@ def apply(table: Table, product: str) -> Table:
             std_cols.append(s)
 
     rows: list[dict] = []
+    # 对齐窗口（`server-prefix`/`server-suffix`）时，行列的**键**还是服务端那套
+    # （可能错位的）列名，所以取值必须走**原始列名前缀**（= 值的前 width 个），
+    # 不能再按 `cols` 的键去 `r.get()` —— 那会绕回错位值（M8 踩过一次）。
+    window_src = (list(table.cols)[:len(cols)]
+                  if align in ("server-prefix", "server-suffix") else None)
     for r in table.rows:
         if isinstance(r, dict):
-            src_vals = [r.get(c) for c in cols]
-            raw = dict(r)
+            if window_src is not None:
+                src_vals = [r.get(c) for c in window_src]
+                raw = {c: r.get(c) for c in window_src}
+            else:
+                src_vals = [r.get(c) for c in cols]
+                raw = dict(r)
         else:                                                  # pragma: no cover
             src_vals = list(r)
             raw = {}

@@ -729,9 +729,26 @@ class Table:
     cmd: str = ""
     domain: str = ""
     provenance: Provenance | None = None
+    #: 列名数与行长不一致时的 `(列名数, 行长)`，否则 `None`（挖掘轮 M8，见 notes/12）。
+    #: 只读派生值：构造时算一次，不参与 repr/比较。
+    ragged: tuple[int, int] | None = field(default=None, init=False,
+                                           repr=False, compare=False)
 
     def __post_init__(self):
         self.cols = list(self.cols)
+        # 「ColName 数 ≠ Content 行长」检测（挖掘轮 M8）：语料 2529 条表里 **424 条
+        # （16.8%）** 不等，涉及 70 个命令。两种形态都真实存在，**不能靠位置猜**：
+        #   · 尾部多：`zdsl` 12 名 / 8 值（`EndDate`/`AdjustingFactor`/`fq` 行里没有）；
+        #   · 头部多：`hq_nlp_zjlx` 21 名 / 17 值（`ans/date/time/total_num` 不是逐行数据）。
+        # 而 `zip()` 只按**前缀**对齐 → 头部多的那种会把每个列名整体左移，
+        # 用户读 `row["code"]` 拿到的是别的东西却毫无提示。
+        # 这里只**记录**（可见性），不擅自改对齐：两种形态各占一半，猜错代价更大。
+        widths = {len(r) for r in (self.rows or [])
+                  if not isinstance(r, dict) and not isinstance(r, Row)}
+        if len(widths) == 1:
+            (w,) = widths
+            if w != len(self.cols):
+                self.ragged = (len(self.cols), w)
         self.rows = [_make_row(self.cols, r) for r in (self.rows or [])]
         if self.provenance is not None and not isinstance(self.provenance, Provenance):
             raise TypeError(
@@ -768,6 +785,23 @@ class Table:
     def shape(self) -> tuple[int, int]:
         """(行数, 列数)。"""
         return len(self.rows), len(self.cols)
+
+    @property
+    def is_ragged(self) -> bool:
+        """列名数 ≠ 行长？（`True` 时**按列名读值不可信**，见 `ragged` 与 notes/12）
+
+        真实存在两种形态，且都出现在本项目的语料里：
+
+        * **尾部多**（`zdsl`：12 名 / 8 值）——多出来的列名在行里根本没有值，
+          `row["fq"]` 恒为 `None`；按位置读前 8 个仍然是对的。
+        * **头部多**（`hq_nlp_zjlx`：21 名 / 17 值）——前 4 个列名
+          （`ans`/`date`/`time`/`total_num`）不是逐行数据，而 `zip()` 只按前缀对齐，
+          于是**每个列名都左移了 4 位**：`row["code"]` 拿到的是 `ans` 本该放的东西。
+
+        因此：`table.is_ragged` 为真时，请按**位置**读（`row[i]`）或先核对对齐方式，
+        不要直接信 `row["列名"]`。
+        """
+        return self.ragged is not None
 
     # -- 语义层便捷属性（只读，读 `provenance`）---------------------------
     @property

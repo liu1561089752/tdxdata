@@ -65,6 +65,23 @@ _DATA = os.path.join(os.path.dirname(os.path.abspath(__file__)), "data", "produc
 _CATALOG: dict = {}
 
 
+def _ragged_note(table):
+    """列名数 ≠ 行长时给出 `(note, extra)`；正常表返回 `(None, {})`（挖掘轮 M8）。
+
+    为什么要进 `provenance`：这类表**看起来完全正常**（`status=FINAL`、列名齐全、
+    `row["code"]` 也能取到值），但值可能整体错位 —— 语料里 2529 条表有 424 条
+    （16.8%）属于这类，涉及 70 个命令。不报出来就等于默认"错列也是对的"。
+    """
+    if table.ragged is None:
+        return None, {}
+    n_cols, n_vals = table.ragged
+    return ("列名 %d 个 ≠ 行长 %d 个：**按列名读值不可信**（`zip` 只按前缀对齐，"
+            "头部多列名时整行左移；尾部多列名时那些列恒为 None）。"
+            "请按位置读（`row[i]`）或先核对对齐方式 —— 见 notes/12"
+            % (n_cols, n_vals),
+            {"ragged_cols": [n_cols, n_vals]})
+
+
 def _catalog() -> dict:
     """读一次 `products.json` 并缓存（**跨 Client 共享**，值只读）。
 
@@ -632,6 +649,9 @@ class Client:
                 notes.append(rec["clock_note"])
         if rec.get("status_conflict"):
             notes.append(rec["status_conflict"])
+        ragged_note, ragged_extra = _ragged_note(table)
+        if ragged_note:
+            notes.append(ragged_note)
         if status_note:
             notes.append(status_note)
         if as_of_note:
@@ -642,6 +662,8 @@ class Client:
             data_date=data_date if data_date is not None else base.data_date,
             cached=bool(cached) if cached else base.cached,
         ).with_notes(*notes)
+        if ragged_extra:
+            base = base.with_extra(**ragged_extra)
         table.provenance = base
         return table
 
@@ -812,13 +834,18 @@ class Client:
                 all_notes.append(notes)
         else:
             all_notes.extend(notes or [])
+        ragged_note, ragged_extra = _ragged_note(table)
+        if ragged_note:
+            all_notes.append(ragged_note)
+        merged_extra = dict(extra or {})
+        merged_extra.update(ragged_extra)
         kw: dict[str, Any] = {"as_of": as_of}
         # status=None = 「判定延后」：保留 base 上已有的 status（如 call() 的
         # judge_unregistered），不许被管道覆盖成 None。
         if status is not None:
             kw["status"] = (status.value if isinstance(status, Status) else status)
         table.provenance = base._replace_for(
-            **kw).with_notes(*all_notes).with_extra(**(extra or {}))
+            **kw).with_notes(*all_notes).with_extra(**merged_extra)
         return table
 
     @staticmethod

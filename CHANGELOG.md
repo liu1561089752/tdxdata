@@ -5,6 +5,34 @@
 
 ---
 
+## [未发布]
+
+### 修复
+
+- **错位表（ColName 数 ≠ Content 行长）按名字读取会静默整行错位（挖掘轮 M8）**：
+  语料 2529 条表里 **424 条（16.8%）** 列名数与行长不等，涉及 **70 个命令**，
+  且是两种稳定形态 —— **尾部多**（`ph_bigdata_xtld_zdsl` 12 名 / 8 值：`EndDate`/
+  `AdjustingFactor`/`fq` 等复权附加列行里没有值）与 **头部多**（`hq_nlp_zjlx` 21/17、
+  `ph_agf10_cw_xjllb` 65/64：`ans/date/time/total_num`、`isjr` 是一次查询的元信息，
+  不逐行重复）。`zip()` 只按前缀对齐，所以**头部多**的那种会把每个列名整体左移，
+  用户读 `row["code"]` 拿到的是别的东西却毫无提示。
+  - `Table.ragged` / `Table.is_ragged`（新，只读）：如实报出 `(列名数, 真实行长)`，
+    正常表为 `None`，不参与 `repr`/比较、不进 `to_dict()`（序列化键集合不变）；
+  - `provenance.notes` 自动多一条说明 + `extra["ragged_cols"]`（`client._ragged_note()`）；
+  - `mapping._resolve_cols()` 新增 `server-prefix` / `server-suffix` 两个来源标记：
+    只在**前缀窗口或后缀窗口唯一命中登记形状**时才对齐，歧义/无命中一律不猜；
+  - `mapping.apply()` 的对齐窗口行改按**位置**取值（曾经按新列名 `r.get()` 绕回错位值）；
+  - 新增第二条守卫：登记形状逐位相等、但**行长更短** → `mapping_skipped="cols-guard-ragged"`，
+    一列都不映射（反例 `ph_zt_lrzt_lrmx` 9 名 / 6 值：行首是日期，`N001` 却登记为
+    `margin_balance_yuan`，旧守卫会把它塞进「融资余额」）。
+  - 验收：24 个「已登记但错位」产品中 **13 个**从「整表退化成 raw」变成正确映射
+    （`zdsl`/`zdzq`/`hq_nlp_zjlx`/`xjllb`/`fin`/`lyb`/`zgyq`/`zyzbxq`/`zyzb`/`zxts5`/
+    `hypm`/`zpggld`/`gscb`），其余 11 个仍 fail-closed。夹具 4 份真实回包字节 +
+    `tests/test_ragged_table.py`（19 例）。证据：`reports/eval3/findings/M8-错位表与NLP家族.md`、
+    `notes/12-错位表与NLP家族.md`。
+
+---
+
 ## [0.3.0] — 2026-10-28
 
 > ⚠️ **本次含 4 项破坏性变更**：`meta` 字典 → `Provenance`、`vol` 单位统一、非价格序列拒绝、
