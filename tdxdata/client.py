@@ -44,12 +44,14 @@ from datetime import date, datetime
 from typing import Any
 
 from . import _core, errors, series_kinds, symbols, timeliness
+from .calendar import TradeCalendar
+from .master import SecMaster
 from .enums import Adjust, KlinePeriod, Status
 from .models import (
     Bar, Bars, Dataset, MinutePoint, Minutes, ProductInfo, Provenance,
     Quote, Quotes, Table, Tick, Ticks, ClockSource,
 )
-from .timeliness import FINAL_CUTOFF_HHMM, NowInfo, probe_or_none
+from .timeliness import FINAL_CUTOFF_HHMM, NowInfo
 
 __all__ = ["Client"]
 
@@ -228,6 +230,11 @@ class Client:
         self._last_call: dict = {}
         #: 交易日历缓存（只缓存"上一交易日"，同一天只取一次）。
         self._cal: dict = {}
+        #: 交易日历（PROD-002）。懒取数：首次调用才发请求；
+        #: `clock_probe=False` 时同样零请求（硬约束与探针一致）。
+        self.calendar = TradeCalendar(self)
+        #: 证券主数据（PROD-001）。懒取数：snapshot 首次调用才发请求。
+        self.master = SecMaster(self)
         #: 用户是否允许为取时刻/交易日发"便宜的探针"（`__init__` 的 `clock_probe`）。
         self._clock_probe = bool(clock_probe)
         #: 实际是否允许探针。⚠️ 只有跑过 `__init__` 的 Client 才有；
@@ -449,16 +456,17 @@ class Client:
     def _prev_trade_date(self):
         """**上一交易日**（`datetime.date`）；取不到 `None`。
 
-        为什么懒取而不是查表：本库**不维护节假日表**（那是第二份事实源，
-        法定调休一变就错，错得还静默）。直接问服务端要两根日线最实在 ——
-        `get_bars("999999", count=2)` 的两根日期里：
-          · 末根是今天 → 上一交易日 = 前一根；
-          · 末根不是今天（周末/休市）→ 末根本身就是上一交易日。
-        同一天（按服务器日期）只取一次，之后走缓存。取不到就 `None`，
-        判定端会降级成 `PROVISIONAL`/`DELAYED`（**绝不当成 FINAL**）。
+        PROD-002 收编：事实源收口到 `self.calendar.prev(today)`（单一事实源，
+        判据见 `tdxdata/calendar.py` 的模块文档）。这里保留两件事：
+          · **按服务器日缓存**（同一天只算一次）—— 日历实例另有 (方向, 锚点)
+            级缓存，这层是"今天别重复算"的粗粒度闸；
+          · **递归重入保护**（`_in_cal`）：`calendar.prev` 内部若再走回
+            `_prev_trade_date`（理论不该发生），直接给 `None` 别绕圈。
 
-        ⚠️ `clock_probe=False`（或裸 Client）时**一次都不去取** —— 这是硬约束：
-        用户关掉探针就等于"一个多余请求都不许发"，所以这里也必须一起关。
+        ⚠️ `clock_probe=False`（或裸 Client）时**一次都不去取** —— 硬约束不变：
+        用户关掉探针就等于"一个多余请求都不许发"，日历同关。
+        取不到就 `None`，判定端会降级成 `PROVISIONAL`/`DELAYED`
+        （**绝不当成 FINAL**）。
         """
         cal = getattr(self, "_cal", None)
         if cal is None:
@@ -474,11 +482,12 @@ class Client:
             return None                              # 关掉探针 / 裸对象：零网络
         self._in_cal = True
         try:
-            bars = probe_or_none(lambda: self.get_bars("999999", period="day", count=2))
-            today = info.at.date()
-            older = [d for d in (timeliness.parse_yyyymmdd(getattr(b, "date", ""))
-                                 for b in (bars or [])) if d is not None and d < today]
-            cal["prev"] = max(older) if older else None
+            # 裸 Client（没跑 __init__）没有 .calendar —— 懒挂一个
+            # （它的 _probe_allowed=False → 日历同样零请求，硬约束一致）。
+            cal_obj = getattr(self, "calendar", None)
+            if cal_obj is None:
+                cal_obj = self.calendar = TradeCalendar(self)
+            cal["prev"] = cal_obj.prev(info.at.date())
         finally:
             self._in_cal = False
         return cal["prev"]
