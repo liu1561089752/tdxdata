@@ -114,7 +114,9 @@ def __getattr__(name):
     raise AttributeError("module %r has no attribute %r" % (__name__, name))
 
 
-__version__ = "0.2.0"
+# ENG-007 版本单源：不在 __init__ 里写死，从 _version.py 读
+# （pyproject 的 dynamic version 也指向同一处 —— 双路读数必然一致）。
+from ._version import __version__
 
 __all__ = [
     # 入口

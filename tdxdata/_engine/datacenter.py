@@ -42,6 +42,7 @@ import zlib
 from datetime import datetime, timedelta, timezone
 
 from .. import errors
+from .._logging import logger
 
 CST = timezone(timedelta(hours=8))
 
@@ -148,15 +149,17 @@ def fresh_handshake(mid: int = 0x7000) -> bytes:
         hs = _t.get()
         if hs:
             return hs
-    except Exception:                                      # noqa: BLE001
-        pass
+    except Exception as exc:                               # noqa: BLE001
+        logger.debug("handshake template path 1 failed (%s), trying next",
+                     type(exc).__name__, exc_info=True)
     try:
         from . import handshake as _h
         hs = _h.get()
         if hs:
             return hs
-    except Exception:                                      # noqa: BLE001
-        pass
+    except Exception as exc:                               # noqa: BLE001
+        logger.debug("handshake template path 2 failed (%s), fallback to "
+                     "built-in frame", type(exc).__name__, exc_info=True)
     return build_frame(mid, 0x01, 0x26AC, b"")
 
 
@@ -260,8 +263,11 @@ def unwrap_frames(buf: bytes) -> list[bytes]:
         if buf[i] == 0x3B:                 # 帧头声明 body 是 zlib
             try:
                 body = zlib.decompress(body)
-            except Exception:              # noqa: BLE001
-                pass                       # 解不开就原样交出去，让上层报错
+            except Exception as exc:               # noqa: BLE001
+                # 解不开就原样交出去，让上层报错 —— 但留 debug 轨迹：
+                # 「声明 zlib 实则不是」是解码错位的头号嫌疑。
+                logger.debug("declared-zlib body failed to decompress (%s), "
+                             "passing raw", type(exc).__name__, exc_info=True)
         out.append(body)
         i = nxt
     return out
@@ -377,8 +383,9 @@ def _drop_pb_conn(state=None) -> None:
     if s is not None:
         try:
             s.close()
-        except Exception:                  # noqa: BLE001
-            pass
+        except Exception as exc:                   # noqa: BLE001
+            logger.debug("stale socket close failed (%s)",
+                         type(exc).__name__, exc_info=True)
 
 
 atexit.register(_drop_pb_conn)
@@ -417,13 +424,17 @@ def _pb_conn(host=None, *, drain=0.25, state=None):
             try:
                 while s.recv(262144):
                     pass
-            except Exception:              # noqa: BLE001
-                pass
+            except Exception as exc:               # noqa: BLE001
+                # 超时/对端关闭都是排空的**正常终止**，不是错误；
+                # debug 只为诊断「握手残余异常多」这种怪象留轨迹。
+                logger.debug("pre-drain terminated (%s)", type(exc).__name__,
+                             exc_info=True)
         except Exception:
             try:
                 s.close()
-            except Exception:              # noqa: BLE001
-                pass
+            except Exception as exc:               # noqa: BLE001
+                logger.debug("socket close during connect cleanup failed (%s)",
+                             type(exc).__name__, exc_info=True)
             raise
         state.update(sock=s, host=host, t=time.time())
         return s
@@ -658,13 +669,15 @@ def parse_flat(blobs) -> list[dict]:
 
 
 def retry(fn, tries=3, sleep=6.0, default=None):
-    for _ in range(tries):
+    for i in range(tries):
         try:
             r = fn()
             if r:
                 return r
-        except Exception:
-            pass
+        except Exception as exc:
+            # 「pb 重试轮次」事件：第几轮、为什么失败 —— 诊断限流/断连节奏用。
+            logger.debug("retry attempt %d/%d failed (%s)", i + 1, tries,
+                         type(exc).__name__, exc_info=True)
         time.sleep(sleep)
     return default
 
@@ -677,8 +690,9 @@ def _seal(stat: dict):
         b = float(stat.get("N007") or 0)
         if a + b > 0:
             return round(a / (a + b) * 100, 2)
-    except Exception:
-        pass
+    except Exception as exc:
+        logger.debug("seal ratio unavailable (%s)", type(exc).__name__,
+                     exc_info=True)
     return None
 
 

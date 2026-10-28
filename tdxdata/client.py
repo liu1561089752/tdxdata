@@ -44,6 +44,7 @@ from datetime import date, datetime
 from typing import Any
 
 from . import _core, errors, series_kinds, symbols, timeliness
+from . import _logging as _logging_mod
 from .calendar import TradeCalendar
 from .master import SecMaster
 from .enums import Adjust, KlinePeriod, Status
@@ -2515,8 +2516,10 @@ class Client:
         # PB 路径用的是模块级持久连接（进程内共享），这里一并释放
         try:
             self._dc_mod.close_pb()
-        except Exception:                                      # noqa: BLE001
-            pass
+        except Exception as exc:                               # noqa: BLE001
+            # close() 里的清理失败：不该向正在退出的调用方抛，但留 debug 轨迹。
+            _logging_mod.logger.debug("close_pb failed during close (%s)",
+                                      type(exc).__name__, exc_info=True)
 
     def __enter__(self) -> "Client":
         return self

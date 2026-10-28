@@ -816,8 +816,14 @@ def _jsonable(value: Any) -> Any:
             if isinstance(attr, property):
                 try:
                     out[name] = _jsonable(getattr(value, name))
-                except Exception:                          # noqa: BLE001
-                    pass                                    # 派生失败的属性不带
+                except Exception as exc:                   # noqa: BLE001
+                    # 派生失败的属性不带（丢字段事件，debug 留轨迹：
+                    # 哪个类的哪个属性派生不出来，通常是半初始化对象）。
+                    from ._logging import logger as _lg
+
+                    _lg.debug("property %r of %s not derivable (%s)",
+                              name, type(value).__name__,
+                              type(exc).__name__, exc_info=True)
         return out
     if hasattr(value, "provenance"):
         # Series 家族（list 子类，非 dataclass）：data + provenance（ARCH-002）

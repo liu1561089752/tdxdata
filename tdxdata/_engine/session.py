@@ -23,6 +23,7 @@ import threading
 import time
 
 from . import datacenter as dc
+from .._logging import logger
 
 __all__ = ["Session", "body_of", "parse", "HOSTS", "PORT"]
 PORT = 7615
@@ -225,8 +226,9 @@ class Session:
         if self.sock is not None:
             try:
                 self.sock.close()
-            except OSError:
-                pass
+            except OSError as exc:
+                logger.debug("socket close in _kill failed (%s)",
+                             type(exc).__name__, exc_info=True)
             self.sock = None
 
     def _drain(self, quiet: float = 0.5) -> tuple[int, bool]:
@@ -247,6 +249,8 @@ class Session:
                     break
                 got += len(b)
         except socket.timeout:
+            # 「安静 quiet 秒」就是排空的**正常终止条件**（不是错误）——
+            # 收窄保留：这里打 debug 反而制造每帧噪声。
             pass
         except OSError:
             dead = True
@@ -254,16 +258,18 @@ class Session:
             if self.sock is not None:
                 try:
                     self.sock.settimeout(self.timeout)
-                except OSError:
-                    pass
+                except OSError as exc:
+                    logger.debug("restore timeout failed (%s)",
+                                 type(exc).__name__, exc_info=True)
         return got, dead
 
     def close(self) -> None:
         if self.sock is not None:
             try:
                 self.sock.close()
-            except OSError:
-                pass
+            except OSError as exc:
+                logger.debug("socket close failed (%s)",
+                             type(exc).__name__, exc_info=True)
             self.sock = None
 
     @property
@@ -357,12 +363,15 @@ class Session:
                         break
                     blobs.append(b)
             except socket.timeout:
+                # 流式读「读到安静」的正常终止条件（不是错误）——
+                # 收窄保留：打 debug 会制造每帧噪声。
                 pass
             finally:
                 try:
                     self.sock.settimeout(self.timeout)
-                except OSError:
-                    pass
+                except OSError as exc:
+                    logger.debug("restore timeout failed (%s)",
+                                 type(exc).__name__, exc_info=True)
 
         self._last_io = time.time()
         unwrapped: list[bytes] = dc.unwrap(b"".join(blobs)) if blobs else []

@@ -37,6 +37,7 @@ BASE = os.path.dirname(os.path.abspath(__file__))
 from . import datacenter as dc                              # noqa: E402
 from . import pb as tdx_pb                               # noqa: E402
 from .. import errors                                    # noqa: E402
+from .._logging import logger                            # noqa: E402
 
 PARSE = os.path.join(BASE, "catalog")
 
@@ -142,14 +143,20 @@ def decode_any(blob):
     if blob[:1] == b"\x78":
         try:
             blob = zlib.decompress(blob)
-        except Exception:                                  # noqa: BLE001
-            pass
+        except Exception as exc:                           # noqa: BLE001
+            # 编码探测链：「声明 zlib 实则不是」→ 继续走明文/protobuf 探测，
+            # 不是错误；debug 留编码选择的轨迹（诊断畸形帧用）。
+            logger.debug("zlib probe failed (%s), continuing decode chain",
+                         type(exc).__name__, exc_info=True)
     s = blob.lstrip()
     if s[:1] in (b"{", b"["):
         try:
             return "json", json.loads(s.decode("utf-8", "replace"))
-        except Exception:                                  # noqa: BLE001
-            pass
+        except Exception as exc:                           # noqa: BLE001
+            # 编码探测链：形似 JSON 实则不是（utf-8 replace 后仍非法）→
+            # 落到 protobuf 解码。debug 留轨迹。
+            logger.debug("payload looks-like-json but invalid (%s), "
+                         "trying protobuf", type(exc).__name__, exc_info=True)
     tree = tdx_pb.decode(blob)
     if tree:
         return "pb", tree

@@ -283,7 +283,10 @@ def peel(body: bytes) -> bytes:
             try:
                 body = zlib.decompressobj().decompress(body)
                 moved = True
-            except Exception:                      # noqa: BLE001
+            except zlib.error:
+                # 探测链语义：「0x78 开头但解不开」= **不是 zlib**（形似而已），
+                # 继续走 base64/裸 protobuf 探测 —— 是控制流不是错误，
+                # 收窄成 zlib.error 保留静默（打 debug 会每帧噪声）。
                 pass
         probe = body[:120]                         # 3) base64 文本
         if probe and sum(1 for c in probe if c in _B64) > len(probe) * 0.95:

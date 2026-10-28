@@ -4,7 +4,9 @@ build-backend = "setuptools.build_meta"
 
 [project]
 name = "tdxdata"
-version = "0.2.0"
+# ENG-007 版本单源：version 不在这里写死，从 tdxdata/_version.py 读
+# （bump 0.3.0：ARCH-002 破坏性切换，语义化版本升 minor）。
+dynamic = ["version"]
 description = "A 股行情与数据中心 Python 客户端：K 线 / 分时 / 逐笔 / 报价 + 421 个数据产品，纯标准库、零第三方依赖"
 readme = "README.md"
 requires-python = ">=3.10"
@@ -34,9 +36,17 @@ Issues = "https://github.com/liu1561089752/tdxdata/issues"
 [project.optional-dependencies]
 dev = ["pytest>=7"]
 
+# ENG-007：版本单一事实源 = tdxdata/_version.py（pyproject 与 import 双路对账）
 [tool.setuptools]
-packages = ["tdxdata", "tdxdata._engine", "tdxdata.sections"]
 include-package-data = true
+
+[tool.setuptools.dynamic]
+version = { attr = "tdxdata._version.__version__" }
+
+# ENG-010：packages 不再硬编码 —— find 模式自动收全部子包，
+# 新增子包（如未来的 tdxdata.xxx）不登记也必进 wheel。
+[tool.setuptools.packages.find]
+include = ["tdxdata*"]
 
 [tool.setuptools.package-data]
 tdxdata = ["py.typed", "data/*.json", "_engine/catalog/*.json"]

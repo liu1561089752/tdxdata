@@ -56,9 +56,11 @@ elif not _pip_available():
 
 
 def _declared_version() -> str:
-    with open(os.path.join(ROOT, "pyproject.toml"), encoding="utf-8") as f:
-        m = re.search(r'^version\s*=\s*"([^"]+)"', f.read(), re.M)
-    assert m, "pyproject.toml 里找不到 version"
+    """ENG-007 版本单源后的读数：pyproject 走 `dynamic`，
+    事实源是 `tdxdata/_version.py` —— 直接读那份源。"""
+    with open(os.path.join(ROOT, "tdxdata", "_version.py"), encoding="utf-8") as f:
+        m = re.search(r'^__version__\s*=\s*"([^"]+)"', f.read(), re.M)
+    assert m, "tdxdata/_version.py 里找不到 __version__（版本单源被破坏？）"
     return m.group(1)
 
 
@@ -174,6 +176,29 @@ def test_subpackages_importable():
                          stdout=subprocess.PIPE, stderr=subprocess.STDOUT,
                          timeout=300, cwd=site)
     assert run.returncode == 0, run.stdout.decode("utf-8", "replace")[-2000:]
+
+
+def test_find_mode_covers_every_source_subpackage():
+    """ENG-010 判据：**find 模式下打包完整性** —— 源码树里每个子包目录
+    都必须出现在安装结果里。验收报告判据「加一个新子包 wheel 里必须有」
+    的可执行形态：源码有 N 个子包，site-packages 也有 N 个（逐一对账），
+    新子包不用登记 pyproject 就自动进 wheel。"""
+    if SKIP_REASON:
+        print("跳过：%s" % SKIP_REASON)
+        return
+    src_pkg = os.path.join(ROOT, "tdxdata")
+    src_subs = sorted(
+        d for d in os.listdir(src_pkg)
+        if os.path.isdir(os.path.join(src_pkg, d))
+        and os.path.isfile(os.path.join(src_pkg, d, "__init__.py")))
+    assert src_subs, "源码树里居然一个子包都没有？"
+    site, _out = _install_once()
+    dst_pkg = os.path.join(site, "tdxdata")
+    missing = [d for d in src_subs
+               if not os.path.isfile(os.path.join(dst_pkg, d, "__init__.py"))]
+    assert not missing, (
+        "find 模式漏打包子包：%s（源码有、wheel 没有）—— "
+        "packages.find 的 include 配置或 package-data 被改坏了" % missing)
 
 
 def test_no_build_artifacts_left_in_project():

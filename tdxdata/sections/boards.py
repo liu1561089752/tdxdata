@@ -448,6 +448,9 @@ def _drop_empty_cols(table: Table, *, protect: tuple[str, ...] = ()) -> Table:
             try:
                 del row[c]
             except (KeyError, TypeError):
+                # KeyError = 行里本来就没有这个键（del 的幂等重复）；TypeError =
+                # 行不是 dict（异构行）。两者都是「无东西可删」的合法形态 ——
+                # 收窄保留：这是 best-effort 清理的正常路径，不是异常事件。
                 pass
     table.set_cols(keep)
     table.provenance = (table.provenance or _local_prov()).with_extra(
