@@ -11,7 +11,7 @@
 * `zxts` / `zxts2` / `agf10_zj`：命令回 8~13 个 ResultSet，而 `client.call()`
   只给回「最大那张表」的行、`cols` 是各 RS 的列名并集。这三条命令最大表的
   逐列语义文档没给（`zxts` 的锚点全在 RS1，最大表却是 RS2），所以**不映射**。
-  `raw` 里的键就是协议层给的主表列名（并集在 `meta["cols_union"]`），并与 `mapping._TEMPLATE_COLS` 的文档清单交叉校验（`meta["template_check"]`）。
+  `raw` 里的键就是协议层给的主表列名（并集在 `provenance.extra["cols_union"]`），并与 `mapping._TEMPLATE_COLS` 的文档清单交叉校验（`provenance.extra["template_check"]`）。
 * `jysj`：实测 1 行 × 3 列**全是空值**（`[null, null, "0"]`），列义无定论 → 不映射。
 * `fhrz`：与 `get_xdxr()` 同源（同一张 `ph_agf10_fhrz` 表）。产品表里另一个
   `fhrz`（`ph_tdxdatacenter_fhrz`，参数 `["2","1"]`）是**全市场最近一期**，

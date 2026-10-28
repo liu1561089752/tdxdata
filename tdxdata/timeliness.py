@@ -24,19 +24,18 @@
 
 它会落进哪几个字段（形状是契约，别改）
 --------------------------------------
-判定结果本身进 `enums.Status`（四态）；**依据**进返回容器的 `meta`：
+判定结果本身进 `enums.Status`（四态）；**依据**进返回容器的 `provenance`
+（ARCH-002：旧 `meta` dict 公开面已移除，出处是一等字段 `Provenance`）：
 
 ```
-meta["status"]       = "final" | "provisional" | "pending" | "delayed"
-meta["as_of"]        = 数据时刻（末根 bar 的日期/时间，或报价的 server_time）
-meta["provisional"]  = bool（K 线容器专有：末根是否盘中未定稿）
-meta["data_date"]    = 数据日（Dataset.get() 专有；从首行 N001 推，推不出为 None）
-meta["fetch_clock"]  = "server" | "local"      ← 一等字段，不是自由文本
-meta["clock_note"]   = "local-clock-fallback" | "local-clock-disabled-by-user"
-meta["source"]       = {host, cmd, ctl, clock, cached}   ← **固定 5 键**，不许再长
-meta["fetched_at"]   = 取数时刻（字符串 "YYYY-MM-DD HH:MM:SS"）
-meta["elapsed"]      = 本次调用耗时（秒，缓存命中≈0）
-meta["status_note"] / meta["as_of_note"] = 说明性文字（**不承载唯一信息**）
+provenance.status       = "final" | "provisional" | "pending" | "delayed"
+provenance.as_of        = 数据时刻（末根 bar 的日期/时间，或报价的 server_time）
+provenance.extra["provisional"] = bool（K 线容器专有：末根是否盘中未定稿）
+provenance.data_date    = 数据日（Dataset.get() 专有；从首行 N001 推，推不出为 None）
+provenance.clock        = ClockSource.SERVER | HYBRID | LOCAL   ← 类型锁，不是自由字符串
+provenance.notes        = ("local-clock-fallback", ...) 等说明性文字（**不承载唯一信息**）
+provenance.fetched_at   = 取数时刻（aware datetime，UTC+8）
+provenance.elapsed      = 本次调用耗时（秒，缓存命中≈0）
 ```
 
 本模块**纯标准库、纯函数、零网络**（探针由 `Client` 注入，可换成 `FakeClock`）。
@@ -47,6 +46,11 @@ from datetime import date, datetime, time as _time, timedelta
 from typing import Callable, NamedTuple, Optional, Protocol, runtime_checkable
 
 from .enums import Status
+
+try:                                    # ARCH-002：Provenance 可用即接受
+    from ._provenance import Provenance
+except ImportError:                     # pragma: no cover（环形导入防护）
+    Provenance = None
 
 __all__ = [
     "CLOSE_CUTOFF", "FINAL_CUTOFF_HHMM", "MIN_BAR_CUTOFF",
@@ -556,23 +560,28 @@ def _bar_day(bar) -> Optional[date]:
 
 
 def _now_and_trust(server_now, clock_trusted: bool):
-    """`server_now` 允许是 `datetime`，也允许是 `NowInfo`。
+    """`server_now` **只**接受 `NowInfo` 或 `Provenance`（DEF-019 类型锁）。
 
     为什么要收 `NowInfo`：时钟来源（`server`/`hybrid`/`local`）是**判定的一部分**，
     不该由调用方"记得另传一个 flag"—— 忘了传就会把本机时钟当服务器时刻，
     正好踩本库红线。所以这里直接从 `NowInfo.clock` 推出可信度：
     `clock="local"` 时**自动**降级为不信任，调用方没有任何机会"忘记"。
 
-    `"hybrid"`（服务器日期 + 本机时分，且已通过"行情已收盘"交叉校验）与
-    `"server"` 同等可信 —— 详见 `HybridClock`。
+    ARCH-002（DEF-019 终局）：**bare `datetime` 不再被接受** —— 裸 datetime
+    携带不了"可信度"这个信息，旧版按 `clock_trusted=True` 默认放行是洞不是兼容。
+    同理，字符串当场 `TypeError`（原来也是炸，口径没变）。`Provenance` 也收：
+    它的 `clock` 是 `ClockSource` 枚举，可信度由类型保证。
     """
     if isinstance(server_now, NowInfo):
         trusted = (server_now.clock in TRUSTED_CLOCKS) and bool(clock_trusted)
         return server_now.at, trusted
-    if not isinstance(server_now, datetime):
-        raise TypeError("server_now 必须是 datetime 或 NowInfo（收到 %r）"
-                        % (type(server_now).__name__,))
-    return server_now, bool(clock_trusted)
+    if Provenance is not None and isinstance(server_now, Provenance):
+        trusted = (server_now.clock.value in TRUSTED_CLOCKS) and bool(clock_trusted)
+        return server_now.fetched_at, trusted
+    raise TypeError(
+        "DEF-019：server_now 必须是 NowInfo 或 Provenance（收到 %r）——"
+        "bare datetime 分不清服务器时刻与本机时刻，已被类型锁拒绝"
+        % (type(server_now).__name__,))
 
 
 def _market_conflict(server_now) -> bool:
@@ -649,7 +658,7 @@ def judge_bar(bar, *, server_now,
 
 
 def judge_intraday(server_now: datetime, *, cutoff: _time = CLOSE_CUTOFF,
-                   clock_trusted: bool = True) -> Status:
+                   clock_trusted: bool = True, _conflict: bool = False) -> Status:
     """**当日连续序列**（分时 / 逐笔 / 报价快照）的时效。
 
     `cutoff` 之前一律 `PROVISIONAL` —— 这些数据本身就是"还在长"的。
@@ -657,8 +666,13 @@ def judge_intraday(server_now: datetime, *, cutoff: _time = CLOSE_CUTOFF,
     分时可以用 `MIN_BAR_CUTOFF`（它的内容 15:00 就满了）。
 
     `clock_trusted=False` → 一律 `PROVISIONAL`（时钟不可信，就没有"已收盘"这回事）。
+    `_conflict` 是内部参数：`judge_quote` 已经在类型锁转换前取过矛盾标记，
+    摊平传进来，避免对裸 datetime 再调 `_market_conflict`（那会二次判型）。
     """
-    conflict = _market_conflict(server_now)      # 必须在转 datetime 之前取
+    if _conflict:
+        conflict = True
+    else:
+        conflict = _market_conflict(server_now)
     server_now, clock_trusted = _now_and_trust(server_now, clock_trusted)
     if not clock_trusted:
         return Status.PROVISIONAL
@@ -674,12 +688,17 @@ def judge_quote(server_now: datetime, data_time: Optional[datetime] = None,
     ⚠️ 报价行**自带** `HqDate`+`HqTime`（服务端时刻），所以只要 `data_time` 有值，
     即使本机时钟不可信也能判：拿 `data_time` 和 `server_now` 的日子比即可。
     """
+    conflict = _market_conflict(server_now)      # 必须在转 datetime 之前取
     server_now, clock_trusted = _now_and_trust(server_now, clock_trusted)
     if data_time is None:
-        return judge_intraday(server_now, clock_trusted=clock_trusted)
+        return (Status.PROVISIONAL if not clock_trusted
+                else Status.PROVISIONAL if server_now.time() < CLOSE_CUTOFF
+                else Status.PROVISIONAL if conflict else Status.FINAL)
     if data_time.date() != server_now.date():
         return Status.FINAL
-    return judge_intraday(server_now, cutoff=CLOSE_CUTOFF, clock_trusted=clock_trusted)
+    return (Status.PROVISIONAL if not clock_trusted
+            else Status.PROVISIONAL if server_now.time() < CLOSE_CUTOFF
+            else Status.PROVISIONAL if conflict else Status.FINAL)
 
 
 def judge_market_stat(kind: str, data_date, *, server_now: datetime,
@@ -751,7 +770,8 @@ def judge_product(name: str, data_date, *, server_now,
             return Status.PENDING if now_t < CLOSE_CUTOFF else Status.FINAL
         return Status.PENDING if now_t < CLOSE_CUTOFF else Status.DELAYED
 
-    return judge_unregistered(server_now=server_now)
+    return judge_unregistered(server_now=server_now if isinstance(server_now, NowInfo)
+                              else NowInfo(server_now))
 
 
 def judge_unregistered(*, server_now, clock_trusted: bool = True) -> Status:

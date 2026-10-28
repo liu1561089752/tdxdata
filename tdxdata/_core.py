@@ -203,13 +203,13 @@ def resolve_missing(requested, got, *, on_missing: str = "raise",
     三态行为
     --------
     * `raise`：有缺失 → `EmptyResult`（点名缺了哪些，绝不返回"少了几个"的表）；
-    * `skip`：**不抛**，返回缺失清单交给调用方塞进 `meta["missing"]`；
+    * `skip`：**不抛**，返回缺失清单交给调用方塞进 `provenance.extra["missing"]`；
     * `report`：同 `skip`，但额外 `warnings.warn` 一次（"我知道你允许缺，但我要让你看见"）。
 
     ⚠️ 为什么**不加** `PartialResult` 异常：它与 `on_missing="skip"` 语义直接打架 ——
     `skip` 的整个意思就是"缺了也正常返回"，再抛一个"结果不完整"的异常，
     等于逼调用方在 `try` 里再判一次"这到底算不算错"。批量缺失只走
-    `Quotes.meta["missing"]`（结构化、可数、不打断流程）。
+    `Quotes.provenance.extra["missing"]`（结构化、可数、不打断流程）。
     """
     mode = check_on_missing(on_missing)
     missing = [{"symbol": symbol_of(m, c), "market": int(m), "code": str(c),
@@ -224,7 +224,7 @@ def resolve_missing(requested, got, *, on_missing: str = "raise",
     if mode == "report":
         _warnings.warn(warn_msg or (
             "get_quotes 有 %d 个代码服务端未返回：%s（已按 on_missing=%r 丢弃，"
-            "缺失清单见 meta[\"missing\"]）"
+            "缺失清单见 provenance.extra[\"missing\"]）"
             % (len(missing), ", ".join(d["code"] for d in missing), mode)),
             stacklevel=3)
     return missing

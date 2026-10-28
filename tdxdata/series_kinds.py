@@ -27,7 +27,7 @@ r"""非价格序列登记表：**哪些 880/881 代码的 OHLC 不是价格**。
 ---------------
 `{Bar 字段名: 标准字段名}`。取值时**只搬名字**，不做任何换算和猜测；
 没出现在 `fields` 里的 `Bar` 字段就是"该序列没有定义的量"，会被记进
-`Table.meta["unavailable"]`（例如 880006 只定义了 open/close，high/low 无意义）。
+`Table.provenance.extra["unavailable"]`（例如 880006 只定义了 open/close，high/low 无意义）。
 
 字段含义的实证来源见各条 `note`。
 """
@@ -50,7 +50,7 @@ class SeriesSpec:
     name: str
     #: `{Bar 字段名(open/high/low/close): 标准字段名}`，**插入顺序即输出列顺序**。
     fields: dict[str, str]
-    #: 实证说明 / 已知坑（会原样进 `Table.meta["note"]` 与 README 表格）。
+    #: 实证说明 / 已知坑（会原样进 `Table.provenance.notes` 与 README 表格）。
     note: str
 
 
@@ -201,6 +201,6 @@ def unavailable_fields(spec: SeriesSpec) -> list[str]:
     """该序列**没有定义**的 `Bar` 字段（按 open/high/low/close 顺序）。
 
     这些字段在 `Bar` 上有值（服务端总得填点什么），但**语义未定义** ——
-    所以 `get_breadth()` 不把它们当列，只列进 `meta["unavailable"]`。
+    所以 `get_breadth()` 不把它们当列，只列进 `provenance.extra["unavailable"]`。
     """
     return [f for f in _PRICE_FIELDS if f not in spec.fields]

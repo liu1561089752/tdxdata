@@ -40,12 +40,12 @@ get_board_members(client, board) -> Table   # code/name/market/price/change_pct
 ------------------------------------------------
 * `PBMultiHQ` 系列（concept/style/area/industry1-3）的回包**本来就有** `CLOSE`（昨收）
   与 `NOW`（现价），所以涨跌幅是 `(now / close - 1) * 100`，来源写在
-  `meta["change_pct_method"] = "PBMultiHQ.NOW/CLOSE"`。
+  `provenance.extra["change_pct_method"] = "PBMultiHQ.NOW/CLOSE"`。
 * **`industry` 支路例外**：`app_bklist_ag` 的 9 列里确实**没有价格**
   （`N004` 全 128 行恒为 1，实网已排除，不是涨跌幅）。这一支路用**同码**
   去 `industry2`（`PBMultiHQ field4=10001`）取 `CLOSE`/`NOW` 回填
-  （2026-10-27 实网 **128/128 同码**都能对上），`meta["change_pct_method"] = "industry2 回填"`。
-  回填不到的单条**不许猜**：留 `None`，代码记进 `meta["change_pct_unavailable"]`。
+  （2026-10-27 实网 **128/128 同码**都能对上），`provenance.extra["change_pct_method"] = "industry2 回填"`。
+  回填不到的单条**不许猜**：留 `None`，代码记进 `provenance.extra["change_pct_unavailable"]`。
 * 分母保护：`close <= 0` / `now <= 0` / 任一为 `None` → `None`（**绝不把未知变成 0**）。
 
 ⚠️ 历史坑：这里曾经**无条件**写 `row["change_pct"] = None`，把上游已经拿到的
@@ -68,7 +68,7 @@ import re
 from typing import Any
 
 from ..errors import EmptyResult, NotSupportedError
-from ..models import Table
+from ..models import Table, Provenance, ClockSource
 
 __all__ = ["get_boards", "get_board_members", "BOARD_KINDS"]
 
@@ -182,7 +182,7 @@ _BOARD_DOMAINS: dict[str, int] = {
 }
 
 # 实网基准行数（2026-10-26 逐页翻完 + 与手机端逐个点数一致）。
-# 用途只有一个：翻页中途被限流时**能发现少拿了**，并在 `meta["warning"]` 里说明。
+# 用途只有一个：翻页中途被限流时**能发现少拿了**，并在 `provenance` 的 notes/extra 里说明。
 # 板块数量会随时间增减，所以这里**只做提示、不报错**。
 # 别名域（同样内容、不同域号，抓包里都出现过，不去用它们）：
 #   10000 / 10009 = 行业二级（= 10001）；10010 = 行业三级（= 10002）
@@ -322,6 +322,12 @@ def _shape(src: Table, spec: tuple[tuple[str, str, str], ...], *,
     值由调用方按"你请求的 kind"回填，不是从数据里猜出来的 —— 见各调用处的注释。
     同时在 `spec` 里声明的字段**无论服务端有没有值都会出现**，
     拿不到就是 `None`（契约：拿不到的列不要硬造，但要能区分"没有"）。
+
+    ⚠️ **必须继承 `src.provenance`**：这张表是"重建"出来的（换标准列名 + 补 raw），
+    若不带出处，上游 `client.call()` 刚盖上的 as_of / status / fetched_at /
+    elapsed / 来源就全丢了 —— 这正是复核者判的那条阻断。用 `inherit_provenance`
+    单点继承，别在每个调用点手工搬。`meta` 参数沿用旧名：键进
+    `provenance.extra`（字符串值同时进 `notes`）。
     """
     cols: list[str] = []
     for field in (const or {}):
@@ -338,12 +344,8 @@ def _shape(src: Table, spec: tuple[tuple[str, str, str], ...], *,
         out["raw"] = _row_dict(src, src_row)   # 红线：原始列一个都不许丢
         rows.append(out)
 
-    # ⚠️ **必须继承 `src.meta`**：这张表是"重建"出来的（换标准列名 + 补 raw），
-    # 若从空 meta 开始，上游 `client.call()` 刚盖上的
-    # as_of / status / fetched_at / elapsed / source(5 键 dict) 就全丢了
-    # —— 这正是复核者判的那条阻断。用 `inherit_meta` 单点继承，别在每个调用点手工 copy。
     return Table(cols=cols, rows=rows, cmd=cmd,
-                 domain=domain).inherit_meta(src, **(meta or {}))
+                 domain=domain).inherit_provenance(src, **(meta or {}))
 
 
 def _pct(now, close) -> float | None:
@@ -366,38 +368,43 @@ def _pct(now, close) -> float | None:
     return (n / c - 1.0) * 100.0
 
 
-#: `change_pct` 的算法口径（写进 `meta["change_pct_method"]`，让用户知道数怎么来的）
+#: `change_pct` 的算法口径（写进 `provenance.extra["change_pct_method"]`，让用户知道数怎么来的）
 _METHOD_MULTIHQ = "PBMultiHQ.NOW/CLOSE"
 _METHOD_INDUSTRY = "industry2 回填"
 
 
 def _note_change_pct(table: Table, method: str, *, note: str | None = None) -> Table:
-    """把「涨跌幅怎么算的 / 哪几条没算出来」写进 `meta`（**只加不改行**）。"""
-    table.meta["change_pct_method"] = method
+    """把「涨跌幅怎么算的 / 哪几条没算出来」写进 `provenance`（**只加不改行**）。"""
+    prov = table.provenance
+    if prov is None:
+        from datetime import datetime as _dt
+        prov = Provenance(fetched_at=_dt.now().astimezone(), clock=ClockSource.LOCAL)
     lacking = [r.get("board_code") for r in table.rows if r.get("change_pct") is None]
     if lacking:
-        table.meta["unavailable"] = ["change_pct"]
-        table.meta["change_pct_unavailable"] = lacking
-        table.meta["change_pct_note"] = note or (
-            "这些板块取不到涨跌幅（源头缺 `CLOSE`/`NOW` 或值为 0）—— 留 None，"
-            "不猜、不填 0。代码清单见 `change_pct_unavailable`。")
+        prov = prov.with_extra(change_pct_method=method,
+                               unavailable=["change_pct"],
+                               change_pct_unavailable=lacking,
+                               change_pct_note=note or (
+                                   "这些板块取不到涨跌幅（源头缺 `CLOSE`/`NOW` 或值为 0）—— 留 None，"
+                                   "不猜、不填 0。代码清单见 `change_pct_unavailable`。"))
     else:
-        table.meta["unavailable"] = []
         # 回填成功后必须把**上一次**记账清掉：industry 支路先在建表时记过一次
         # "全缺"，回填把它修好以后，那两条就成了假陈述（留着 = 骗人）。
-        table.meta.pop("change_pct_unavailable", None)
-        table.meta.pop("change_pct_note", None)
-    table.meta["why"] = (
+        clean_extra = {k: v for k, v in prov.extra.items()
+                       if k not in ("change_pct_unavailable", "change_pct_note",
+                                    "unavailable")}
+        prov = prov._replace_for(extra=clean_extra).with_extra(
+            change_pct_method=method, unavailable=[])
+    prov = prov.with_notes(
         "涨跌幅 `change_pct` 由 `(now / close - 1) * 100` 现算"
         "（口径见 `change_pct_method`）；`now`/`close` 是分子分母，**都给了**，"
         "可就地复核。任一价格缺失或 ≤0 → None（不把未知当 0）。")
-    if not table.meta["why"]:
-        pass
+    table.provenance = prov
     return table
 
 
 def _drop_empty_cols(table: Table, *, protect: tuple[str, ...] = ()) -> Table:
-    """**丢掉 100% 为 `None` 的列**，并把丢了哪些记进 `meta["dropped_empty_cols"]`。
+    """**丢掉 100% 为 `None` 的列**，并把丢了哪些记进 `provenance.extra["dropped_empty_cols"]`。
 
     用途：不留「看起来有、实际永远空」的假列。调用方一看到 `cols` 里有 `price`
     就会以为取到了价格，用到下游才发现整列是 `None` —— 这种"假列"比缺列更坏。
@@ -413,13 +420,12 @@ def _drop_empty_cols(table: Table, *, protect: tuple[str, ...] = ()) -> Table:
     调用方能区分『没有这一列』和『这次没有值』」（见 `get_board_members`）。
 
     ⚠️ 但"保列"**不等于可以留着不解释**：任何整列为 `None` 的列（**包括被
-    `protect` 保下来的契约列**）一律进 `meta["all_null_cols"]`，另有
-    `unavailable` / `change_pct_note` 给出原因。否则就是"让用户对着整列 None 猜"，
+    `protect` 保下来的契约列**）一律进 `provenance.extra["all_null_cols"]`，原因写进 notes。否则就是"让用户对着整列 None 猜"，
     那和假列一样坏。两个键的分工：
       * `all_null_cols`：**诊断**口径 —— 本次哪些列整列是 None（删没删都在里面）；
       * `dropped_empty_cols`：**动作**口径 —— 其中哪些被删掉了（非契约列）。
 
-    记账口径：**只有真丢了才写 `meta["dropped_empty_cols"]`**。键缺席 = 本次一个
+    记账口径：**只有真丢了才写 `provenance.extra["dropped_empty_cols"]`**。键缺席 = 本次一个
     非契约空列都没有（不是"没实现"）。反过来写空列表会让每个样本的 meta 键集
     都抖一下，而"没丢东西"本来就没有需要交代的。
     """
@@ -431,7 +437,8 @@ def _drop_empty_cols(table: Table, *, protect: tuple[str, ...] = ()) -> Table:
     #   `all_null_cols` = 本次整列全空的列（诊断口径）
     #   `dropped_empty_cols` = 其中**被删掉**的（动作口径）
     if nulls:
-        table.meta["all_null_cols"] = nulls
+        table.provenance = (table.provenance or _local_prov()).with_extra(
+            all_null_cols=nulls)
     dropped = [c for c in nulls if c not in protect]
     if not dropped:
         return table
@@ -443,16 +450,16 @@ def _drop_empty_cols(table: Table, *, protect: tuple[str, ...] = ()) -> Table:
             except (KeyError, TypeError):
                 pass
     table.set_cols(keep)
-    table.meta["dropped_empty_cols"] = dropped
-    table.meta["dropped_empty_note"] = (
-        "这些列本次 100% 为 None（结构性死列），已从 cols 删掉并在此记账。"
-        "⚠️ 只有「该死」的空列才删；若是「当日样本不完整」造成的整列空"
-        "（如 ztqd 的 N029/N025），那属于数据信号，走 all_null_cols **只标不删**。")
+    table.provenance = (table.provenance or _local_prov()).with_extra(
+        dropped_empty_cols=dropped).with_notes(
+            "这些列本次 100% 为 None（结构性死列），已从 cols 删掉并在此记账。"
+            "⚠️ 只有「该死」的空列才删；若是「当日样本不完整」造成的整列空"
+            "（如 ztqd 的 N029/N025），那属于数据信号，走 all_null_cols **只标不删**。")
     return table
 
 
 def _flag_all_null_cols(table: Table, *, product: str = "") -> Table:
-    """**不删任何列**，只把 100% 为 `None` 的列名记进 `meta["all_null_cols"]`。
+    """**不删任何列**，只把 100% 为 `None` 的列名记进 `provenance.extra["all_null_cols"]`。
 
     用在数据中心产品（尤其 ztqd 涨停清单）：整列为 `None` 可能是**当日样本不完整**
     （`00102` 口径的当日清单还没长全），也可能真有死列 —— 库**分不清**，
@@ -462,13 +469,19 @@ def _flag_all_null_cols(table: Table, *, product: str = "") -> Table:
         return table
     nulls = [c for c in table.cols if all(r.get(c) is None for r in table.rows)]
     if nulls:
-        table.meta["all_null_cols"] = nulls
-        table.meta["all_null_note"] = (
-            "整列为 None 的列**已保留**（没有删）：对 %s 这类清单，整列空可能是"
-            "「当日样本不完整」（例如 00102 口径当日清单还在长），那是**数据信号**，"
-            "删列会把'数据不全'藏起来。要判死活请看多日样本，别只看今天。"
-            % (product or "数据中心产品"))
+        table.provenance = (table.provenance or _local_prov()).with_extra(
+            all_null_cols=nulls).with_notes(
+                "整列为 None 的列**已保留**（没有删）：对 %s 这类清单，整列空可能是"
+                "「当日样本不完整」（例如 00102 口径当日清单还在长），那是**数据信号**，"
+                "删列会把'数据不全'藏起来。要判死活请看多日样本，别只看今天。"
+                % (product or "数据中心产品"))
     return table
+
+
+def _local_prov():
+    """无上游出处时的兜底凭据（如实标注 LOCAL 钟；板块/行情域）。"""
+    from datetime import datetime as _dt
+    return Provenance(fetched_at=_dt.now().astimezone(), clock=ClockSource.LOCAL)
 
 
 def _check_kind(kind: Any) -> str:
@@ -747,13 +760,13 @@ def get_boards(client, kind: str = "all") -> Table:
     for row in rows:                     # 超集补齐：概念行没有行业层级 → None
         for field in cols:
             row.setdefault(field, None)
-    # 拼接表也必须带上语义层 meta：以 industry 那份为准（两条通道同一时刻取的，
+    # 拼接表也必须带上语义层出处：以 industry 那份为准（两条通道同一时刻取的，
     # `as_of`/`status` 同源；`counts` 里另有 concept 的行数）
     merged = Table(
         cols=cols, rows=rows,
         cmd="%s + %s" % (_CMD_BKLIST_AG, _CMD_MULTIHQ),
         domain=_DOMAIN,
-    ).inherit_meta(ind, **{
+    ).inherit_provenance(ind, **{
             "kinds": ["industry", "concept"],
             "partial": True,
             "missing": ["index"],
