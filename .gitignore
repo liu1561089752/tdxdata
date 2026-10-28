@@ -12,6 +12,7 @@ venv/
 *.log
 tmp_*.py
 probe_*.py
+.coverage
 
 # 编辑器
 .vscode/

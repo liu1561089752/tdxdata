@@ -1,0 +1,41 @@
+name: CI
+
+on:
+  push:
+    branches: [main]
+  pull_request:
+
+jobs:
+  test:
+    name: py${{ matrix.python-version }} / ${{ matrix.os }}
+    runs-on: ${{ matrix.os }}
+    strategy:
+      fail-fast: false
+      matrix:
+        # requires-python = ">=3.10"（见 pyproject.toml [project]）
+        python-version: ["3.10", "3.11", "3.12", "3.13", "3.14"]
+        os: [ubuntu-latest, windows-latest]
+
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Set up Python ${{ matrix.python-version }}
+        uses: actions/setup-python@v5
+        with:
+          python-version: ${{ matrix.python-version }}
+
+      - name: Install
+        run: pip install -e .
+
+      # 离线测试（-m "not online"：真机/在线用例不进 CI）
+      - name: Tests (offline)
+        run: python -m pytest -q -p no:cacheprovider -m "not online"
+
+      # 质量门禁（10 条）。默认离线跑：第 8 条真机冒烟按 gate.py 里的
+      # 显式 SKIP 白名单跳过（CI 无真机，不调用在线冒烟）。
+      - name: Gate
+        run: python tools/gate.py
+
+      # 打包冒烟：能从当前源码构建出 wheel
+      - name: Build wheel
+        run: python -m pip wheel . --no-deps -w dist
