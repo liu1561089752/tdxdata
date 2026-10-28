@@ -36,6 +36,7 @@ BASE = os.path.dirname(os.path.abspath(__file__))
 
 from . import datacenter as dc                              # noqa: E402
 from . import pb as tdx_pb                               # noqa: E402
+from . import zliblimit                                  # noqa: E402
 from .. import errors                                    # noqa: E402
 from .._logging import logger                            # noqa: E402
 
@@ -129,21 +130,54 @@ def _raw_send(ctl, cmd, args, tries=2, backoff=3.0):
     raise last
 
 
-def decode_any(blob):
+# ══════════════════════════════════════════════════════════════════════════
+# 解压硬上限（`DEF-B4-02`，2026-10-28）——**实现已收编到 `zliblimit`**
+#
+# 缺陷形态：原来这里是 `blob = zlib.decompress(blob)` —— **输出大小完全由回包
+# 决定**。一个 800 KB 的 zlib 炸弹就能解出 80 MiB（实测压缩比 > 100:1）。
+#
+# 为什么搬到 `_engine/zliblimit.py`：同样的缺陷在这条通路上修好后，
+# `datacenter.unwrap_frames` / `datacenter._try_zlib` / `hq_extra` 的探测链
+# **还各自留着无上限的 `zlib.decompress`**（SEC-2）。四条通路任一没堵住，
+# 炸弹就从那条进来。现在上限只有一份实现，本模块保留这两个名字只为**兼容**
+# （测试与文档一直按 `pb_api._MAX_DECOMPRESS` 引用），实际逻辑在 zliblimit。
+# ══════════════════════════════════════════════════════════════════════════
+_MAX_DECOMPRESS = zliblimit.MAX_DECOMPRESS
+
+
+def _inflate_limited(blob, limit=None, context=""):
+    """带上限的 zlib 解压（薄封装，语义见 `zliblimit.inflate_limited`）。
+
+    保留本函数与 `_MAX_DECOMPRESS` 这个名字：既有测试是 monkeypatch
+    `pb_api._MAX_DECOMPRESS` 到 1 MiB 来验证"超限即抛"的，这里**每次调用现读**
+    本模块的全局值，所以那条测试仍然有效（不是摆设）。
+    """
+    return zliblimit.inflate_limited(
+        blob, _MAX_DECOMPRESS if limit is None else limit, context)
+
+
+def decode_any(blob, context=""):
     """自动识别 protobuf / JSON / zlib+JSON。
 
     返回 (kind, payload)：
         ("json", dict|list)
         ("pb",   [(field, wire, value)])
         ("raw",  bytes)
+
+    `context`：只用于**报错文本**（哪个命令、哪个 ctl 的回包出的问题），
+    不参与解码判断 —— 运维看到一句带 cmd 的错比看到裸字节数有用得多。
     """
     if not blob:
         return "raw", b""
     # zlib
     if blob[:1] == b"\x78":
         try:
-            blob = zlib.decompress(blob)
-        except Exception as exc:                           # noqa: BLE001
+            blob = _inflate_limited(blob, context=context)
+        except errors.ProtocolError:
+            # 超限是**硬错误**：显式重抛，绝不落进下面的降级探测
+            # （旧写法是 `except Exception` 全吞 —— 炸弹会因此变回静默）。
+            raise
+        except zlib.error as exc:
             # 编码探测链：「声明 zlib 实则不是」→ 继续走明文/protobuf 探测，
             # 不是错误；debug 留编码选择的轨迹（诊断畸形帧用）。
             logger.debug("zlib probe failed (%s), continuing decode chain",
@@ -182,7 +216,8 @@ def call_pb(cmd, ctl=None, args=None, tries=4):
 
     DEF-041（只登记不修）：有 ctl → Table / 无 ctl → dict 的双重载返回
     类型是历史形状，签名重构归架构批。
-    DEF-022（只登记不修）：大对象的 `repr` 截断另批处理。
+    DEF-022（已修，2026-11）：`Table`/`Row`/`Dataset` 的 `repr` 现在带硬上限，
+    见 `models.py`；这里不再提"另批处理"。
     """
     meta = PB.get(cmd) or {}
     cands = [ctl] if ctl is not None else (meta.get("ctl") or [None])
@@ -200,7 +235,8 @@ def call_pb(cmd, ctl=None, args=None, tries=4):
             # 绝不能把"连不上"折叠成 `return None`（那会被上层当成"没数据"）。
             last_err = exc
             continue
-        kind, payload = decode_any(blob)
+        # context 只进报错文本：解压超限时要能指出是「哪个 cmd、哪个 ctl」的回包
+        kind, payload = decode_any(blob, "%s ctl=0x%02X 的" % (cmd, c))
         if kind == "raw":
             continue
         if meta.get("kind") == "table" or kind == "pb":
@@ -221,7 +257,7 @@ def call_pb(cmd, ctl=None, args=None, tries=4):
 
 def parse_pb_any(blob):
     """把一段 PB 响应直接转成 (列名, 行) 或 dict。"""
-    kind, payload = decode_any(blob)
+    kind, payload = decode_any(blob, "parse_pb_any 的")
     if kind == "json":
         return payload
     if kind == "pb":

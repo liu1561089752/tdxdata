@@ -15,4 +15,9 @@ r"""版本**单一事实源**（ENG-007，批次 E）。
 """
 __version__ = "0.3.0"
 
-__all__ = ["__version__"]
+#: 可比较的版本元组（ENG-008）：`if tdxdata.__version_info__ < (0, 4): ...`
+#: 只放**数字段**（`0.3.0` → `(0, 3, 0)`）；将来的预发布标记另设键，
+#: 不往这个元组里塞字符串 —— 那会让比较在混类型时抛 TypeError。
+__version_info__ = tuple(int(p) for p in __version__.split(".") if p.isdigit())
+
+__all__ = ["__version__", "__version_info__"]

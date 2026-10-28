@@ -110,14 +110,16 @@ with tdxdata.Client() as c:
 
 ### 返回类型
 
-| 调用 | 返回 | 常用属性 |
+<!-- BEGIN: api_types（由 tdxdata/_docgen.py:api_types_table() 生成，勿手改） -->
+| 调用 | 返回 | 字段 / 公开成员 |
 |---|---|---|
-| `get_bars()` | `list[Bar]` | `date` `open` `high` `low` `close` `vol` `amount` `adjust` `period` |
-| `get_minutes()` | `list[MinutePoint]` | `time`（`'09:30'`）`price` `avg_price` `vol` |
-| `get_ticks()` | `list[Tick]` | `time` `price` `vol`（手）`raw` |
-| `get_quotes()` / `get_market_page()` | `list[Quote]` | `code` `name` `price` `pre_close` `vol` `amount` |
-| `get(产品名)` | `Dataset` | `.table`（`Table`）、`.rows`、`.name`、`.params` |
-| `get_f10()` / `get_finance()` 等 | `Table` | `.shape` `.cols` `.rows` `.column('列名')` `.to_dicts()` |
+| `get_bars()` | `list[Bar]` | `market` `code` `date` `open` `high` `low` `close` `vol` `amount` `period` `time` `raw` `adjust` `provisional` `symbol` `vol_unit` |
+| `get_minutes()` | `list[MinutePoint]` | `code` `time` `price` `avg_price` `vol` `market` `raw` `symbol` |
+| `get_ticks()` | `list[Tick]` | `market` `code` `time` `price` `vol` `trade_count` `bs_flag` `raw` `as_markdown_table` `symbol` |
+| `get_quotes()` / `get_market_page()` | `list[Quote]` | `market` `code` `price` `pre_close` `open` `high` `low` `vol` `amount` `bid` `ask` `server_time` `name` `raw` `symbol` |
+| `get()` | `Dataset` | `name` `table` `params` `cols` `data_date` `rows` `to_dict()` `to_dicts()` `to_json()` |
+| `get_f10()` / `get_finance()` / `get_xdxr()` | `Table` | `cols` `rows` `cmd` `domain` `provenance` `as_of` `column()` `inherit_provenance()` `row()` `set_cols()` `shape` `status` `to_dict()` `to_dicts()` `to_json()` |
+<!-- END: api_types -->
 
 **每个对象都带 `.raw`** —— 原始行原值，字段没覆盖到的部分可以自己从里面取。
 
@@ -188,11 +190,13 @@ c.get_minutes("600519")[0].vol       # 手
 
 `adjust` 由**服务端计算**，不是本地乘系数：
 
-| 值 | 含义 |
-|---|---|
-| `tdxdata.Adjust.NONE` | 不复权 |
-| `tdxdata.Adjust.HFQ` | 后复权 |
-| `tdxdata.Adjust.QFQ` | 前复权 |
+<!-- BEGIN: enum_adjust（由 tdxdata/_docgen.py:adjust_enum_table() 生成，勿手改） -->
+| 值 | 含义 | 协议 `field8` |
+|---|---|---|
+| `tdxdata.Adjust.NONE` | 不复权 | `1` |
+| `tdxdata.Adjust.QFQ` | 前复权 | `3` |
+| `tdxdata.Adjust.HFQ` | 后复权 | `2` |
+<!-- END: enum_adjust -->
 
 ```python
 c.get_bars("600519", "day", 200, adjust=tdxdata.Adjust.NONE)[-1].close   # 1349.98
@@ -790,6 +794,829 @@ with tdxdata.Client() as c:
 
 ---
 
+## 附录：由代码生成的表（勿手改）
+
+> 本附录的**每一张表**都由 `tdxdata/_docgen.py` 里的纯函数生成，事实源是
+> `enums` / `models` / `errors` / `limits` / `_core` / `domains` / `symbols` / `timeliness` /
+> `capabilities` / `indicator` / `invariants` / `_provenance` / `client` 的模块级常量，
+> 以及 `data/products.json` —— **没有一处是手抄的**。
+> `tests/test_readme_drift.py` 逐字比对内容，`tests/test_docgen.py` 守「两次调用同一结果 /
+> 行尾无 `\r` / 每行列数一致」并实算受守护行数占比。所以**手改这里会立刻红**：
+> 要改表请先改代码里的注册表，再重跑生成。
+
+### A1 枚举速查（`tdxdata/enums.py`）
+
+市场码就是 `PBFXT` / `PBZST` 的 `field3`（与 7615 的 `setcode` 一致）：
+
+<!-- BEGIN: enum_market（由 tdxdata/_docgen.py:market_enum_table() 生成，勿手改） -->
+| 成员 | 值 | 市场 | 对应协议位 |
+|---|---|---|---|
+| `SZ` | 0 | 深圳 | `PBFXT` / `PBZST` 的 `field3` |
+| `SH` | 1 | 上海 | `PBFXT` / `PBZST` 的 `field3` |
+| `BJ` | 2 | 北京 | `PBFXT` / `PBZST` 的 `field3` |
+<!-- END: enum_market -->
+
+`KlinePeriod` 的「请求名」取 `client._PERIOD_STR`（有映射就是发得出去），
+「无数据」取 `client._PERIOD_DEAD`（实测 0 行，库**显式拒绝**而不是返回空表）：
+
+<!-- BEGIN: enum_period（由 tdxdata/_docgen.py:period_enum_table() 生成，勿手改） -->
+| 成员 | 值 | 请求名 | 本库可用性 |
+|---|---|---|---|
+| `MIN_5` | 0 | `5m` | ✅ `5m` |
+| `MIN_15` | 1 | `15m` | ✅ `15m` |
+| `MIN_30` | 2 | `30m` | ✅ `30m` |
+| `MIN_60` | 3 | `60m` | ✅ `60m` |
+| `DAY` | 4 | `day` | ✅ `day` |
+| `WEEK` | 5 | `week` | ✅ `week` |
+| `MONTH` | 6 | `month` | ✅ `month` |
+| `MIN_1` | 7 | `1m` | ✅ `1m` |
+| `MIN_3` | 8 | — | ❌ 无数据（`_PERIOD_DEAD`，抛 `NotSupportedError`） |
+| `YEAR` | 9 | — | ❌ 无数据（`_PERIOD_DEAD`，抛 `NotSupportedError`） |
+| `SEASON` | 10 | `season` | ✅ `season` |
+| `YEAR_ALT` | 11 | — | ❌ 无数据（`_PERIOD_DEAD`，抛 `NotSupportedError`） |
+<!-- END: enum_period -->
+
+时效四态（`Status`，字符串枚举，可直接进 JSON / 日志）：
+
+<!-- BEGIN: enum_status（由 tdxdata/_docgen.py:status_enum_table() 生成，勿手改） -->
+| 成员 | 值 | 含义 |
+|---|---|---|
+| `FINAL` | `'final'` | 最终值：这个口径已经定稿 |
+| `PROVISIONAL` | `'provisional'` | 盘中/当根未走完，会变 |
+| `PENDING` | `'pending'` | 今天的还没生成（如盘中查涨停清单） |
+| `DELAYED` | `'delayed'` | 数据本身滞后（两融 T+1、行业统计 T-1） |
+<!-- END: enum_status -->
+
+### A2 涨跌停价与最小变动单位（`tdxdata/limits.py`）
+
+纯本地计算，`Decimal` + `ROUND_HALF_UP` 取整到分（**不用内置 `round()`**）：
+
+<!-- BEGIN: price_limit_boards（由 tdxdata/_docgen.py:price_limit_table() 生成，勿手改） -->
+| 板块 | 代码前缀 | 涨跌幅 | ST 涨跌幅 | 最小变动单位 |
+|---|---|---|---|---|
+| 主板（沪 60 / 深 00） | 60/00 | ±10% | ±5% | 0.01 元（2 位小数） |
+| 创业板（30） | 30 | ±20% | 同左（ST 只在主板生效） | 0.01 元（2 位小数） |
+| 科创板（68） | 68 | ±20% | 同左（ST 只在主板生效） | 0.01 元（2 位小数） |
+| 北交所（43/83/87/88/92） | 43/83/87/88/92 | ±30% | 同左（ST 只在主板生效） | 0.01 元（2 位小数） |
+| 基金 / ETF | 15/16/50/51/52/56/58 | ±10% | 同左（ST 只在主板生效） | 0.001 元（3 位小数） |
+| 可转债 / 可交换债 | 110/111/113/118/120/123/127/128/132 | ±20% | 同左（ST 只在主板生效） | 0.001 元（3 位小数） |
+| B 股（沪 900 / 深 200） | 900/200 | ±10% | 同左（ST 只在主板生效） | 0.001 元（3 位小数） |
+<!-- END: price_limit_boards -->
+
+### A3 `Client` 的构造参数
+
+参数表直接来自 `inspect.signature(Client.__init__)`，改签名这里就跟着变：
+
+<!-- BEGIN: client_params（由 tdxdata/_docgen.py:client_params_table() 生成，勿手改） -->
+| 参数 | 类型 | 默认值 | 传法 |
+|---|---|---|---|
+| `host` | `str \| None` | `None` | 位置或关键字 |
+| `timeout` | `float` | `15.0` | 位置或关键字 |
+| `gap` | `float` | `2.2` | 位置或关键字 |
+| `cache` | — | `None` | 位置或关键字 |
+| `clock_probe` | `bool` | `True` | 关键字专用 |
+| `strict_symbols` | `bool` | `False` | 关键字专用 |
+<!-- END: client_params -->
+
+### A4 异常层次（`tdxdata/errors.py`）
+
+设计原则：**让调用方能区分「没数据」和「取不到」** —— 混成一个 `None` 或空列表，
+上层就会误判成「今天没数据」。基类一路 `TdxError`，`__all__` 的顺序即下表顺序：
+
+<!-- BEGIN: error_types（由 tdxdata/_docgen.py:error_types_table() 生成，勿手改） -->
+| 异常 | 直系基类 | 什么时候抛 |
+|---|---|---|
+| `TdxError` | `Exception` | 本库所有异常的基类。 |
+| `ConnectionFailed` | `TdxError` | 连不上（全部服务器都失败）。 |
+| `Timeout` | `ConnectionFailed` | 读写超时。 |
+| `ProtocolError` | `TdxError` | 帧头非法、zlib 解压失败、响应截断等 —— 协议层异常，通常需要抓包排查。 |
+| `ParamError` | `TdxError` | 服务端返回 -1002：参数不对。 |
+| `ServerError` | `TdxError` | 服务端返回 -1005 / -1009：命令执行失败。 |
+| `NotSupportedError` | `TdxError` | 这条命令/能力**根本不可用**（-1000 协议不存在，或本库未实现）。 |
+| `RateLimited` | `ConnectionFailed` | 被限流/被踢（10053/10054）。调用方应退避后换服务器重试。 |
+| `EmptyResult` | `TdxError` | 命令可用，但**这一次**没数据（`EMPTY_RS 0×N` / `EMPTY 0×0`）。 |
+| `NoData` | `EmptyResult` | `EmptyResult` 的别名，语义更直白。 |
+| `OutOfScope` | `TdxError` | **这个品种不在本数据源的覆盖范围**（不是"接口做不了这件事"）。 |
+| `AmbiguousSymbol` | `TdxError` | **两义代码**，且调用方要求严格（`Client(strict_symbols=True)`）。 |
+<!-- END: error_types -->
+
+### A5 批量取数的 `on_missing` 三态
+
+<!-- BEGIN: on_missing_modes（由 tdxdata/_docgen.py:on_missing_table() 生成，勿手改） -->
+| 取值 | 缺码时怎么处理 |
+|---|---|
+| `raise` | 有缺失就抛 `EmptyResult`，点名缺了哪些代码（默认） |
+| `skip` | 不抛，缺失清单进 `provenance.extra["missing"]` |
+| `report` | 同 `skip`，另外 `warnings.warn` 一次 |
+<!-- END: on_missing_modes -->
+
+### A6 数据模型字段（`tdxdata/models.py`）
+
+8 个模型类的全部字段（字段名 / 类型 / 默认值取 `dataclasses.fields`，
+语义注释以源码为准）。
+
+⚠️ `Quote.bid` / `Quote.ask` 这两个字段**恒为空列表** —— 协议层没有五档（`PBCombHQ` 25 列里也没有 bid/ask），
+字段留着是为了兼容；别把「有这个列表」读成「取得到盘口」。
+
+<!-- BEGIN: model_fields（由 tdxdata/_docgen.py:model_fields_table() 生成，勿手改） -->
+| 模型 | 字段 | 类型 | 默认值 |
+|---|---|---|---|
+| `Bar` | `market` | int | **必填** |
+| `Bar` | `code` | str | **必填** |
+| `Bar` | `date` | str | **必填** |
+| `Bar` | `open` | float | **必填** |
+| `Bar` | `high` | float | **必填** |
+| `Bar` | `low` | float | **必填** |
+| `Bar` | `close` | float | **必填** |
+| `Bar` | `vol` | float \| None | `None` |
+| `Bar` | `amount` | float \| None | `None` |
+| `Bar` | `period` | str | `'day'` |
+| `Bar` | `time` | str | `''` |
+| `Bar` | `raw` | dict[str, Any] | 工厂 `dict()` |
+| `Bar` | `adjust` | str | `'NONE'` |
+| `Bar` | `provisional` | bool | `False` |
+| `MinutePoint` | `code` | str | **必填** |
+| `MinutePoint` | `time` | str | **必填** |
+| `MinutePoint` | `price` | float | **必填** |
+| `MinutePoint` | `avg_price` | float | **必填** |
+| `MinutePoint` | `vol` | float | `0.0` |
+| `MinutePoint` | `market` | int | `0` |
+| `MinutePoint` | `raw` | dict[str, Any] | 工厂 `dict()` |
+| `Quote` | `market` | int | **必填** |
+| `Quote` | `code` | str | **必填** |
+| `Quote` | `price` | float | **必填** |
+| `Quote` | `pre_close` | float | `0.0` |
+| `Quote` | `open` | float | `0.0` |
+| `Quote` | `high` | float | `0.0` |
+| `Quote` | `low` | float | `0.0` |
+| `Quote` | `vol` | float \| None | `None` |
+| `Quote` | `amount` | float \| None | `None` |
+| `Quote` | `bid` | list[tuple[float, float]] | 工厂 `list()` |
+| `Quote` | `ask` | list[tuple[float, float]] | 工厂 `list()` |
+| `Quote` | `server_time` | str | `''` |
+| `Quote` | `name` | str | `''` |
+| `Quote` | `raw` | dict[str, Any] | 工厂 `dict()` |
+| `Tick` | `market` | int | **必填** |
+| `Tick` | `code` | str | **必填** |
+| `Tick` | `time` | str \| None | `None` |
+| `Tick` | `price` | float \| None | `None` |
+| `Tick` | `vol` | float \| None | `None` |
+| `Tick` | `trade_count` | int \| None | `None` |
+| `Tick` | `bs_flag` | int \| None | `None` |
+| `Tick` | `raw` | dict[str, Any] | 工厂 `dict()` |
+| `SecurityInfo` | `market` | int | **必填** |
+| `SecurityInfo` | `code` | str | **必填** |
+| `SecurityInfo` | `name` | str | `''` |
+| `SecurityInfo` | `volunit` | float | `0.0` |
+| `SecurityInfo` | `decimal_point` | int | `2` |
+| `SecurityInfo` | `pre_close` | float | `0.0` |
+| `Table` | `cols` | list[str] | **必填** |
+| `Table` | `rows` | list[dict[str, Any]] | **必填** |
+| `Table` | `cmd` | str | `''` |
+| `Table` | `domain` | str | `''` |
+| `Table` | `provenance` | Provenance \| None | `None` |
+| `Dataset` | `name` | str | **必填** |
+| `Dataset` | `table` | Table | **必填** |
+| `Dataset` | `params` | Any | `None` |
+| `ProductInfo` | `name` | str | **必填** |
+| `ProductInfo` | `cmd` | str | **必填** |
+| `ProductInfo` | `ctl` | int | **必填** |
+| `ProductInfo` | `domain` | str | `''` |
+| `ProductInfo` | `params` | Any | `None` |
+<!-- END: model_fields -->
+
+### A7 技术指标（`tdxdata/indicator.py`）
+
+「默认参数」列取 `client._IND_DEFAULT_PARAMS`（`get_indicators` 真正会算的那几组），
+没有登记的函数要自己传 `n`：
+
+<!-- BEGIN: indicators（由 tdxdata/_docgen.py:indicator_table() 生成，勿手改） -->
+| 指标 | 签名 | `get_indicators` 默认参数 | 口径 |
+|---|---|---|---|
+| `beta` | `indicator.beta(bars, market, n=20)` | —（`get_indicators` 未登记） | 相对基准的滚动 OLS 斜率 `BETA(close, 基准close, n)`（无量纲）。 |
+| `boll` | `indicator.boll(bars, n=20, k=2)` | 无（固定参数） | 布林带 `BOLL(close, n, k)`，返回 `(upper, mid, lower)` 三个**等长**序列。 |
+| `ema` | `indicator.ema(bars, n)` | n=12/26 | 指数移动平均 `EMA(close, n)`。 |
+| `hv` | `indicator.hv(bars, n=20)` | n=20 | 滚动**年化**历史波动率 `HV(close, n)`（**百分数**，`18.5` 表示 18.5%）。 |
+| `kdj` | `indicator.kdj(bars, n=9, k=3, d=3)` | 无（固定参数） | KDJ（通达信口径），返回 `(k_line, d_line, j_line)` 三个**等长**序列。 |
+| `ma` | `indicator.ma(bars, n)` | n=5/10/20 | 简单移动平均 `MA(close, n)`。 |
+| `macd` | `indicator.macd(bars, fast=12, slow=26, signal=9)` | 无（固定参数） | MACD（通达信口径），返回 `(dif, dea, hist)` 三个**等长**序列。 |
+| `max_drawdown` | `indicator.max_drawdown(bars, n=20)` | n=20 | 滚动窗口最大回撤 `MDD(close, n)`（**百分数**，恒 `<= 0`）。 |
+| `momentum` | `indicator.momentum(bars, n=20)` | n=20 | 动量 `MOM(close, n)`（**百分数**）：`(close[i] / close[i-n] - 1) * 100`。 |
+| `rsi` | `indicator.rsi(bars, n=14)` | n=14 | 相对强弱指标 RSI（**Wilder 递推**口径）。 |
+| `sharpe` | `indicator.sharpe(bars, n=20, rf=0.0)` | n=20 | 滚动**年化**夏普比率 `SHARPE(close, n, rf)`（无量纲）。 |
+<!-- END: indicators -->
+
+### A8 恒等式闸门（`tdxdata/invariants.py`）
+
+`invariants.validate(container)` 显式调用才跑（闸门不自动开，性能取舍）：
+
+<!-- BEGIN: invariants（由 tdxdata/_docgen.py:invariant_table() 生成，勿手改） -->
+| 检查器 | 断言什么 |
+|---|---|
+| `check_amount_vol_close()` | `amount ≈ vol×100×close`（相对误差 ≤5%，与 test_hq_extra.py:235 同宽）。 |
+| `check_breadth_total()` | `up + down + flat ≡ total`（**当日**证券总数；5572 不是跨日真理）。 |
+| `check_minute_points()` | `n_points(field7) ≡ len(points)`（test_pb_sample.py 实证 25/25 帧恒等）。 |
+| `check_minute_volume_sum()` | 240 点 `vol` 合计 ≈ 当日 `Bar.vol`；`amount` 合计 ≈ 当日 `Bar.amount`。 |
+| `check_ohlc()` | `low ≤ open,close ≤ high`（`high/low` 也互为包络：low ≤ high）。 |
+| `check_pre_close()` | `pre_close` ↔ 同码同刻的另一通道昨收一致（相对误差 ≤0.1%）。 |
+<!-- END: invariants -->
+
+### A9 代码段 → 市场（`tdxdata/symbols.py`）
+
+规则：**3 位前缀优先、1 位兜底**；数据来源是 `PBMultiHQ` 的 `Setcode` 真值样本
+（`tests/fixtures/市场码真值样本.json`）。新起品种请**只加表项，不要改逻辑**：
+
+<!-- BEGIN: symbol_prefixes（由 tdxdata/_docgen.py:symbol_prefix_table() 生成，勿手改） -->
+| 代码段 | 市场 | 市场码 | 规则 |
+|---|---|---|---|
+| `110xxx` | sh | 1 | 3 位前缀（**优先**） |
+| `111xxx` | sh | 1 | 3 位前缀（**优先**） |
+| `113xxx` | sh | 1 | 3 位前缀（**优先**） |
+| `118xxx` | sh | 1 | 3 位前缀（**优先**） |
+| `123xxx` | sz | 0 | 3 位前缀（**优先**） |
+| `127xxx` | sz | 0 | 3 位前缀（**优先**） |
+| `131xxx` | sz | 0 | 3 位前缀（**优先**） |
+| `200xxx` | sz | 0 | 3 位前缀（**优先**） |
+| `201xxx` | sz | 0 | 3 位前缀（**优先**） |
+| `204xxx` | sh | 1 | 3 位前缀（**优先**） |
+| `241xxx` | sh | 1 | 3 位前缀（**优先**） |
+| `242xxx` | sh | 1 | 3 位前缀（**优先**） |
+| `243xxx` | sh | 1 | 3 位前缀（**优先**） |
+| `399xxx` | sz | 0 | 3 位前缀（**优先**） |
+| `430xxx` | bj | 2 | 3 位前缀（**优先**） |
+| `524xxx` | sz | 0 | 3 位前缀（**优先**） |
+| `820xxx` | bj | 2 | 3 位前缀（**优先**） |
+| `830xxx` | bj | 2 | 3 位前缀（**优先**） |
+| `870xxx` | bj | 2 | 3 位前缀（**优先**） |
+| `880xxx` | sh | 1 | 3 位前缀（**优先**） |
+| `881xxx` | sh | 1 | 3 位前缀（**优先**） |
+| `900xxx` | sh | 1 | 3 位前缀（**优先**） |
+| `920xxx` | bj | 2 | 3 位前缀（**优先**） |
+| `999xxx` | sh | 1 | 3 位前缀（**优先**） |
+| `0xxxxx` | sz | 0 | 1 位兜底（3 位没命中时） |
+| `1xxxxx` | sz | 0 | 1 位兜底（3 位没命中时） |
+| `2xxxxx` | sz | 0 | 1 位兜底（3 位没命中时） |
+| `3xxxxx` | sz | 0 | 1 位兜底（3 位没命中时） |
+| `4xxxxx` | bj | 2 | 1 位兜底（3 位没命中时） |
+| `5xxxxx` | sh | 1 | 1 位兜底（3 位没命中时） |
+| `6xxxxx` | sh | 1 | 1 位兜底（3 位没命中时） |
+| `8xxxxx` | bj | 2 | 1 位兜底（3 位没命中时） |
+| `9xxxxx` | sz | 0 | 1 位兜底（3 位没命中时） |
+<!-- END: symbol_prefixes -->
+
+### A10 两义代码（`tdxdata/symbols.py` 的 `AMBIGUOUS`）
+
+同一个写法在不同市场里指向不同标的，库会 `warnings.warn` 提醒（`strict_symbols=True` 才抛）：
+
+<!-- BEGIN: ambiguous_symbols（由 tdxdata/_docgen.py:ambiguous_symbol_table() 生成，勿手改） -->
+| 写法 | 它到底是谁 / 该怎么写 |
+|---|---|
+| `000001` | 平安银行（深市 000001）。⚠️ **上证指数是 999999，不是 000001** —— 写成 000001 拿到的是平安银行，这是本项目最常见的口径错。真要上证指数请写 999999 或 "sh999999"。 |
+| `000016` | 深市没有这个代码（深市指数是 399xxx）。⚠️ **上证50 是沪市指数**，请写 "sh000016" 或 ("sh", "000016")。 |
+| `000300` | 深市没有这个代码（深市指数是 399xxx）。⚠️ **沪深300 是沪市指数**，请写 "sh000300" 或 ("sh", "000300")。 |
+| `000852` | 深市没有这个代码（深市指数是 399xxx）。⚠️ **中证1000 是沪市指数**，请写 "sh000852" 或 ("sh", "000852")。 |
+<!-- END: ambiguous_symbols -->
+
+### A11 时效常量（`tdxdata/timeliness.py`）
+
+<!-- BEGIN: time_gates（由 tdxdata/_docgen.py:timeliness_table() 生成，勿手改） -->
+| 常量 / 键 | 值 | 用途 |
+|---|---|---|
+| `CLOSE_CUTOFF` | 15:35:00 | 日线当日定稿的判定时刻 |
+| `FINAL_CUTOFF_HHMM` | 15:35 | 给人看的同一件事（`timeliness()` 的 `close_cutoff`） |
+| `MIN_BAR_CUTOFF` | 15:00:00 | 分钟周期收盘边界 |
+| `_PERIOD_MINUTES["1m"]` | 1 分钟 | 该周期的长度（边界检查用） |
+| `_PERIOD_MINUTES["5m"]` | 5 分钟 | 该周期的长度（边界检查用） |
+| `_PERIOD_MINUTES["15m"]` | 15 分钟 | 该周期的长度（边界检查用） |
+| `_PERIOD_MINUTES["30m"]` | 30 分钟 | 该周期的长度（边界检查用） |
+| `_PERIOD_MINUTES["60m"]` | 60 分钟 | 该周期的长度（边界检查用） |
+| `_DAYLIKE` | `day` / `week` / `month` / `season` | 按 `CLOSE_CUTOFF` 判当根的周期 |
+| `TRUSTED_CLOCKS` | `server` / `hybrid` | 可判定 FINAL 的时钟来源（其余一律降级） |
+<!-- END: time_gates -->
+
+### A12 来源信息字段（`tdxdata/_provenance.py`）
+
+每个容器/表的 `provenance` 就是这一组字段 —— 「这份数据是什么时候、从哪台机器、
+哪个时钟来源拿的」全部可复核：
+
+<!-- BEGIN: provenance_fields（由 tdxdata/_docgen.py:provenance_table() 生成，勿手改） -->
+| 载体 | 名称 | 类型 / 取值 |
+|---|---|---|
+| `Provenance` | `fetched_at` | datetime |
+| `Provenance` | `clock` | ClockSource |
+| `Provenance` | `host` | str \| None |
+| `Provenance` | `cmd` | str |
+| `Provenance` | `ctl` | int \| None |
+| `Provenance` | `cached` | bool |
+| `Provenance` | `elapsed` | float |
+| `Provenance` | `status` | str \| None |
+| `Provenance` | `as_of` | str \| None |
+| `Provenance` | `data_date` | str \| None |
+| `Provenance` | `notes` | tuple[str, ...] |
+| `Provenance` | `extra` | dict[str, Any] |
+| `ClockSource` | `SERVER` | `'server'` |
+| `ClockSource` | `HYBRID` | `'hybrid'` |
+| `ClockSource` | `LOCAL` | `'local'` |
+<!-- END: provenance_fields -->
+
+### A13 产品层 API（交易日历 / 证券主数据）
+
+`Client.calendar()` / `Client.master()` 拿到的两个门面的公开方法：
+
+<!-- BEGIN: product_layer_api（由 tdxdata/_docgen.py:product_layer_table() 生成，勿手改） -->
+| 类 | 方法 | 出处 |
+|---|---|---|
+| `TradeCalendar` | `is_trading_day(self, d)` | `tdxdata/calendar.py` |
+| `TradeCalendar` | `next(self, d)` | `tdxdata/calendar.py` |
+| `TradeCalendar` | `prev(self, d)` | `tdxdata/calendar.py` |
+| `TradeCalendar` | `raise_if_unavailable(self)` | `tdxdata/calendar.py` |
+| `TradeCalendar` | `range(self, a, b)` | `tdxdata/calendar.py` |
+| `SecMaster` | `resolve(self, code, *, missing='none')` | `tdxdata/master.py` |
+| `SecMaster` | `search(self, name_like)` | `tdxdata/master.py` |
+| `SecMaster` | `snapshot(self, *, refresh=False)` | `tdxdata/master.py` |
+<!-- END: product_layer_api -->
+
+### A14 品种 × 能力统计（`tdxdata/capabilities.py`）
+
+按 `CAPABILITIES` 逐条计数（`available` 为 `True` 即「可用」，明细见上面的能力边界表）：
+
+<!-- BEGIN: instrument_stats（由 tdxdata/_docgen.py:instrument_stats_table() 生成，勿手改） -->
+| 品种码 | 品种 | 能力条目 | 可用 | 不可用 |
+|---|---|---|---|---|
+| `a_share` | A 股（沪/深） | 12 | 9 | 3 |
+| `bj` | 北交所 | 1 | 1 | 0 |
+| `index` | 指数 | 2 | 2 | 0 |
+| `board` | 板块 | 2 | 2 | 0 |
+| `etf` | ETF / 基金 | 1 | 1 | 0 |
+| `bond` | 债券 / 配债 | 1 | 1 | 0 |
+| `hk` | 港股 | 3 | 0 | 3 |
+| `futures` | 商品期货 | 1 | 0 | 1 |
+| `option` | 期权 | 1 | 0 | 1 |
+| `cbt` | 国债期货 | 1 | 0 | 1 |
+| `forex` | 外汇 | 1 | 0 | 1 |
+| `all` | 与品种无关（全局） | 3 | 0 | 3 |
+<!-- END: instrument_stats -->
+
+### A15 数据中心的数据域统计（`tdxdata/domains.py` + `data/products.json`）
+
+域分类只有一处规则表（`domains._RULES`，先匹配先生效），产品数从 `products.json` 现数：
+
+<!-- BEGIN: data_domains（由 tdxdata/_docgen.py:domain_stats_table() 生成，勿手改） -->
+| 域 | 产品数 | 占比 | 域分类规则 |
+|---|---|---|---|
+| `行情` | 6 | 1.4% | 命中规则 3 条 |
+| `财报` | 22 | 5.2% | 命中规则 10 条 |
+| `F10与个股资料` | 43 | 10.2% | 命中规则 6 条 |
+| `龙虎榜与两融` | 61 | 14.5% | 命中规则 5 条 |
+| `沪深港通` | 23 | 5.5% | 命中规则 2 条 |
+| `涨停与题材` | 28 | 6.7% | 命中规则 1 条 |
+| `板块与行业` | 6 | 1.4% | 命中规则 5 条 |
+| `大宗交易` | 9 | 2.1% | 命中规则 2 条 |
+| `新股与再融资` | 8 | 1.9% | 命中规则 4 条 |
+| `资金与筹码` | 13 | 3.1% | 命中规则 3 条 |
+| `市场统计` | 6 | 1.4% | 命中规则 5 条 |
+| `宏观` | 29 | 6.9% | 命中规则 3 条 |
+| `基金与ETF` | 20 | 4.8% | 命中规则 3 条 |
+| `资讯与AI` | 15 | 3.6% | 命中规则 6 条 |
+| `股东与持股` | 11 | 2.6% | 命中规则 5 条 |
+| `估值` | 20 | 4.8% | 命中规则 1 条 |
+| `其他` | 101 | 24.0% | 命中规则 1 条 |
+| **合计** | 421 | 100.0% | — |
+<!-- END: data_domains -->
+
+### A16 数据中心产品索引（421 个）
+
+`c.products()` 返回的就是下面这些（按产品名排序）；「命令」列是 `c.call()` 直调时
+要写的 `cmd`，「域」列是 `domains.domain_of(cmd)` 的判定结果：
+
+<!-- BEGIN: product_index（由 tdxdata/_docgen.py:product_index_table() 生成，勿手改） -->
+| 产品名 | 域 | ctl | 命令 |
+|---|---|---|---|
+| `ag_bsb` | 龙虎榜与两融 | 38 | `CWServ.ph_tdxdatacenter_tdxrb_ag_bsb` |
+| `ag_gzb` | 龙虎榜与两融 | 38 | `CWServ.ph_tdxdatacenter_tdxrb_ag_gzb` |
+| `ag_rqb` | 龙虎榜与两融 | 38 | `CWServ.ph_tdxdatacenter_tdxrb_ag_rqb` |
+| `ag_rsb` | 龙虎榜与两融 | 38 | `CWServ.ph_tdxdatacenter_tdxrb_ag_rsb` |
+| `ag_zrb` | 龙虎榜与两融 | 38 | `CWServ.ph_tdxdatacenter_tdxrb_ag_zrb` |
+| `agf10_jj` | F10与个股资料 | 20 | `CWServ.ph_agf10_jj` |
+| `agf10_zj` | F10与个股资料 | 20 | `CWServ.ph_agf10_zj` |
+| `aitc` | 其他 | 30 | `CWServ.ph_tdxdatacenter_aitc` |
+| `app_misc` | 行情 | 24 | `HQServ.hq_nlp_app_misc` |
+| `bgcz_gsbg` | F10与个股资料 | 35 | `CWServ.ph_tdxdatacenter_bgcz_gsbg` |
+| `bgcz_hghb` | F10与个股资料 | 35 | `CWServ.ph_tdxdatacenter_bgcz_hghb` |
+| `bgcz_zccz` | F10与个股资料 | 35 | `CWServ.ph_tdxdatacenter_bgcz_zccz` |
+| `bjszt` | 涨停与题材 | 20 | `CWServ.ph_zt_bjszt` |
+| `bkld_cfg` | 板块与行业 | 33 | `CWServ.ph_pcwebcall_hy_bkldscfg` |
+| `bkld_cnx` | 板块与行业 | 33 | `CWServ.ph_pcwebcall_hy_bkldscnx` |
+| `bklist` | 板块与行业 | 22 | `CWServ.app_bklist_ag` |
+| `bklt` | 板块与行业 | 30 | `CWServ.ph_tdxdatacenter_bklt` |
+| `bxzj_sy_bkbd` | 板块与行业 | 28 | `JJSServ.ph_zt_bxzj_sy_bkbd` |
+| `bxzj_sy_ggbd` | 涨停与题材 | 28 | `JJSServ.ph_zt_bxzj_sy_ggbd` |
+| `bxzj_sy_jgbd` | 涨停与题材 | 28 | `JJSServ.ph_zt_bxzj_sy_jgbd` |
+| `cb_yjgg` | 财报 | 33 | `CWServ.ph_tdxdatacenter_cb_yjgg` |
+| `cb_yjkb` | 财报 | 33 | `CWServ.ph_tdxdatacenter_cb_yjkb` |
+| `cb_yjpd` | 财报 | 33 | `CWServ.ph_tdxdatacenter_cb_yjpd` |
+| `cb_yjpd_xqy` | 财报 | 37 | `CWServ.ph_tdxdatacenter_cb_yjpd_xqy` |
+| `cb_yjyg` | 财报 | 33 | `CWServ.ph_tdxdatacenter_cb_yjyg` |
+| `cgfx_bgq` | 股东与持股 | 34 | `CWServ.ph_tdxdatacenter_cgfx_bgq` |
+| `cgfx_jgzc_gn_lscgbd` | 股东与持股 | 45 | `CWServ.ph_tdxdatacenter_cgfx_jgzc_gn_lscgbd` |
+| `cgfx_jgzc_hy_ggzcmx` | 股东与持股 | 45 | `CWServ.ph_tdxdatacenter_cgfx_jgzc_hy_ggzcmx` |
+| `cgfx_jgzc_hy_xxq` | 股东与持股 | 42 | `CWServ.ph_tdxdatacenter_cgfx_jgzc_hy_xxq` |
+| `cgfx_jgzc_hyzc` | 股东与持股 | 40 | `CWServ.ph_tdxdatacenter_cgfx_jgzc_hyzc` |
+| `cjzx` | 资讯与AI | 24 | `CWServ.ph_content_cjzx` |
+| `cmfb` | 其他 | 35 | `CWServ.ph_tdxdatacenter_cmfb_ggss` |
+| `code_to_id` | F10与个股资料 | 28 | `CWServ.ph_agf10_code_to_id` |
+| `cwbg` | 财报 | 25 | `CWServ.ph_agf10_cw_cwbg` |
+| `cwfxxq` | 财报 | 27 | `CWServ.ph_agf10_cw_cwfxxq` |
+| `cyl_clyzxsy` | 资金与筹码 | 37 | `CWServ.ph_tdxdatacenter_cyl_clyzxsy` |
+| `cylv2_ag_cyljs` | 资金与筹码 | 40 | `CWServ.ph_tdxdatacenter_cylv2_ag_cyljs` |
+| `cylv2_ag_cysj` | 资金与筹码 | 39 | `CWServ.ph_tdxdatacenter_cylv2_ag_cysj` |
+| `cylv2_ag_qjt` | 资金与筹码 | 38 | `CWServ.ph_tdxdatacenter_cylv2_ag_qjt` |
+| `cylv2_qb_sy` | 资金与筹码 | 37 | `CWServ.ph_tdxdatacenter_cylv2_qb_sy` |
+| `cyq64` | 行情 | 25 | `HQServ.hq_nlp_app_cyq64` |
+| `czsz` | 宏观 | 30 | `CWServ.ph_datacenter_hg_czsz` |
+| `dbl_qsxt` | 其他 | 30 | `CWServ.ph_pcwebcall_dbl_qsxt` |
+| `dghg_gdp` | 宏观 | 31 | `CWServ.ph_datacenter_dghg_gdp` |
+| `dghg_jy` | 宏观 | 30 | `CWServ.ph_datacenter_dghg_jy` |
+| `dghg_wm` | 宏观 | 30 | `CWServ.ph_datacenter_dghg_wm` |
+| `dsjxy` | 其他 | 31 | `CWServ.ph_tdxdatacenter_dsjxy` |
+| `dstx_gg` | 资讯与AI | 22 | `CWServ.phf10_zx_dstx` |
+| `dstx_lhb` | 资讯与AI | 26 | `CWServ.ph_agf10_dstx_lhb` |
+| `dstx_list` | 资讯与AI | 19 | `CWServ.ph_zx_dstx` |
+| `dxb` | 其他 | 19 | `CWServ.phzzfw_dxb` |
+| `dyjjyxf` | 宏观 | 33 | `CWServ.ph_datacenter_hg_dyjjyxf` |
+| `dzjy` | 大宗交易 | 33 | `CWServ.ph_tdxdatacenter_dzjy_v2` |
+| `dzjy_ss` | 大宗交易 | 33 | `CWServ.ph_tdxdatacenter_dzjy_ss` |
+| `dzjy_sy` | 大宗交易 | 33 | `CWServ.ph_tdxdatacenter_dzjy_sy` |
+| `dzjy_yxsb` | 大宗交易 | 35 | `CWServ.ph_tdxdatacenter_dzjy_yxsb` |
+| `dzjy_zlfx` | 大宗交易 | 35 | `CWServ.ph_tdxdatacenter_dzjy_zlfx` |
+| `dzjygp` | 大宗交易 | 35 | `CWServ.ph_tdxdatacenter_dzjy_gpxq` |
+| `dzzx` | 大宗交易 | 35 | `CWServ.ph_tdxdatacenter_dzjy_dzzx` |
+| `etf_fejk` | 基金与ETF | 25 | `CWServ.ph_jjzt_etf_fejk` |
+| `etf_hq` | 基金与ETF | 23 | `CWServ.ph_jjzt_etf_hq` |
+| `etf_kjzs` | 基金与ETF | 30 | `CWServ.ph_jjzt_etfjj_kjzsetf` |
+| `etf_ldhy` | 基金与ETF | 25 | `CWServ.ph_jjzt_etf_ldhy` |
+| `etf_rb` | 龙虎榜与两融 | 35 | `CWServ.ph_tdxdatacenter_tdxrb_etf` |
+| `etf_sx_jjgs` | 基金与ETF | 28 | `CWServ.ph_jjzt_etf_sx_jjgs` |
+| `etf_t0` | 基金与ETF | 23 | `CWServ.ph_jjzt_etf_t0` |
+| `etf_tt` | 基金与ETF | 23 | `CWServ.ph_jjzt_etf_tt` |
+| `etf_xf` | 基金与ETF | 30 | `CWServ.ph_jjzt_etfjj_xfetfjj` |
+| `etf_yxhy` | 基金与ETF | 25 | `CWServ.ph_jjzt_etf_yxhy` |
+| `etfjj_hyztetf` | 基金与ETF | 30 | `CWServ.ph_jjzt_etfjj_hyztetf` |
+| `fhrz` | F10与个股资料 | 30 | `CWServ.ph_tdxdatacenter_fhrz` |
+| `fhrz_agf10` | F10与个股资料 | 22 | `CWServ.ph_agf10_fhrz` |
+| `filedown` | 其他 | 21 | `CWServ.tzx_filedown` |
+| `fin` | 财报 | 26 | `CWServ.ph_agf10_cw_zcfzb` |
+| `fn_jyr_v3` | 其他 | 22 | `CWServ.sys_fn_jyr_v3` |
+| `fn_sczhjk` | 其他 | 22 | `CWServ.sys_fn_sczhjk` |
+| `gbgd` | F10与个股资料 | 22 | `CWServ.ph_agf10_gbgd` |
+| `gbgdsy` | 股东与持股 | 22 | `CWServ.ph_zt_gbgd_sy` |
+| `gbgdzjc` | 股东与持股 | 23 | `CWServ.ph_zt_gbgd_zjc` |
+| `gdfx` | 股东与持股 | 24 | `CWServ.ph_zt_gbgd_gdfx` |
+| `gdhs` | 股东与持股 | 24 | `CWServ.ph_zt_gbgd_gdhs` |
+| `ggbkxq` | 沪深港通 | 40 | `CWServ.ph_tdxdatacenter_hsgt_v3_ggbkxq` |
+| `gggljj` | 基金与ETF | 23 | `CWServ.ph_jjzt_gggljj` |
+| `ggrbxq` | 其他 | 32 | `CWServ.ph_tdxdatacenter_ggrbxq` |
+| `ggrzrqmx` | 龙虎榜与两融 | 28 | `CWServ.ph_zt_lrzt_ggrzrqmx` |
+| `ggxc_ggxcmx` | F10与个股资料 | 37 | `CWServ.ph_tdxdatacenter_ggxc_ggxcmx` |
+| `ggxc_ggxctj` | F10与个股资料 | 37 | `CWServ.ph_tdxdatacenter_ggxc_ggxctj` |
+| `ggxc_sy` | F10与个股资料 | 33 | `CWServ.ph_tdxdatacenter_ggxc_sy` |
+| `ggxq` | 龙虎榜与两融 | 25 | `CWServ.ph_zt_lhbkp_ggxq` |
+| `ggzj` | 资金与筹码 | 36 | `CWServ.ph_tdxdatacenter_zpfxb_ggzj` |
+| `ggzx` | 其他 | 30 | `CWServ.ph_tdxdatacenter_ggzx` |
+| `glbk` | 其他 | 21 | `CWServ.app_gmg_glbk` |
+| `gmjjyjy` | 宏观 | 35 | `CWServ.ph_datacenter_mghg_gmjjyjy` |
+| `gnzt_sjqd` | 其他 | 25 | `CWServ.ph_cfg_gnzt_sjqd` |
+| `gnztetf` | 基金与ETF | 30 | `CWServ.ph_jjzt_etfjj_gnztetf` |
+| `gqzy` | 其他 | 30 | `CWServ.ph_tdxdatacenter_gqzy` |
+| `gscb` | 财报 | 33 | `CWServ.ph_tdxdatacenter_gscb_sy` |
+| `gscb_qzfx` | 财报 | 35 | `CWServ.ph_tdxdatacenter_gscb_qzfx` |
+| `gscb_stms` | 财报 | 35 | `CWServ.ph_tdxdatacenter_gscb_stms` |
+| `gscb_yjdq` | 财报 | 35 | `CWServ.ph_tdxdatacenter_gscb_yjdq` |
+| `gscb_zzms` | 财报 | 35 | `CWServ.ph_tdxdatacenter_gscb_zzms` |
+| `gsjj` | F10与个股资料 | 22 | `CWServ.ph_agf10_gsjj` |
+| `gszl_gglz` | F10与个股资料 | 35 | `CWServ.ph_tdxdatacenter_gszl_gglz` |
+| `gszl_gsbg` | F10与个股资料 | 35 | `CWServ.ph_tdxdatacenter_gszl_gsbg` |
+| `gszl_gstz` | F10与个股资料 | 35 | `CWServ.ph_tdxdatacenter_gszl_gstz` |
+| `gszl_gszl` | F10与个股资料 | 35 | `CWServ.ph_tdxdatacenter_gszl_gszl` |
+| `gszl_ryjg` | F10与个股资料 | 35 | `CWServ.ph_tdxdatacenter_gszl_ryjg` |
+| `gszl_ryxl` | F10与个股资料 | 35 | `CWServ.ph_tdxdatacenter_gszl_ryxl` |
+| `gszl_swjy` | F10与个股资料 | 35 | `CWServ.ph_tdxdatacenter_gszl_swjy` |
+| `gszl_zxjy` | F10与个股资料 | 35 | `CWServ.ph_tdxdatacenter_gszl_zxjy` |
+| `gyjj` | 宏观 | 30 | `CWServ.ph_datacenter_hg_gyjj` |
+| `gzdb` | 估值 | 40 | `CWServ.ph_tdxdatacenter_gzzc_ggxq_gzdb` |
+| `gzh` | 其他 | 28 | `CWServ.ph_tdxdatacenter_gz` |
+| `gzzc_gg` | 估值 | 33 | `CWServ.ph_tdxdatacenter_gzzc_gg` |
+| `gzzc_ggxq_ylpm` | 估值 | 40 | `CWServ.ph_tdxdatacenter_gzzc_ggxq_ylpm` |
+| `gzzc_hyfx_hyfxsy_yjhy` | 估值 | 47 | `CWServ.ph_tdxdatacenter_gzzc_hyfx_hyfxsy_yjhy` |
+| `gzzc_hyfx_hyfxsy_zhysj` | 估值 | 48 | `CWServ.ph_tdxdatacenter_gzzc_hyfx_hyfxsy_zhysj` |
+| `gzzc_hyxq_czx` | 估值 | 39 | `CWServ.ph_tdxdatacenter_gzzc_hyxq_czx` |
+| `gzzc_hyxq_hytj` | 估值 | 40 | `CWServ.ph_tdxdatacenter_gzzc_hyxq_hytj` |
+| `gzzc_hyxq_scbx` | 估值 | 40 | `CWServ.ph_tdxdatacenter_gzzc_hyxq_scbx` |
+| `gzzc_sy_ggbx` | 估值 | 38 | `CWServ.ph_tdxdatacenter_gzzc_sy_ggbx` |
+| `gzzc_sy_hybx` | 估值 | 38 | `CWServ.ph_tdxdatacenter_gzzc_sy_hybx` |
+| `gzzc_sy_ztms` | 估值 | 38 | `CWServ.ph_tdxdatacenter_gzzc_sy_ztms` |
+| `gzzc_zsgz` | 估值 | 35 | `CWServ.ph_tdxdatacenter_gzzc_zsgz` |
+| `gzzc_zsxq_gzzs` | 估值 | 40 | `CWServ.ph_tdxdatacenter_gzzc_zsxq_gzzs` |
+| `gzzc_zsxq_hq_jdzf` | 估值 | 43 | `CWServ.ph_tdxdatacenter_gzzc_zsxq_hq_jdzf` |
+| `gzzc_zsxq_lshc` | 估值 | 40 | `CWServ.ph_tdxdatacenter_gzzc_zsxq_lshc` |
+| `gzzc_zsxq_zxgg` | 估值 | 40 | `CWServ.ph_tdxdatacenter_gzzc_zsxq_zxgg` |
+| `hg_gdp` | 宏观 | 29 | `CWServ.ph_datacenter_hg_gdp` |
+| `hg_jmsh` | 宏观 | 30 | `CWServ.ph_datacenter_hg_jmsh` |
+| `hg_jybz` | 宏观 | 30 | `CWServ.ph_datacenter_hg_jybz` |
+| `hg_nysc` | 宏观 | 30 | `CWServ.ph_datacenter_hg_nysc` |
+| `hg_tz` | 宏观 | 28 | `CWServ.ph_datacenter_hg_tz` |
+| `hg_wjzs` | 宏观 | 30 | `CWServ.ph_datacenter_hg_wjzs` |
+| `hgtzy` | 龙虎榜与两融 | 27 | `CWServ.ph_zt_lhb_sy_hgtzy` |
+| `hjcb` | 行情 | 19 | `CWServ.ph_hq_hjcb` |
+| `hjhq` | 其他 | 30 | `CWServ.ph_tdxdatacenter_hjhq` |
+| `hk_bsb` | 龙虎榜与两融 | 38 | `CWServ.ph_tdxdatacenter_tdxrb_hk_bsb` |
+| `hk_gzb` | 龙虎榜与两融 | 38 | `CWServ.ph_tdxdatacenter_tdxrb_hk_gzb` |
+| `hk_rqb` | 龙虎榜与两融 | 38 | `CWServ.ph_tdxdatacenter_tdxrb_hk_rqb` |
+| `hk_rsb` | 龙虎榜与两融 | 38 | `CWServ.ph_tdxdatacenter_tdxrb_hk_rsb` |
+| `hk_zrb` | 龙虎榜与两融 | 38 | `CWServ.ph_tdxdatacenter_tdxrb_hk_zrb` |
+| `holiday` | 宏观 | 33 | `CWServ.ph_datacenter_hg_holiday` |
+| `hq_nlp_zjlx` | 行情 | 20 | `HQServ.hq_nlp_zjlx` |
+| `hscnjj` | 其他 | 28 | `CWServ.app_keyboard_hscnjj` |
+| `hsgt_agxq` | 沪深港通 | 38 | `CWServ.ph_tdxdatacenter_hsgt_v3_agxq` |
+| `hsgt_cgtj` | 沪深港通 | 38 | `CWServ.ph_tdxdatacenter_hsgt_v3_cgtj` |
+| `hsgt_ss` | 沪深港通 | 36 | `CWServ.ph_tdxdatacenter_hsgt_v3_ss` |
+| `hsgtzt` | 沪深港通 | 21 | `CWServ.ph_zt_hsgtzt` |
+| `hsgtzt_ggtgg` | 沪深港通 | 27 | `CWServ.ph_zt_hsgtzt_ggtgg` |
+| `hsgtzt_v3_bdbd` | 沪深港通 | 29 | `CWServ.ph_zt_hsgtzt_v3_bdbd` |
+| `hsgtzt_v3_bsjj_gg` | 沪深港通 | 32 | `CWServ.ph_zt_hsgtzt_v3_bsjj_gg` |
+| `hsgtzt_v3_bsjj_zj` | 沪深港通 | 32 | `CWServ.ph_zt_hsgtzt_v3_bsjj_zj` |
+| `hsgtzt_v3_hyzb` | 沪深港通 | 29 | `CWServ.ph_zt_hsgtzt_v3_hyzb` |
+| `hsgtzt_v3_nxjj_zj` | 沪深港通 | 32 | `CWServ.ph_zt_hsgtzt_v3_nxjj_zj` |
+| `hundred_high` | 行情 | 32 | `HQServ.hq_nlp_app_hundred_high` |
+| `hyfx` | 市场统计 | 33 | `CWServ.ph_tdxdatacenter_hyfx_sy` |
+| `hygg` | 龙虎榜与两融 | 26 | `CWServ.ph_zt_lhb_sy_hygg` |
+| `hygz` | 估值 | 40 | `CWServ.ph_tdxdatacenter_gzzc_hyxq_hygz` |
+| `hypm` | F10与个股资料 | 22 | `CWServ.ph_agf10_hypm` |
+| `hyyyb` | 大宗交易 | 36 | `CWServ.ph_tdxdatacenter_dzjy_hyyyb` |
+| `hzkx` | 其他 | 30 | `CWServ.ph_tdxdatacenter_hzkx` |
+| `ipozcz` | 新股与再融资 | 24 | `CWServ.ph_zt_xg_ipozcz` |
+| `jgcg` | 股东与持股 | 24 | `CWServ.ph_zt_gbgd_jgcg` |
+| `jgcg2` | 股东与持股 | 40 | `CWServ.ph_tdxdatacenter_cgfx_gdzz_jgcg` |
+| `jgdy` | 其他 | 35 | `CWServ.ph_tdxdatacenter_jgdy_jgdy` |
+| `jgfx` | 大宗交易 | 35 | `CWServ.ph_tdxdatacenter_dzjy_jgfx` |
+| `jglrtj` | 龙虎榜与两融 | 28 | `CWServ.ph_zt_lrzt_lrtj_zrt` |
+| `jgnc` | 其他 | 30 | `CWServ.ph_tdxdatacenter_jgnc` |
+| `jgpj_sy` | 其他 | 33 | `CWServ.ph_tdxdatacenter_jgpj_sy` |
+| `jj_cgtj` | 基金与ETF | 25 | `CWServ.ph_agf10_jj_cgtj` |
+| `jjhq` | 基金与ETF | 26 | `CWServ.ph_jjzt_jjsc_jjhq` |
+| `jjhqpd` | 其他 | 25 | `CWServ.ph_cfg_fx_jjhqpd` |
+| `jjph` | 基金与ETF | 21 | `CWServ.ph_jjzt_jjph` |
+| `jjpj` | 基金与ETF | 21 | `CWServ.ph_jjzt_jjpj` |
+| `jjs_agxq` | 沪深港通 | 40 | `JJSServ.ph_datacenter_jjs_hsgt_v3_agxq` |
+| `jjs_hsgtzt_v3_bsjj_bk` | 沪深港通 | 45 | `JJSServ.ph_datacenter_jjs_hsgtzt_v3_bsjj_bk` |
+| `jjs_jgxq` | 沪深港通 | 40 | `JJSServ.ph_datacenter_jjs_hsgt_v3_jgxq` |
+| `jjs_ss` | 沪深港通 | 38 | `JJSServ.ph_datacenter_jjs_hsgt_v3_ss` |
+| `jqzs` | 宏观 | 30 | `CWServ.ph_datacenter_hg_jqzs` |
+| `jyfx` | F10与个股资料 | 22 | `CWServ.ph_agf10_jyfx` |
+| `jysj` | F10与个股资料 | 22 | `CWServ.ph_agf10_jysj` |
+| `kb_ag` | 其他 | 24 | `CWServ.app_keyboard_ag` |
+| `kxjy` | 资讯与AI | 24 | `CWServ.ph_ai_sjfx_kxjy` |
+| `lhb` | 龙虎榜与两融 | 21 | `CWServ.ph_zt_lhb_sy` |
+| `lhb_ggxq` | 龙虎榜与两融 | 26 | `CWServ.ph_zt_lhb_sy_ggxq` |
+| `lhb_jg` | 龙虎榜与两融 | 24 | `CWServ.ph_zt_lhb_sy_jg` |
+| `lhb_jyr` | 龙虎榜与两融 | 22 | `CWServ.ph_zt_lhb_jyr` |
+| `lhbjd` | 龙虎榜与两融 | 27 | `CWServ.ph_zt_lhb_sy_lhbjd` |
+| `lhbkp_sy` | 龙虎榜与两融 | 23 | `CWServ.ph_zt_lhbkp_sy` |
+| `lhbsj` | 龙虎榜与两融 | 23 | `DataAggregation.lhbsj` |
+| `lhbss` | 龙虎榜与两融 | 21 | `CWServ.ph_zt_lhb_ss` |
+| `lhbyc` | 龙虎榜与两融 | 27 | `CWServ.ph_zt_lhb_sy_lhbyc` |
+| `lhfp` | 龙虎榜与两融 | 26 | `CWServ.ph_zt_lhb_sy_lhfp` |
+| `lhfp_v2` | 龙虎榜与两融 | 27 | `DataAggregation.queryLhfp` |
+| `lhjy` | 资讯与AI | 24 | `CWServ.ph_ai_sjfx_lhjy` |
+| `lhqc` | 龙虎榜与两融 | 26 | `CWServ.ph_zt_lhb_sy_lhqc` |
+| `lhtc` | 龙虎榜与两融 | 26 | `CWServ.ph_zt_lhb_sy_lhtc` |
+| `lhzj` | 龙虎榜与两融 | 26 | `CWServ.ph_zt_lhb_sy_lhzj` |
+| `lhzy` | 龙虎榜与两融 | 24 | `CWServ.ph_zt_lhb_sy_zy` |
+| `lnjy` | 资讯与AI | 24 | `CWServ.ph_ai_sjfx_lnjy` |
+| `lrbd` | 龙虎榜与两融 | 24 | `CWServ.ph_zt_lrzt_lrbd` |
+| `lrmx` | 龙虎榜与两融 | 24 | `CWServ.ph_zt_lrzt_lrmx` |
+| `lrrb` | 龙虎榜与两融 | 24 | `CWServ.ph_zt_lrzt_lrrb` |
+| `lrzt_sy` | 龙虎榜与两融 | 22 | `CWServ.ph_zt_lrzt_sy` |
+| `lyb` | 财报 | 24 | `CWServ.ph_agf10_cw_lyb` |
+| `lzzdscj` | 沪深港通 | 37 | `CWServ.ph_hkdatacenter_wlnx_lzzdscj` |
+| `macro_gy` | 宏观 | 30 | `CWServ.ph_datacenter_mghg_gy` |
+| `macro_jq` | 宏观 | 32 | `CWServ.ph_datacenter_mghg_hgjq` |
+| `macro_my` | 宏观 | 30 | `CWServ.ph_datacenter_mghg_my` |
+| `macro_sz` | 宏观 | 30 | `CWServ.ph_datacenter_mghg_sz` |
+| `macro_wj` | 宏观 | 30 | `CWServ.ph_datacenter_mghg_wj` |
+| `macro_xf` | 宏观 | 30 | `CWServ.ph_datacenter_mghg_xf` |
+| `macro_yh` | 宏观 | 30 | `CWServ.ph_datacenter_mghg_yh` |
+| `margin` | 龙虎榜与两融 | 28 | `CWServ.ph_zt_lrzt_lrtj_zrt` |
+| `mghg_cz` | 宏观 | 30 | `CWServ.ph_datacenter_mghg_cz` |
+| `mghg_hbzc` | 宏观 | 32 | `CWServ.ph_datacenter_mghg_hbzc` |
+| `mghg_mlc` | 宏观 | 31 | `CWServ.ph_datacenter_mghg_mlc` |
+| `mkzj` | 沪深港通 | 29 | `CWServ.ph_hkdatacenter_mkzj` |
+| `mtcsm_htss` | 其他 | 36 | `CWServ.ph_tdxdatacenter_mtcsm_htss` |
+| `mtcsm_sy` | 其他 | 34 | `CWServ.ph_tdxdatacenter_mtcsm_sy` |
+| `north` | 沪深港通 | 30 | `CWServ.ph_tdxdatacenter_hsgt` |
+| `north_jg` | 沪深港通 | 45 | `JJSServ.ph_datacenter_jjs_hsgtzt_v3_bsjj_jg` |
+| `nxjj` | 沪深港通 | 32 | `CWServ.ph_zt_hsgtzt_v3_nxjj_gg` |
+| `phbj` | 其他 | 35 | `CWServ.ph_tdxdatacenter_hqpd_phbj` |
+| `qh_bkzs` | 板块与行业 | 34 | `CWServ.ph_pcwebcall_qh_hqpd_bkzs` |
+| `qh_cdzl` | 其他 | 33 | `CWServ.ph_tdxdatacenter_qh_cdzl` |
+| `qh_qhhy` | 其他 | 34 | `CWServ.ph_pcwebcall_qh_hqpd_qhhy` |
+| `qhlhb` | 其他 | 34 | `CWServ.ph_tdxdatacenter_qhlhb_sy` |
+| `qhlhb_jcgc` | 其他 | 36 | `CWServ.ph_tdxdatacenter_qhlhb_jcgc` |
+| `qhlhb_syss` | 其他 | 36 | `CWServ.ph_tdxdatacenter_qhlhb_syss` |
+| `qsfx` | 估值 | 38 | `CWServ.ph_tdxdatacenter_gzzc_sy_qsfx` |
+| `qsjg` | 其他 | 20 | `CWServ.phzzfw_qsjg` |
+| `queryCardInfo` | 其他 | 30 | `DataAggregation.queryCardInfo` |
+| `queryCardInfoStrategy` | 其他 | 39 | `DataAggregation.queryCardInfoStrategy` |
+| `queryCyl` | 资金与筹码 | 25 | `DataAggregation.queryCyl` |
+| `queryGggz` | 其他 | 26 | `DataAggregation.queryGggz` |
+| `queryKxdz` | 其他 | 27 | `DataAggregation.queryKxdz` |
+| `queryMarketSentiment` | 市场统计 | 38 | `DataAggregation.queryMarketSentiment` |
+| `queryMessageCardInfo` | 其他 | 38 | `DataAggregation.queryMessageCardInfo` |
+| `queryRandom` | 其他 | 29 | `DataAggregation.queryRandom` |
+| `queryTechInfo` | 其他 | 31 | `DataAggregation.queryTechInfo` |
+| `queryZST` | 其他 | 26 | `DataAggregation.queryZST` |
+| `queryZbsq` | 其他 | 27 | `DataAggregation.queryZbsq` |
+| `rddh` | 其他 | 23 | `CWServ.ph_cfg_rd_rddh` |
+| `rdjd` | 其他 | 22 | `DataAggregation.rdjd` |
+| `rdtc` | F10与个股资料 | 22 | `CWServ.ph_agf10_rdtc` |
+| `rgfx` | 其他 | 30 | `CWServ.ph_tdxdatacenter_rgfx` |
+| `rl` | 其他 | 28 | `CWServ.ph_tdxdatacenter_rl` |
+| `rzrj` | 资讯与AI | 24 | `CWServ.ph_ai_sjfx_rzrj` |
+| `rzrq_che` | 涨停与题材 | 26 | `CWServ.ph_zt_kp_rzrq_che` |
+| `rzrq_mre` | 涨停与题材 | 26 | `CWServ.ph_zt_kp_rzrq_mre` |
+| `sc_xgrl` | 其他 | 21 | `CWServ.phsj_sc_xgrl` |
+| `scfx` | 市场统计 | 30 | `CWServ.ph_tdxdatacenter_scfx` |
+| `scrd` | F10与个股资料 | 22 | `CWServ.ph_agf10_scrd` |
+| `sctj` | 市场统计 | 30 | `CWServ.ph_tdxdatacenter_sctj` |
+| `sczb` | 其他 | 23 | `CWServ.ph_cfg_fx_sczb` |
+| `sgj` | 资讯与AI | 23 | `CWServ.ph_ai_sjfx_sgj` |
+| `sgtzy` | 龙虎榜与两融 | 27 | `CWServ.ph_zt_lhb_sy_sgtzy` |
+| `sl_v2` | F10与个股资料 | 23 | `CWServ.ph_agf10_sl_v2` |
+| `slb` | 其他 | 29 | `CWServ.ph_tdxdatacenter_slb` |
+| `slb_ggsy` | 其他 | 31 | `CWServ.ph_datacenter_slb_ggsy` |
+| `slph` | 龙虎榜与两融 | 26 | `CWServ.ph_zt_lhb_sy_slph` |
+| `sq_dkb` | 其他 | 32 | `CWServ.ph_tdxdatacenter_sq_dkb` |
+| `sy_cmfb` | 涨停与题材 | 25 | `CWServ.ph_zt_kp_sy_cmfb` |
+| `sy_gppk` | 涨停与题材 | 25 | `CWServ.ph_zt_kp_sy_gppk` |
+| `sy_jgdy` | 涨停与题材 | 25 | `CWServ.ph_zt_kp_sy_jgdy` |
+| `sy_qsjg` | 涨停与题材 | 25 | `CWServ.ph_zt_kp_sy_qsjg` |
+| `sy_scfx` | 市场统计 | 25 | `CWServ.ph_zt_kp_sy_scfx` |
+| `sy_tjcb` | 涨停与题材 | 25 | `CWServ.ph_zt_kp_sy_tjcb` |
+| `sy_tp` | 其他 | 23 | `DataAggregation.sy_tp` |
+| `sy_tztp` | 涨停与题材 | 25 | `CWServ.ph_zt_kp_sy_tztp` |
+| `sy_ybzx` | 涨停与题材 | 25 | `CWServ.ph_zt_kp_sy_ybzx` |
+| `sy_yjyg` | 涨停与题材 | 25 | `CWServ.ph_zt_kp_sy_yjyg` |
+| `syfx_ggsy` | 其他 | 35 | `CWServ.ph_tdxdatacenter_syfx_ggsy` |
+| `syfx_sytj` | 其他 | 35 | `CWServ.ph_tdxdatacenter_syfx_sytj` |
+| `syph` | 龙虎榜与两融 | 26 | `CWServ.ph_zt_lhb_sy_syph` |
+| `syzjzcbxq` | 其他 | 40 | `CWServ.ph_tdxdatacenter_syfx_syzjzcbxq` |
+| `tdxrb_block` | 龙虎榜与两融 | 37 | `CWServ.ph_tdxdatacenter_tdxrb_block` |
+| `tdxrb_gscb` | 财报 | 36 | `CWServ.ph_tdxdatacenter_tdxrb_gscb` |
+| `tdxrb_gzb_stock` | 龙虎榜与两融 | 41 | `CWServ.ph_tdxdatacenter_tdxrb_gzb_stock` |
+| `tdxrb_hypm_ag` | 龙虎榜与两融 | 39 | `CWServ.ph_tdxdatacenter_tdxrb_hypm_ag` |
+| `tdxrb_hypm_hk` | 龙虎榜与两融 | 39 | `CWServ.ph_tdxdatacenter_tdxrb_hypm_hk` |
+| `tdxrb_hypm_usa` | 龙虎榜与两融 | 40 | `CWServ.ph_tdxdatacenter_tdxrb_hypm_usa` |
+| `tdxrb_kzz` | 龙虎榜与两融 | 35 | `CWServ.ph_tdxdatacenter_tdxrb_kzz` |
+| `tdxrb_qh` | 龙虎榜与两融 | 34 | `CWServ.ph_tdxdatacenter_tdxrb_qh` |
+| `tdxrb_rdfx` | 龙虎榜与两融 | 36 | `CWServ.ph_tdxdatacenter_tdxrb_rdfx` |
+| `tdxrb_rqb_stock` | 龙虎榜与两融 | 41 | `CWServ.ph_tdxdatacenter_tdxrb_rqb_stock` |
+| `tdxrb_rsb_stock` | 龙虎榜与两融 | 41 | `CWServ.ph_tdxdatacenter_tdxrb_rsb_stock` |
+| `tdxrb_tjcb_sy` | 龙虎榜与两融 | 39 | `CWServ.ph_tdxdatacenter_tdxrb_tjcb_sy` |
+| `tdxrb_zxg` | 龙虎榜与两融 | 35 | `CWServ.ph_tdxdatacenter_tdxrb_zxg` |
+| `tfp_v2` | 其他 | 32 | `CWServ.ph_tdxdatacenter_tfp_v2` |
+| `tfp_v2_agxq` | 其他 | 37 | `CWServ.ph_tdxdatacenter_tfp_v2_agxq` |
+| `tfp_v2_bg` | 其他 | 35 | `CWServ.ph_tdxdatacenter_tfp_v2_bg` |
+| `tfp_v2_bgxq` | 其他 | 37 | `CWServ.ph_tdxdatacenter_tfp_v2_bgxq` |
+| `tfp_v2_gg` | 其他 | 35 | `CWServ.ph_tdxdatacenter_tfp_v2_gg` |
+| `tfp_v2_ggxq` | 其他 | 37 | `CWServ.ph_tdxdatacenter_tfp_v2_ggxq` |
+| `tfp_v2_gz` | 其他 | 35 | `CWServ.ph_tdxdatacenter_tfp_v2_gz` |
+| `tfp_v2_gzxq` | 其他 | 37 | `CWServ.ph_tdxdatacenter_tfp_v2_gzxq` |
+| `tfp_v2_kzz` | 其他 | 36 | `CWServ.ph_tdxdatacenter_tfp_v2_kzz` |
+| `tfp_v2_kzzxq` | 其他 | 38 | `CWServ.ph_tdxdatacenter_tfp_v2_kzzxq` |
+| `tfp_v2_tfptj` | 其他 | 38 | `CWServ.ph_tdxdatacenter_tfp_v2_tfptj` |
+| `tjcb_cwfx` | 其他 | 35 | `CWServ.ph_tdxdatacenter_tjcb_cwfx` |
+| `tjcb_gdqk` | 其他 | 35 | `CWServ.ph_tdxdatacenter_tjcb_gdqk` |
+| `tjcb_gsds` | 其他 | 35 | `CWServ.ph_tdxdatacenter_tjcb_gsds` |
+| `tjcb_gzdb` | 其他 | 35 | `CWServ.ph_tdxdatacenter_tjcb_gzdb` |
+| `tjcb_scbx` | 其他 | 35 | `CWServ.ph_tdxdatacenter_tjcb_scbx` |
+| `tjcb_yjgl` | 其他 | 35 | `CWServ.ph_tdxdatacenter_tjcb_yjgl` |
+| `tjcj` | 财报 | 25 | `CWServ.ph_agf10_cw_tjcj` |
+| `tjx` | 其他 | 36 | `CWServ.ph_tdxdatacenter_ybzxrm_tjx` |
+| `tlsq` | 涨停与题材 | 22 | `CWServ.ph_zt_tlsq_sy` |
+| `tlsq_dzyd` | 涨停与题材 | 24 | `CWServ.ph_zt_tlsq_dzyd` |
+| `tlsq_fmxw` | 涨停与题材 | 24 | `CWServ.ph_zt_tlsq_fmxw` |
+| `tlsq_gdjc` | 涨停与题材 | 24 | `CWServ.ph_zt_tlsq_gdjc` |
+| `tlsq_knst` | 涨停与题材 | 24 | `CWServ.ph_zt_tlsq_knst` |
+| `tlsq_ladc` | 涨停与题材 | 24 | `CWServ.ph_zt_tlsq_ladc` |
+| `tlsq_lryd` | 涨停与题材 | 24 | `CWServ.ph_zt_tlsq_lryd` |
+| `tlsq_lryd_20` | 涨停与题材 | 27 | `CWServ.ph_zt_tlsq_lryd_20` |
+| `tlsq_tplq` | 涨停与题材 | 24 | `CWServ.ph_zt_tlsq_tplq` |
+| `tlsq_xsjj` | 涨停与题材 | 24 | `CWServ.ph_zt_tlsq_xsjj` |
+| `tlsq_yjbl` | 涨停与题材 | 24 | `CWServ.ph_zt_tlsq_yjbl` |
+| `tqmf` | 其他 | 28 | `CWServ.ph_cfg_sc_rdzz_tqmf` |
+| `tsyb` | 其他 | 20 | `CWServ.phzzfw_tsyb` |
+| `tztp_gdtp` | 其他 | 32 | `CWServ.ph_datacenter_tztp_gdtp` |
+| `tztp_ggtp` | 其他 | 32 | `CWServ.ph_datacenter_tztp_ggtp` |
+| `tztp_gstp` | 其他 | 32 | `CWServ.ph_datacenter_tztp_gstp` |
+| `tztp_ssk` | 其他 | 31 | `CWServ.ph_datacenter_tztp_ssk` |
+| `tztp_zntp_cyltp` | 资金与筹码 | 38 | `CWServ.ph_datacenter_tztp_zntp_cyltp` |
+| `tztp_zntp_djgz` | 其他 | 37 | `CWServ.ph_datacenter_tztp_zntp_djgz` |
+| `tztp_zntp_kgtp` | 其他 | 37 | `CWServ.ph_datacenter_tztp_zntp_kgtp` |
+| `tztp_zntp_khtp` | 其他 | 37 | `CWServ.ph_datacenter_tztp_zntp_khtp` |
+| `usa_bsb` | 龙虎榜与两融 | 39 | `CWServ.ph_tdxdatacenter_tdxrb_usa_bsb` |
+| `usa_gzb` | 龙虎榜与两融 | 39 | `CWServ.ph_tdxdatacenter_tdxrb_usa_gzb` |
+| `usa_rqb` | 龙虎榜与两融 | 39 | `CWServ.ph_tdxdatacenter_tdxrb_usa_rqb` |
+| `usa_rsb` | 龙虎榜与两融 | 39 | `CWServ.ph_tdxdatacenter_tdxrb_usa_rsb` |
+| `usa_zrb` | 龙虎榜与两融 | 39 | `CWServ.ph_tdxdatacenter_tdxrb_usa_zrb` |
+| `wlnx_hyzg` | 沪深港通 | 34 | `CWServ.ph_hkdatacenter_wlnx_hyzg` |
+| `wlnx_nxjhfb` | 沪深港通 | 36 | `CWServ.ph_hkdatacenter_wlnx_nxjhfb` |
+| `world_cal` | 宏观 | 29 | `CWServ.ph_datacenter_hg_cal` |
+| `wxd` | 龙虎榜与两融 | 25 | `CWServ.ph_zt_lhb_sy_wxd` |
+| `xfetfjj_v2` | 基金与ETF | 33 | `CWServ.ph_jjzt_etfjj_xfetfjj_v2` |
+| `xg_xgjx` | 新股与再融资 | 22 | `CWServ.ph_zt_xg_xgjx` |
+| `xg_xgkzz` | 新股与再融资 | 23 | `CWServ.ph_zt_xg_xgkzz` |
+| `xg_xgsg` | 新股与再融资 | 22 | `CWServ.ph_zt_xg_xgsg` |
+| `xg_xgsh` | 新股与再融资 | 22 | `CWServ.ph_zt_xg_xgsh` |
+| `xgb` | 其他 | 29 | `CWServ.ph_tdxdatacenter_xgb` |
+| `xgb_bfx` | 涨停与题材 | 25 | `CWServ.ph_zt_kp_xgb_bfx` |
+| `xgb_kxt` | 涨停与题材 | 25 | `CWServ.ph_zt_kp_xgb_kxt` |
+| `xgb_txx` | 涨停与题材 | 25 | `CWServ.ph_zt_kp_xgb_txx` |
+| `xgipo` | 新股与再融资 | 21 | `CWServ.ph_zt_xg_ipo` |
+| `xgmz` | 新股与再融资 | 22 | `CWServ.ph_zt_xg_xgmz` |
+| `xgrl` | 其他 | 19 | `CWServ.ph_gg_xgrl` |
+| `xjjj` | 新股与再融资 | 24 | `CWServ.ph_zt_tlsq_wxjg` |
+| `xjllb` | 财报 | 26 | `CWServ.ph_agf10_cw_xjllb` |
+| `xjllrfz` | 财报 | 38 | `CWServ.ph_tdxdatacenter_gscb_xjllrfz` |
+| `xjphg` | 宏观 | 31 | `CWServ.ph_datacenter_xjphg_wm` |
+| `xjphg_hgjq` | 宏观 | 33 | `CWServ.ph_datacenter_xjphg_hgjq` |
+| `xsjj` | 其他 | 30 | `CWServ.ph_tdxdatacenter_xsjj` |
+| `xwbj` | 龙虎榜与两融 | 26 | `CWServ.ph_zt_lhb_sy_xwbj` |
+| `xwss` | 沪深港通 | 29 | `CWServ.ph_hkdatacenter_xwss` |
+| `ybzx_xq_gg` | 其他 | 36 | `CWServ.ph_tdxdatacenter_ybzx_xq_gg` |
+| `yffx` | 其他 | 30 | `CWServ.ph_tdxdatacenter_yffx` |
+| `yhhb` | 宏观 | 30 | `CWServ.ph_datacenter_hg_yhhb` |
+| `yjzx` | 其他 | 35 | `CWServ.ph_tdxdatacenter_ybzxrm_jx` |
+| `ymdb` | 估值 | 40 | `CWServ.ph_tdxdatacenter_gzzc_ggxq_ymdb` |
+| `yyb` | 龙虎榜与两融 | 25 | `CWServ.ph_zt_lhb_sy_yyb` |
+| `yybxq` | 龙虎榜与两融 | 27 | `CWServ.ph_zt_lhb_sy_yybxq` |
+| `yzycbd` | 龙虎榜与两融 | 28 | `CWServ.ph_zt_lhb_sy_yzycbd` |
+| `zbhc` | 行情 | 24 | `HQServ.hq_nlp_app_zbhc` |
+| `zbyz` | F10与个股资料 | 27 | `CWServ.ph_agf10_jyfx_zbyz` |
+| `zcfz_all` | 财报 | 25 | `CWServ.ph_agf10_cw_zcfz` |
+| `zcjj` | 基金与ETF | 21 | `CWServ.ph_jjzt_zcjj` |
+| `zdjy` | 资讯与AI | 24 | `CWServ.ph_ai_sjfx_zdjy` |
+| `zdsl` | 其他 | 29 | `CWServ.ph_bigdata_xtld_zdsl` |
+| `zdt` | 市场统计 | 31 | `CWServ.ph_datacenter_zdt_zdfx` |
+| `zdzq` | 其他 | 29 | `CWServ.ph_bigdata_xtld_zdzq` |
+| `zgjby` | F10与个股资料 | 24 | `CWServ.ph_agf10_zg_jby` |
+| `zgjsm` | F10与个股资料 | 24 | `CWServ.ph_agf10_zg_jsm` |
+| `zgscm` | F10与个股资料 | 24 | `CWServ.ph_agf10_zg_scm` |
+| `zgyq` | F10与个股资料 | 23 | `CWServ.ph_agf10_zg_yq` |
+| `zgzs` | F10与个股资料 | 23 | `CWServ.ph_agf10_zg_zs` |
+| `zhpj` | 资讯与AI | 24 | `CWServ.ph_ai_sjfx_zhpj` |
+| `zjlx` | 资金与筹码 | 22 | `CWServ.ph_zt_kp_zjlx` |
+| `zjlx_cxlclr` | 资金与筹码 | 26 | `CWServ.ph_zt_zjlx_cxlclr` |
+| `zjlx_sy_zjjd` | 资金与筹码 | 27 | `CWServ.ph_zt_zjlx_sy_zjjd` |
+| `zp` | F10与个股资料 | 20 | `CWServ.ph_agf10_zp` |
+| `zp_v2` | F10与个股资料 | 20 | `CWServ.ph_agf10_zp` |
+| `zpfxb_ggzsph` | 资金与筹码 | 38 | `CWServ.ph_tdxdatacenter_zpfxb_ggzsph` |
+| `zpfxb_qsgfx` | 资金与筹码 | 37 | `CWServ.ph_tdxdatacenter_zpfxb_qsgfx` |
+| `zpggld` | F10与个股资料 | 25 | `CWServ.ph_agf10_zp_ggld` |
+| `zs_zsgz` | 资讯与AI | 24 | `CWServ.ph_zx_zsdz_zsgz` |
+| `zsgz` | 基金与ETF | 21 | `CWServ.ph_jjzt_zsgz` |
+| `zsjj` | 基金与ETF | 25 | `CWServ.ph_jjzt_etf_zsjj` |
+| `zsxq_xgjj` | 估值 | 40 | `CWServ.ph_tdxdatacenter_gzzc_zsxq_xgjj` |
+| `ztmx` | 其他 | 31 | `CWServ.ph_pcwebcall_tclt_ztmx` |
+| `ztqd` | 其他 | 30 | `CWServ.ph_tdxdatacenter_ztqd` |
+| `zttz_jhqz` | 其他 | 27 | `DataAggregation.zttz_jhqz` |
+| `zttz_xg` | 其他 | 35 | `CWServ.ph_tdxdatacenter_zttz_xggp` |
+| `zttz_xqy` | 其他 | 34 | `CWServ.ph_tdxdatacenter_zttz_xqy` |
+| `zttz_xqy_v2_qsid` | 其他 | 42 | `CWServ.ph_tdxdatacenter_zttz_xqy_v2_qsid` |
+| `zttz_xzcfg` | 其他 | 36 | `CWServ.ph_tdxdatacenter_zttz_xzcfg` |
+| `zttz_xzgn2` | 其他 | 28 | `DataAggregation.zttz_xzgn2` |
+| `zttz_zhid` | 资讯与AI | 28 | `CWServ.ph_AIcard_zttz_zhid` |
+| `zttz_ztld` | 其他 | 35 | `CWServ.ph_tdxdatacenter_zttz_ztld` |
+| `zttz_zy` | 其他 | 33 | `CWServ.ph_tdxdatacenter_zttz_zy` |
+| `ztzb` | 涨停与题材 | 25 | `CWServ.ph_zt_kp_sy_ztzb` |
+| `ztzt` | 其他 | 30 | `CWServ.ph_tdxdatacenter_ztzt` |
+| `zx_dstx` | 资讯与AI | 25 | `CWServ.ph_agf10_zx_dstx` |
+| `zx_gggz` | 资讯与AI | 24 | `CWServ.ph_zx_zsgz_gggz` |
+| `zx_tsyb` | F10与个股资料 | 25 | `CWServ.ph_agf10_zx_tsyb` |
+| `zxgzb` | 其他 | 18 | `CWServ.mzx_zxgzb` |
+| `zxts` | F10与个股资料 | 22 | `CWServ.ph_agf10_zxts` |
+| `zxts2` | F10与个股资料 | 23 | `CWServ.ph_agf10_zxts2` |
+| `zxts3` | F10与个股资料 | 23 | `CWServ.ph_agf10_zxts3` |
+| `zxts4` | F10与个股资料 | 23 | `CWServ.ph_agf10_zxts4` |
+| `zxts5` | F10与个股资料 | 23 | `CWServ.ph_agf10_zxts5` |
+| `zxts_yjpl` | F10与个股资料 | 27 | `CWServ.ph_agf10_zxts_yjpl` |
+| `zxzx_zt_new` | 其他 | 24 | `CWServ.mzx_zxzx_zt_new` |
+| `zysy` | 财报 | 26 | `CWServ.ph_agf10_cw_sy_v2` |
+| `zyzb` | 财报 | 25 | `CWServ.ph_agf10_cw_zyzb` |
+| `zyzbxq` | 财报 | 31 | `CWServ.ph_agf10_cw_zyzbxqy_sy` |
+<!-- END: product_index -->
+
+---
+
 ## 免责声明
 
 本项目仅用于**学习与研究**，数据来自第三方公开服务器，不保证准确性、完整性与时效性。
@@ -801,3 +1628,4 @@ with tdxdata.Client() as c:
 ## 许可
 
 [MIT](LICENSE)。数据来自第三方公开服务器，**本项目不拥有数据**，详见上方免责声明。
+

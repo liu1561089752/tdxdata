@@ -5,10 +5,40 @@
 
 ---
 
-## [未发布] — 2026-10-28
+## [0.3.0] — 2026-10-28
+
+> ⚠️ **本次含 4 项破坏性变更**：`meta` 字典 → `Provenance`、`vol` 单位统一、非价格序列拒绝、
+> `concurrency` 参数移除。**升级前先读文末「迁移指南」** —— 旧代码该改哪一行都在那张表里
+> （表由 `tdxdata.MIGRATIONS` 渲染，与代码同源）。
 
 ### 新增
 
+- **宏观域 typed 层 `c.macro.*`（PROD-003）**：`products.json` 里 29 个宏观产品切成
+  **18 个 typed（44 个模式）+ 11 个明确 unavailable**。每个模式一条登记：请求参数模板、
+  期望列清单（ColDes 顺序）、列名映射、单位、**证据**（哪条算式、命中率多少）。列义**不靠文档**，
+  靠语料回包里逐行算得出来的关系（例：`czsz` 的「增减额」= 本期−上一行 17/17，文档写的「同比」
+  被 0/10 否证）。`c.macro.gdp()` / `fiscal()` / `calendar()` / `holidays()` / `prosperity()` /
+  `prices()` / `bank()` / `investment()` / `employment()` / `income()` / `industry()` /
+  `output()` / `retail()` / `us_gdp()` / `us_rate()` / `us_money()` / `us_prices()` /
+  `us_balance()`，统一 `mode=`；另有 `fetch()` / `modes()` / `products()` 三条自省。
+  **守卫是 fail-closed**：运行时列清单与登记 layout 不是逐位相等就一列都不映射
+  （`provenance.extra["macro_guard"]` 说明原因）。语料覆盖不到的 11 个产品抛
+  `NotSupportedError` 并说清「没有回包可证列义」—— **不猜**。证据链见
+  `notes/11-宏观域列语义与typed映射.md`、`tests/fixtures/macro/`（47 份真实回包字节）。
+- **`c.master` 证券主数据（PROD-001）**：`snapshot()`（`get_universe` 聚合 + 进程缓存 + 边界声明）、
+  `resolve(code)`（两层防猜：5 位先拒、未命中不退前缀推断）、`search(name_like=)`；
+  309 条服务端真值 100% 命中（北交 2 条按口径如实豁免）。
+- **`c.calendar` 交易日历（PROD-002）**：`is_trading_day` / `next` / `prev` / `range`。
+  事实源两路、**不维护节假日表**（单点=999999 日线起步窗、区间=880005 的 `date` 列）；
+  `None ≠ False`（取不到就说取不到）。`Client._prev_trade_date` 收编为单行委托。
+- **`tdxdata.invariants.validate(container)`（批次 E）**：§6.5 六条恒等式纯函数检查器
+  （ohlc / amount≈vol×100×close / breadth_total / minute_points / minute_volume_sum / pre_close 跨通道）。
+  **闸门不自动开**（性能取舍，有源码断言钉住）。
+- **`tdxdata.deprecated()` 弃用机制 + `tdxdata.__version_info__`（ENG-008）**：
+  统一消息格式（旧名 / since / 替代品 / 计划移除版本）、每进程同一处只提醒一次、
+  `stacklevel` 指到调用方；`MIGRATIONS` 登记已生效的破坏性变更并可直接渲染迁移表。
+- **`products.json` 进程级只读缓存（ENG-014）**：10 个 `Client` 只读 1 次盘（77 KB / ~1.5 ms/实例）；
+  两个规格字典改为**共享只读**（文档已声明不许原地改）。
 - **`indicator.py` 5 个确定性数学指标**：`hv`（滚动年化历史波动率）、`momentum`（n 期动量）、
   `sharpe`（滚动年化夏普）、`max_drawdown`（滚动最大回撤）、`beta`（对基准的滚动 OLS 斜率）。
   契约与既有 6 指标一致：输出长度 ≡ 输入长度、不足周期填 `None`、纯标准库无网络。
@@ -34,8 +64,55 @@
   逐行 `raw`（原值一个不丢）；未登记的产品抛 `ValueError`。默认 `False`，`get()` 的原始列
   契约一个字节都不变。
 
+### 变更（破坏性）
+
+| 版本 | 变了什么 | 旧代码怎么改 | 为什么 |
+|---|---|---|---|
+| `0.3.0` | `Table`/容器的 `meta` 字典**公开面移除**，改为 `Provenance` 一等字段（`as_of` / `status` / `fetched_at` / `elapsed` / `cmd` / `clock` / `source` / `extra`） | `t.meta["as_of"]` → `t.as_of`；`t.meta["status"]` → `t.status`；`t.meta["source"]["host"]` → `t.provenance.source["host"]`；未登记的键一律在 `t.provenance.extra`（**不保证**存在，读时要 `.get`） | ARCH-002：`meta` 是自由字典，键名漂移无法被类型检查/黄金样本钉住；改成 dataclass 字段后「哪些键必须存在」由代码表达，缺键在构造期就报错 |
+| `0.2.0` | `vol` 对外统一为**手**（此前日线/分钟线的股票与 ETF 是「股」） | 旧版拿到的「股」数值 ÷100 即手；需要服务端原值时读 `raw["Volume"]`（**原单位，别直接参与计算**） | 同库四类容器（Bar/Quote/MinutePoint/Tick）单位必须一致，否则「合计成交量」这类跨容器运算会静默差 100 倍 |
+| `0.3.0` | `get_bars()` **拒绝**非价格序列（`880005` 涨跌家数、`880006` 停板家数等），抛 `NotSupportedError`（旧版照发，回来的 OHLC 是四个家数） | `c.get_bars("880005")` → `c.get_breadth("880005")`（列名 `up_count`/`down_count`/…）；判断某代码是否属于这类序列用 `tdxdata.is_non_price(code)` | 把家数当价格算，任何技术指标都会给出**看起来正常但完全错**的值 —— 这是本项目最贵的一类静默错误（见 `series_kinds.py` 模块文档） |
+| `0.3.0` | `Client(concurrency=2..4)` **参数已移除**（现在传它会 `TypeError`） | 串行取数；要多标的请自己 `for` 遍历或 `AsyncClient`（同一根连接仍受进程级节流约束） | 实测 4 lane：头 5 秒即被服务端重置，175 秒 0 次成功、3 台服务器进冷却；串行 68.64 s 全部成功。功能是**删掉**的，不是修好的 |
+
+> 上表由 `tdxdata.migration_table()` 从 `tdxdata.MIGRATIONS` 渲染 —— 改迁移说明请改代码，
+> 不要只改这张表（否则下一个版本又会出现「文档说 A、代码做 B」）。
+
+### 内部架构（不影响调用方，但解释为什么有些行为变了）
+
+- **ARCH-001 `Transport` Protocol**（`_engine/transport.py`）：`SessionTransport` / `PBTransport`，
+  传输层只允许抛 4 类传输异常 → 断网时**全部公开方法**抛的都是 `TdxError` 子类
+  （不再有裸 `ConnectionRefusedError` / `binascii.Error`）。
+- **ARCH-003 `Client._fetch()` 统一取数管道**：cache → pace → transport+retry/switch → codec →
+  建容器 → 盖 Provenance → 日志，全在一个地方；样板收敛后 `timeliness()` 等零覆盖方法清零。
+
 ### 修复
 
+- **`decode_any` 解压无上限（DEF-B4-02 / SEC-2，zip bomb）**：`zlib.decompress(blob)` 的输出大小
+  完全由回包决定 —— 800 KB 的压缩包可以解出 80 MiB（实测压缩比 103:1）。修法分两层：
+  ① **`_engine/zliblimit.py` 单一实现** `inflate_limited()`（`decompressobj().decompress(data, cap+1)`，
+  只多要 1 字节判超限，全程内存 ≈ 上限+1；上限 `MAX_DECOMPRESS = 64 MiB`，真实帧解压后仅几十 KB，
+  3 个数量级余量）；② **四条通路全部改走它**：`pb_api.decode_any`、`datacenter.unwrap_frames`、
+  `datacenter._try_zlib`、`hq_extra.peel`。超限抛 `ProtocolError` 并**显式重抛**（旧写法
+  `except Exception` 全吞，正是炸弹变静默的根因）；「首字节 0x78 实则不是 zlib」仍走原有降级探测。
+  判据：`tests/test_zlib_limits.py`（逐通路点火 + 一条**静态扫描**：全包除 `zliblimit.py` 外
+  再出现 `zlib.decompress` / `decompressobj()` 就红）。
+- **`decode_json` 的编码启发式随字符串长度翻转（DEF-012）**：旧打分"凡是汉字 +3"，
+  而 UTF-8 汉字按 GBK 解会**变成更多罕用汉字**（`上证指数` → `涓婅瘉鎸囨暟`，6×3 > 4×3），
+  于是"短串碰巧对、长串一定错"（一个 JSON 里汉字越多越容易整段变乱码）。现在汉字分级权重：
+  **GB2312 常用字 +3 / 罕用字 −1**（6763 字表懒构造）—— 真简体中文几乎全落在表内，乱码大多不在。
+  GBK→UTF-8 方向（`元` → 亚美尼亚 `աԪ`）的扣分照旧。判据：`tests/test_decode_encoding.py`（14 例，
+  含两个方向 × 9 个真实列名/取值）。
+- **`get_quotes` 按裸 code 去重（DEF-014）**：回包 `COMBHQ_COLS` 里**没有 Setcode 列**，
+  所以 `got[row[0]] = row` 会让"沪 000001"与"深 000001"互相覆盖 —— 用户要两只完全不同的标的，
+  回来的是**同一行出现两次**且不报错。修法：跨市场同码不进批量（批量里无法归属），
+  逐个 `(market, code)` 单发并按**对**归档；其余码仍一次批量（行为与旧版一字不差）。
+  判据：`tests/test_quotes_dedup_and_varint.py`（两次单发、两行取值必须不同、普通请求仍只发一次包）。
+- **`pb.write_varint` 对负数死循环（DEF-047）**：`val >>= 7` 是算术右移，`-1 >> 7 == -1` →
+  `while True` **不返回**（一个负字段就能挂死编码线程）。现在按 protobuf 语义把负值编成
+  **64 位补码 10 字节**（`-1` → `ff…ff 01`），超 64 位范围抛 `ValueError`；`read_varint` 往返一致。
+- **`Table`/`Row`/`Dataset` 的 `repr` 全量 dump（DEF-022）**：5000 行表的 `repr()` 是**单行 42 万字符**。
+  现在只给**摘要**（行数/列数/前 3 行/`…(+N more rows)`），`Row` 最多 6 个键值 + 400 字符、
+  `Table`/`Dataset` 硬上限 2000 字符；自引用（`row["x"]=row`）不再 `RecursionError`。
+  `to_dicts()` / `shape` / `cols` / `to_json()` 语义一个字节未动。
 - **`hq_extra.parse_rowtable` 丢整表（数据丢失）**：`field3` 列名块可能出现两次（首非空 + 末尾空
   占位），旧实现取**最后一个** → 列名被顶成 `[]`，`cap_1023_183457.pcap` msgid=150 的 **77 行
   整表消失**。现改为**取第一个非空列名块**；多个非空且内容不同则抛 `NotSupportedError`（不静默挑）。
@@ -76,7 +153,42 @@
   全量 **928 passed / 0 failed**；`golden_runner.py check` PASS（27 份样本、差异 0）；
   `_dev/check.py` 通过 9 / 失败 0 / 跳过 1。
 
+### 工程化（批次 E）
+
+- **门禁入仓（ENG-002）**：`tools/gate.py`（原 `_dev/check.py` 在 git 之外，干净 clone 跑不了）；
+  现 **10 条 → 11 条**：新增「公开面 docstring 覆盖率」门禁，`SKIP_WHITELIST = {8}`（真机冒烟）。
+- **CI（ENG-001）**：`.github/workflows/ci.yml`，Python 3.10–3.14 × {ubuntu, windows}，
+  `pytest -m "not online"` + `ruff` + `pip wheel`。
+- **测试离线铁律（门禁第 7 条）**：`tests/` 不许出现 `Client(` / `Session(` / `AsyncClient(`
+  字面量；白名单逐条给「零建连」证据，并在输出里打印每条放行理由。
+- **`except: pass` 20 → 4（ENG-005）**：AST 复扫亲验；15 处补 `logger.debug(exc_info=True)`，
+  剩下的收窄保留并在注释里钉死理由。
+- **日志骨架（ENG-006）**：`_logging.py`，`NullHandler` 默认零输出；`caplog` 逐类捕获 12 例。
+- **版本单源（ENG-007）**：`_version.py`；`pyproject.toml` 走 `dynamic` + `attr`，双路读数必一致。
+- **打包（ENG-010）**：`packages` 硬编码 3 名 → `find` + `include`（新增子包不会再静默漏进 wheel）。
+- **文档（ENG-011/012/013）**：README 受生成块守护的行数占比 9% → **≥40%**（返回值/单位/复权等表
+  改为代码生成 + 逐块比对）；公开面 docstring 覆盖率进 CI；`--doctest-modules` 全绿。
+
+### 安全
+
+- **新增 [`SECURITY.md`](SECURITY.md)（ENG-009）**：把"这个库的安全边界"写成可核对的文件而不是
+  散落的注释 —— 明文 7615 / 硬编码 4 台服务器 / 无 TLS 无签名无校验的**信任模型**、敌手模型、
+  「保证什么 / 不保证什么」两张表、可执行的自查命令，以及 5 条风险登记：
+  SEC-1 握手模板内嵌真机指纹与票据（**只登记不修**，含处置建议）、SEC-2 解压上限（已修，四条通路）、
+  SEC-3 节流退避误判、SEC-4 `host=` 的双重语义、SEC-5 `hosts=[...]` 尚不存在（roadmap）。
+  红线写在最前面：**本库只保证"字段与协议一致"，不保证"数据是真值"**。
+
+### 当前基线（0.3.0 收尾）
+
+| 判据 | 结果 |
+|---|---|
+| `python -m pytest -q` | **1509 passed**（0 failed） |
+| `python tools\gate.py` | 通过 **10** / 失败 0 / 跳过 1（共 11 条） |
+| `python tests\golden_runner.py check` | **PASS**（27 份样本、差异 0） |
+| `python -m pytest --doctest-modules tdxdata -q` | 2 passed / 2 skipped（示例块） |
+
 ---
+
 
 ## [0.2.0] — 2026-10-27
 

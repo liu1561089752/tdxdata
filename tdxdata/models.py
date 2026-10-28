@@ -9,6 +9,7 @@
 from __future__ import annotations
 
 import datetime as _dt
+import threading as _threading
 from dataclasses import asdict, is_dataclass
 from dataclasses import dataclass, field
 from typing import Any
@@ -455,6 +456,142 @@ class Minutes(Series):
     """当日分时序列（`get_minutes`）。元素是 `MinutePoint`。"""
 
 
+# ══════════════════════════════════════════════════════════════════════════
+# `repr` 的硬上限（`DEF-022`，2026-11）
+#
+# 缺陷形态：`Table` / `Dataset` 是 `@dataclass(slots=True)`，没写 `__repr__`
+# ⇒ 吃 dataclass 生成的**全量** repr；`Row` 的 `__repr__` 是 `"Row%r" % dict(self)`
+# 同样是全量。一张 5000 行 × 8 列的表，`repr()` 出来是**单行 42 万字符**：
+#   · 交互式里敲个表名、`print(table)`、日志里 `%s` 一下，终端直接卡死；
+#   · 异常链里带上 Table 时，traceback 自己就能吃掉几十 MB 内存；
+#   · 用户想要的永远只是"这表大概长什么样"，全量 dump 一条有用信息都没有。
+#
+# 现在的口径：`repr` 只做**摘要**（行数/列数/前几行/剩余行数），长度是
+# **常数级**，与数据规模无关；要数据请走 `to_dicts()` / `to_json()` / `to_dict()`
+# —— 那三个的语义与返回类型一个字节都没动。
+# ══════════════════════════════════════════════════════════════════════════
+_ROW_REPR_MAX = 400          # `Row.__repr__` 单行硬上限（字符）
+_ROW_REPR_FIELDS = 6         # `Row` 最多展示几个键值
+_TABLE_REPR_MAX = 2000       # `Table` / `Dataset` 的硬上限（字符）
+_TABLE_REPR_ROWS = 3         # 展示前几行
+_COLS_REPR_MAX = 3           # 展示前几个列名
+_VAL_REPR_MAX = 60           # 单个值的 repr 上限
+
+#: 循环引用守卫（`row["x"] = row` 这种自引用原来会 `RecursionError`）。
+#: 用 thread-local 而不是模块级 set：两个线程同时 repr 同一个对象时，
+#: 模块级 set 会把对方误判成"递归"。它不建线程、不建连接，import 期零副作用。
+_repr_local = _threading.local()
+
+
+def _repr_enter(obj) -> bool:
+    """进入 `obj` 的 repr；返回 `False` 表示"已经在自己的 repr 里"（自引用）。"""
+    seen = getattr(_repr_local, "seen", None)
+    if seen is None:
+        seen = _repr_local.seen = set()
+    key = id(obj)
+    if key in seen:
+        return False
+    seen.add(key)
+    return True
+
+
+def _repr_leave(obj) -> None:
+    """退出 `obj` 的 repr（务必在 `finally` 里调，异常路径不能留脏状态）。"""
+    seen = getattr(_repr_local, "seen", None)
+    if seen is not None:
+        seen.discard(id(obj))
+
+
+def _clip(text: str, cap: int, marker: str = "…") -> str:
+    """把 `text` 压到 **≤ `cap` 字符**（含截断标记本身）。"""
+    if len(text) <= cap:
+        return text[:cap] if cap >= 0 else ""
+    return text[:max(0, cap - len(marker))] + marker
+
+
+def _safe_repr(value, cap: int) -> str:
+    """`repr(value)` 的**不抛异常**版本，并压到 ≤ `cap` 字符。"""
+    try:
+        text = repr(value)
+    except Exception as exc:                               # noqa: BLE001
+        # 自定义 `__repr__` / 半初始化对象炸了：绝不把异常漏给调用方
+        # （"打印日志时崩"是最难查的一类故障）。
+        return "<%s repr 失败：%s>" % (type(value).__name__, type(exc).__name__)
+    return _clip(text, cap)
+
+
+def _short_repr(value, limit: int = _VAL_REPR_MAX) -> str:
+    """值的短 repr：任何输入都不抛、长度有界、大容器不展开。
+
+    · `str` / `bytes` 先按长度**切**再 repr —— 10 万字符的中文值不会一次铺开；
+    · 长 `dict` / `list` / `tuple` 只报「N 项」，不展开；
+    · 其余交内置 `repr` 再截断（仍炸就退成 `<类型名 repr 失败：异常名>`）。
+    """
+    try:
+        if isinstance(value, str):
+            if len(value) > limit:
+                return "%r…（另有 %d 字符）" % (value[:limit], len(value) - limit)
+            return repr(value)
+        if isinstance(value, (bytes, bytearray, memoryview)):
+            raw = bytes(value)
+            if len(raw) > limit:
+                return "%r…（另有 %d 字节）" % (raw[:limit], len(raw) - limit)
+            return repr(raw)
+        name = type(value).__name__
+        # 只对**内置**容器做折叠：`Row` / `Series` 这类子类自带带上限的
+        # `__repr__`，折叠成「N 项」会把最有用的那点信息也丢掉。
+        if type(value) in (dict, list, tuple, set, frozenset) \
+                and len(value) > _ROW_REPR_FIELDS:
+            return "<%s %d 项>" % (name, len(value))
+        text = repr(value)
+    except Exception as exc:                               # noqa: BLE001
+        return "<%s repr 失败：%s>" % (type(value).__name__, type(exc).__name__)
+    return _clip(text, limit)
+
+
+def _rows_excerpt(rows, start: int, count: int) -> list[str]:
+    """前 `count` 行的 `[i] Row{…}` 摘录（每行已自带 400 字符上限）。"""
+    out = []
+    for i, row in enumerate(rows[start:start + count]):
+        out.append("[%d] %s" % (i, _safe_repr(row, _ROW_REPR_MAX)))
+    return out
+
+
+def _table_summary(table, max_len: int = _TABLE_REPR_MAX, label: str = "Table") -> str:
+    """`Table` / `Dataset` 共用的表摘要；**尾部提示一定保住**。
+
+    `max_len` 是硬上限。拼法是"头部 + 前 3 行摘录 + 剩余行数提示"；超限时只压
+    中间那段摘录（`_clip`），`…(+N more rows)` / `(空表)` 这类**判读必需**的
+    提示不参与截断 —— 否则大行（每行 400 字符）会把提示挤掉，读者反而不知道
+    自己看到的是"全部"还是"前 3 行"。
+    """
+    rows, cols = table.rows, table.cols
+    n, m = len(rows), len(cols)
+    parts = ["%s(rows=%d, cols=%d" % (label, n, m)]
+    if table.cmd:
+        parts.append("cmd=%s" % _short_repr(table.cmd, 40))
+    if table.domain:
+        parts.append("domain=%s" % _short_repr(table.domain, 20))
+    if cols:
+        names = ", ".join(_short_repr(c, 16) for c in cols[:_COLS_REPR_MAX])
+        if m > _COLS_REPR_MAX:
+            names += ", …(+%d)" % (m - _COLS_REPR_MAX)
+        parts.append("cols[0:%d]=[%s]" % (min(m, _COLS_REPR_MAX), names))
+    head = ", ".join(parts) + ")"
+    if n > _TABLE_REPR_ROWS:
+        tail = "…(+%d more rows)" % (n - _TABLE_REPR_ROWS)
+    elif n == 0:
+        tail = "(空表)"
+    else:
+        tail = ""
+    body = " ".join(_rows_excerpt(rows, 0, _TABLE_REPR_ROWS))
+    text = head + (" " + body if body else "")
+    text = _clip(text, max(0, max_len - len(tail) - 1) if tail else max_len)
+    if tail:
+        text = text + " " + tail
+    return _clip(text, max_len)
+
+
 class Row(dict):
     """一行数据：**既是 dict，也能按位置取**。
 
@@ -529,7 +666,26 @@ class Row(dict):
         return dict(self)
 
     def __repr__(self) -> str:
-        return "Row%r" % (dict(self),)
+        """单行摘要：最多 6 个键值 + `…(+N fields)`，总长硬上限 400 字符。
+
+        原来是 `"Row%r" % (dict(self),)` —— **全量**dump：一行有 30 列、某列表
+        里塞了 10 万字符文本时，`repr()` 跟着一起爆（`DEF-022`）。
+        现在只给"大概长什么样"，要精确数据走 `to_dict()`（语义/返回类型不变）。
+        """
+        if not _repr_enter(self):
+            return "Row(…自引用…)"
+        try:
+            items = list(dict.items(self))
+            if not items:
+                return "Row{}"
+            head = ", ".join("%s: %s" % (_short_repr(k, 24), _short_repr(v))
+                             for k, v in items[:_ROW_REPR_FIELDS])
+            text = "Row{%s}" % head
+            if len(items) > _ROW_REPR_FIELDS:
+                text += "…(+%d fields)" % (len(items) - _ROW_REPR_FIELDS)
+            return _clip(text, _ROW_REPR_MAX)
+        finally:
+            _repr_leave(self)
 
 
 def _make_row(cols, raw):
@@ -591,6 +747,22 @@ class Table:
 
     def __bool__(self) -> bool:
         return bool(self.rows)
+
+    def __repr__(self) -> str:
+        """紧凑摘要：`Table(rows=N, cols=M, …)` + 前 3 行 + `…(+N more rows)`。
+
+        总长硬上限 2000 字符（超了再截断并注明）—— **与数据规模无关**。
+        原来是 dataclass 自动生成的全量 repr：5000 行 × 8 列 = 单行 42 万字符
+        （`DEF-022`），`print(table)` / `%s` 进日志 / 异常链里带表都能把终端
+        和内存一起拖死。要数据走 `to_dicts()` / `to_dict()` / `to_json()`，
+        三者语义与返回类型**一个字节都没动**。
+        """
+        if not _repr_enter(self):
+            return "Table(…自引用…)"
+        try:
+            return _table_summary(self)
+        finally:
+            _repr_leave(self)
 
     @property
     def shape(self) -> tuple[int, int]:
@@ -704,6 +876,29 @@ class Dataset:
 
     def __iter__(self):
         return iter(self.table.rows)
+
+    def __repr__(self) -> str:
+        """紧凑摘要：`name` / `params` / **容器个数与名字** / 内嵌表的行·列与摘录。
+
+        总长硬上限 2000 字符。原来吃 dataclass 全量 repr —— 一张 5000 行表被
+        包进 `Dataset` 后照样 dump 42 万字符（`DEF-022`）。
+        """
+        if not _repr_enter(self):
+            return "Dataset(…自引用…)"
+        try:
+            head = "Dataset(name=%s, params=%s, 容器 1 个=table, table=" % (
+                _short_repr(self.name, 40), _short_repr(self.params))
+            table = self.table
+            if isinstance(table, Table):
+                # 内嵌表共用同一套摘要（也带 2000 硬上限），预算扣掉外层头部
+                inner = _table_summary(table, label="table",
+                                       max_len=max(80, _TABLE_REPR_MAX - len(head) - 1))
+            else:
+                # 类型被塞错了（不是 `Table`）也不许 repr 抛异常
+                inner = _safe_repr(table, max(80, _TABLE_REPR_MAX - len(head) - 1))
+            return _clip(head + inner + ")", _TABLE_REPR_MAX)
+        finally:
+            _repr_leave(self)
 
     def to_dict(self) -> dict[str, Any]:
         """`{name, params, table: {...}}`（DEF-024；meta 在 table 里一并带出）。"""

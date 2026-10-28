@@ -116,7 +116,11 @@ def __getattr__(name):
 
 # ENG-007 版本单源：不在 __init__ 里写死，从 _version.py 读
 # （pyproject 的 dynamic version 也指向同一处 —— 双路读数必然一致）。
-from ._version import __version__
+from ._version import __version__, __version_info__
+
+# ENG-008 弃用与迁移机制：`deprecated()` 装饰器 + 已生效变更的迁移表（单一事实源）
+from ._deprecation import DEPRECATED_API, MIGRATIONS, deprecated
+from ._deprecation import as_markdown_table as migration_table
 
 __all__ = [
     # 入口
@@ -143,5 +147,7 @@ __all__ = [
     "parse_symbol",
     # 恒等式运行时闸门（批次 E）：invariants 模块 + Violation 类型
     "invariants", "Violation",
-    "__version__",
+    # 弃用与迁移（ENG-008）：装饰器 + 已生效变更的迁移表（CHANGELOG/README 的单一事实源）
+    "deprecated", "MIGRATIONS", "DEPRECATED_API", "migration_table",
+    "__version__", "__version_info__",
 ]

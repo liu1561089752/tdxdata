@@ -17,6 +17,7 @@
 | `xdxr.py` | 分红融资 | `get_xdxr` |
 | `boards.py` | 板块列表 / 成分股 | `get_boards` `get_board_members` |
 | `flow.py` | 资金流向 / 市场概览 | `get_capital_flow` `get_market_stat` |
+| `macro.py` | **宏观域 typed 层**（18 个产品 / 44 个模式，列义逐条有算式证据） | `c.macro.*` |
 
 约定（见 `API设计.md` §2.7）
 --------------------------

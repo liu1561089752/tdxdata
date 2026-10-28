@@ -27,6 +27,7 @@ import pytest
 
 from tdxdata import capabilities as caps
 from tdxdata import series_kinds
+from tdxdata import _docgen                       # ENG-012：README 生成块的代码侧
 from tdxdata.models import Tick
 
 README = os.path.join(os.path.dirname(os.path.dirname(os.path.abspath(__file__))),
@@ -38,6 +39,28 @@ BLOCKS = {
     "series_kinds": series_kinds.as_markdown_table,
     "market_domains": caps.market_domains_markdown,
     "capabilities": caps.as_markdown_table,
+    # ── 以下 20 张由 `tdxdata/_docgen.py` 生成（ENG-012：把能由代码派生的手写表
+    #    搬进生成块，受守护行数占比从 9% 抬到 ≥40%）。事实源见各函数 docstring。
+    "api_types": _docgen.api_types_table,
+    "enum_adjust": _docgen.adjust_enum_table,
+    "enum_market": _docgen.market_enum_table,
+    "enum_period": _docgen.period_enum_table,
+    "enum_status": _docgen.status_enum_table,
+    "error_types": _docgen.error_types_table,
+    "price_limit_boards": _docgen.price_limit_table,
+    "client_params": _docgen.client_params_table,
+    "on_missing_modes": _docgen.on_missing_table,
+    "model_fields": _docgen.model_fields_table,
+    "indicators": _docgen.indicator_table,
+    "invariants": _docgen.invariant_table,
+    "symbol_prefixes": _docgen.symbol_prefix_table,
+    "ambiguous_symbols": _docgen.ambiguous_symbol_table,
+    "time_gates": _docgen.timeliness_table,
+    "provenance_fields": _docgen.provenance_table,
+    "product_layer_api": _docgen.product_layer_table,
+    "instrument_stats": _docgen.instrument_stats_table,
+    "data_domains": _docgen.domain_stats_table,
+    "product_index": _docgen.product_index_table,
 }
 
 _BEGIN = re.compile(r"<!--\s*BEGIN:\s*([A-Za-z0-9_]+)")

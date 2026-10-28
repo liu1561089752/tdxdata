@@ -43,6 +43,7 @@ from datetime import datetime, timedelta, timezone
 
 from .. import errors
 from .._logging import logger
+from . import zliblimit
 
 CST = timezone(timedelta(hours=8))
 
@@ -75,17 +76,54 @@ def _pct(cur, prev, digits=2):
         return None
 
 
+_COMMON_HANZI: frozenset | None = None
+
+
+def _common_hanzi() -> frozenset:
+    """GB2312 一级+二级汉字表（6763 字），**懒构造**（只算一次，约 10 ms）。
+
+    用途见 `_cjk_score()`：判断"这段文本像不像真的简体中文"。
+    不在 import 期构造：`import tdxdata` 的耗时不该被一张字表拖走。
+    """
+    global _COMMON_HANZI
+    if _COMMON_HANZI is None:
+        chars = set()
+        for hi in range(0xB0, 0xF8):
+            for lo in range(0xA1, 0xFF):
+                try:
+                    ch = bytes((hi, lo)).decode("gb2312")
+                except UnicodeDecodeError:
+                    continue
+                if len(ch) == 1:
+                    chars.add(ch)
+        _COMMON_HANZI = frozenset(chars)
+    return _COMMON_HANZI
+
+
 def _cjk_score(text: str) -> int:
     """给一段文本的「像中文」程度打分，用于在多种解码里择优。
 
-    GBK 的「元」(0xD2AA) 是合法 UTF-8，会解成亚美尼亚字母 `աԪ`，
-    所以不能只按「能不能解」判断。
+    两个方向都会翻车，必须**同时**防（DEF-012）：
+
+    * **GBK 字节碰巧是合法 UTF-8** —— `元`(0xD2AA) 解成亚美尼亚字母 `աԪ`。
+      靠对亚美尼亚/西里尔/拉丁扩展区**扣分**识别。
+    * **UTF-8 字节被当成 GBK** —— `上证指数` 解成 `涓婅瘉鎸囨暟`（每个汉字变两个
+      罕用汉字，字符数还翻倍）。旧版「汉字 +3」会让**乱码分数更高**（6×3=18 > 4×3=12），
+      于是长串必错、短串碰巧对 —— 正是评审里"随字符串长度翻转"的机制。
+      靠**GB2312 常用字表**识别：真简体中文几乎全部落在 6763 字内，
+      而乱码产出的罕用字（`涓`/`瘉`/`鎸`…）大多不在其中。
+
+    所以汉字的权重是分级的：**常用汉字 +3 / 罕用汉字 −1**。绝不能用"凡是汉字都 +3"，
+    那等于给乱码发奖励。
     """
+    common = _common_hanzi()
     sc = 0
     for ch in text:
         o = ord(ch)
-        if 0x4E00 <= o <= 0x9FFF:
-            sc += 3
+        if ch in common:
+            sc += 3                                   # GB2312 常用汉字：真中文的强证据
+        elif 0x4E00 <= o <= 0x9FFF:
+            sc -= 1                                   # 罕用汉字：乱码的高发区
         elif 0x3040 <= o <= 0x30FF:
             sc += 1
         elif 0x0530 <= o <= 0x058F:
@@ -262,8 +300,13 @@ def unwrap_frames(buf: bytes) -> list[bytes]:
         body = buf[i + 14:nxt]
         if buf[i] == 0x3B:                 # 帧头声明 body 是 zlib
             try:
-                body = zlib.decompress(body)
-            except Exception as exc:               # noqa: BLE001
+                body = zliblimit.inflate_limited(
+                    body, context="帧头 0x3B 声明 zlib 的")
+            except errors.ProtocolError:
+                # 解压超硬上限 = 我方内存要被对端决定，**不降级、不原样交出**
+                # （原样交出去等于把炸弹字节传给下游 decode_any）。直接上抛。
+                raise
+            except zlib.error as exc:
                 # 解不开就原样交出去，让上层报错 —— 但留 debug 轨迹：
                 # 「声明 zlib 实则不是」是解码错位的头号嫌疑。
                 logger.debug("declared-zlib body failed to decompress (%s), "
@@ -281,11 +324,17 @@ def _is_frame_head(buf: bytes, i: int) -> bool:
 
 
 def _try_zlib(blob: bytes):
+    """按 `0x78` 魔数猜"这段是 zlib"并试着解（**有硬上限**，SEC-2）。
+
+    返回 `None` = "不是 zlib / 解不出"（探测语义，调用方继续找别的包体边界）；
+    超硬上限则抛 `ProtocolError` —— 那是攻击/畸形，不该被当成"猜错"。
+    """
     try:
-        d = zlib.decompressobj()
-        t = d.decompress(blob)
+        t = zliblimit.inflate_limited(blob, context="按 0x78 魔数扫到的")
         return t if len(t) > 1 else None
-    except Exception:
+    except errors.ProtocolError:
+        raise
+    except zlib.error:
         return None
 
 

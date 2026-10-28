@@ -45,6 +45,23 @@ def read_varint(buf, pos):
 
 
 def write_varint(val):
+    """varint 编码（protobuf 语义：**负值按 64 位二进制补码**编成 10 字节）。
+
+    DEF-047：旧实现 `while True: b = val & 0x7F; val >>= 7` 对负数**死循环** ——
+    Python 的 `>>` 是算术右移，`-1 >> 7` 恒为 `-1`，`if val:` 永远为真。
+    一个负字段就能把编码线程挂死（不是"编出错误字节"，是**不返回**）。
+
+    现在按 protobuf 的 `int32/int64` 规则处理负值：`-1` 编成 `ff ff ff ff ff ff ff ff ff 01`
+    （10 字节），与 `google.protobuf` 的 `SignedVarint` 一致 —— 服务端读 64 位补码时是对的。
+    超出 64 位范围才抛 `ValueError`（那种情况本来就不是合法 varint）。
+    """
+    val = int(val)
+    if val < 0:
+        if val < -(1 << 63):                 # 先判范围再加偏移，否则 -(1<<64) 会"补"成 0
+            raise ValueError("varint 只支持 64 位整数，收到 %r" % (val,))
+        val += 1 << 64                      # 负 → 64 位补码
+    elif val >= (1 << 64):
+        raise ValueError("varint 只支持 64 位整数，收到 %r" % (val,))
     out = bytearray()
     while True:
         b = val & 0x7F

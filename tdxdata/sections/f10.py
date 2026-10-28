@@ -169,7 +169,7 @@ def get_f10(client, symbol, section: str = "gsjj") -> Table:
     示例
     ----
     >>> t = get_f10(c, "600303", section="gsjj")          # doctest: +SKIP
-    >>> t.rows[0]["list_date"]
+    >>> t.rows[0]["list_date"]                            # doctest: +SKIP
     '2000-12-26'
     """
     if section not in SECTIONS:

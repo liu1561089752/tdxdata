@@ -2,7 +2,7 @@
 r"""tdxdata 质量门禁（入仓版）。
 
 > **本文件是 `F:\TDX_stock_data\_dev\check.py` 的入仓版本。** 外部那份保留为
-> 过渡期双跑对照，行为应与本文件逐条一致（10 条门禁：通过 9 / 失败 0 / 跳过 1）。
+> 过渡期双跑对照，行为应与本文件逐条一致（11 条门禁：通过 10 / 失败 0 / 跳过 1）。
 > 过渡期结束后，外部 `_dev/check.py` 以本文件为准。
 
 用法
@@ -10,11 +10,11 @@ r"""tdxdata 质量门禁（入仓版）。
     python tools/gate.py                    # 默认离线：第 8 条（真机冒烟）SKIP
     python tools/gate.py --online           # 连跑 `python smoke.py`（需 2~4 分钟）
     python tools/gate.py --only 1,2,9       # 只跑指定编号（Lead 抽查用）
-    python tools/gate.py --list             # 只列 10 条门禁，不跑
+    python tools/gate.py --list             # 只列 11 条门禁，不跑
 
 输出约定
 --------
-* 每条一行：`[序号/10] 名称  PASS|FAIL|SKIP  (耗时)  判据：一句说明`
+* 每条一行：`[序号/11] 名称  PASS|FAIL|SKIP  (耗时)  判据：一句说明`
 * **每条判据都必须带基数**（"421/421 个产品" 这类），不许只写"全部通过"
 * 有 FAIL 则退出码 1；SKIP 不影响退出码
 * **任何一条门禁抛异常都必须计为 FAIL**（不许当成 SKIP、也不许静默吞掉）；
@@ -94,6 +94,19 @@ TIMEOUT_SMOKE = 600
 TIMEOUT_PIP = 300
 
 PASS, FAIL, SKIP = "PASS", "FAIL", "SKIP"
+
+#: 公开面 docstring 覆盖率基线（ENG-011，第 11 条门禁）。
+#:
+#: **先量的基线，再定的阈值**：ENG-011 执行当天在本仓实测
+#: `tdxdata.__all__` 里 44 个模块/类/函数（4 个纯值不可数，见 gate 11 的 notes）
+#: + `Client` 的 34 个公开成员 = **78/78 全部有 docstring（100%）**。
+#: 所以阈值就定 **100%**（宁紧不松：一个都不能少）——
+#: 谁新增一个没写 docstring 的公开方法/导出，这条立刻红；把阈值往下调
+#: 只是把"以后会欠的债"记成一笔默认允许的欠账。
+#:
+#: ⚠️ 判据是**比例 = 100%**，不是"至少 78 个"：公开面会随功能增长而变大，
+#: 分子分母一起长的前提下，唯有 100% 是可持续的口径（实数看 gate 11 的输出）。
+DOCSTRING_MIN_RATIO = 1.0
 
 #: 显式 SKIP 白名单：只有登记在这里的门禁编号允许返回 SKIP。
 #: 其他任何门禁返回 SKIP 一律改判 FAIL（不许"静默跳过"）。
@@ -503,7 +516,7 @@ def py_cmd(*args):
 
 
 # ─────────────────────────────────────────────────────────────────────────
-# 三、10 条门禁
+# 三、11 条门禁
 # ─────────────────────────────────────────────────────────────────────────
 def gate_01_syntax():
     files = iter_py_files()
@@ -999,6 +1012,81 @@ def gate_10_packaging():
         shutil.rmtree(tmp, ignore_errors=True)
 
 
+def docstring_subjects(tdxdata_module, client_cls, inspect_mod, types_mod):
+    """列出「公开面」的每个主体：`(标签, 对象, 是否可数)`。
+
+    口径（与 `tools/README.md` §二.4 逐字对应，改这里必须同时改那边）：
+
+    * **`tdxdata.__all__` 的每一项**：模块 / 类 / 函数/方法都要有 docstring。
+      **纯值**（`__version__` 这类字符串、`NON_PRICE_SERIES` / `CAPABILITIES` /
+      `INSTRUMENTS` 这类 dict）**没有 docstring 这个概念**，按"不可数"返回并逐条点名
+      —— 不静默丢，否则"把导出换成一个值"就成了绕过门禁的后门。
+    * **`Client` 的公开成员**：名字不以 `_` 开头的全部，含 `property`
+      （property 取 fget 的 docstring）。`AsyncClient` 只数它的**类** docstring
+      （它自己 `__all__` 里是类，方法面由 `aio.py` 的镜像测试守）。
+    """
+    subjects = []
+    for name in list(getattr(tdxdata_module, "__all__", []) or []):
+        obj = getattr(tdxdata_module, name)             # 取不到 → 让异常冒到 run_gate
+        if isinstance(obj, types_mod.ModuleType):
+            subjects.append(("__all__:" + name, obj, True))
+        elif inspect_mod.isclass(obj) or inspect_mod.isroutine(obj):
+            subjects.append(("__all__:" + name, obj, True))
+        else:
+            subjects.append(("__all__:" + name, obj, False))
+    for name in sorted(dir(client_cls)):
+        if name.startswith("_"):
+            continue
+        member = inspect_mod.getattr_static(client_cls, name)
+        target = member.fget if isinstance(member, property) else member
+        if target is None:
+            continue
+        subjects.append(("Client." + name, target, True))
+    return subjects
+
+
+def gate_11_docstring_coverage():
+    """公开面 docstring 覆盖率 ≥ 基线（顺序：先量基线、再定阈值，宁紧不松）。"""
+    if ROOT not in sys.path:
+        sys.path.insert(0, ROOT)
+    import inspect                                          # noqa: PLC0415
+    import types                                            # noqa: PLC0415
+
+    import tdxdata                                          # noqa: PLC0415
+    from tdxdata import Client                              # noqa: PLC0415
+
+    subjects = docstring_subjects(tdxdata, Client, inspect, types)
+    counted, skipped, missing = [], [], []
+    for label, obj, countable in subjects:
+        if not countable:
+            skipped.append(label)
+            continue
+        counted.append(label)
+        if not (inspect.getdoc(obj) or "").strip():
+            missing.append(label)
+
+    if not counted:
+        return FAIL, "公开面一个可数的主体都没有（基数 0，不能算绿）", []
+    ratio = (len(counted) - len(missing)) / len(counted)
+    ok = not missing and ratio >= DOCSTRING_MIN_RATIO
+
+    notes = [
+        "口径：`tdxdata.__all__` 里每个模块/类/函数 + `Client` 的每个公开成员"
+        "（含 property）都算；纯值（%d 个）不可数，逐个点名不静默丢" % len(skipped),
+        "纯值（不可数）：%s" % (", ".join(skipped) if skipped else "（无）"),
+        "阈值来源：未下调过 —— ENG-011 当天先量基线（78/78 = 100%%）再定阈值；"
+        "判据是**比例** %.0f%%，不是固定的绝对条数（公开面会变大）"
+        % (100 * DOCSTRING_MIN_RATIO),
+    ]
+    if missing:
+        notes.append("❌ 没有 docstring 的公开面（%d 个）：" % len(missing))
+        notes += ["  " + m for m in missing[:30]]
+    summary = ("公开面 docstring %d/%d（%.1f%%），基线 %.0f%%"
+               % (len(counted) - len(missing), len(counted), 100 * ratio,
+                  100 * DOCSTRING_MIN_RATIO))
+    return (PASS if ok else FAIL), summary, notes
+
+
 GATES = (
     (1, "语法", gate_01_syntax),
     (2, "导入与导出", gate_02_import_export),
@@ -1010,6 +1098,7 @@ GATES = (
     (8, "真机冒烟", gate_08_smoke),
     (9, "空实现必须抛错", gate_09_no_channel_raises),
     (10, "打包完整性", gate_10_packaging),
+    (11, "公开面 docstring", gate_11_docstring_coverage),
 )
 
 CRITERIA = {
@@ -1023,6 +1112,7 @@ CRITERIA = {
     8: "python smoke.py 退出码 0 且输出含「失败 0 项」（默认 SKIP，--online 才跑）",
     9: "无通道方法源码体必须 raise NotSupportedError；空值冒充不可用要文本级检出",
     10: "pip install --target %TEMP% 后子进程 import：__file__ 在临时目录、products 421、子包可导入、数据文件在包内",
+    11: "`tdxdata.__all__` 导出的模块/类/函数 + `Client` 公开成员，带 docstring 的比例 = 100%（ENG-011 基线 78/78，实测见本行）",
 }
 
 
@@ -1076,7 +1166,7 @@ def main(argv=None) -> int:
                         help="跑第 8 条真机冒烟（python smoke.py，约 2~4 分钟）")
     parser.add_argument("--only", default="",
                         help="只跑指定编号，如 --only 1,2,9（默认全跑）")
-    parser.add_argument("--list", action="store_true", help="只列 10 条门禁与判据")
+    parser.add_argument("--list", action="store_true", help="只列 11 条门禁与判据")
     args = parser.parse_args(argv)
 
     if hasattr(sys.stdout, "reconfigure"):

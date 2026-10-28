@@ -1,0 +1,799 @@
+{
+ "entries": {
+  "czsz__annual.bin": {
+   "cmd": "CWServ.ph_datacenter_hg_czsz",
+   "ctl": 30,
+   "mode": "annual",
+   "msgid": 968,
+   "n_rows": 20,
+   "pcap": "s3_other_20func.pcap",
+   "product": "czsz",
+   "req_params": [
+    "005",
+    "",
+    "20"
+   ],
+   "resp_len": 1408,
+   "sha256": "dc7f7864f7c3bd3b8d36423b643fa930833ede2c51b3a3601cb862081329c8ee"
+  },
+  "czsz__items.bin": {
+   "cmd": "CWServ.ph_datacenter_hg_czsz",
+   "ctl": 30,
+   "mode": "items",
+   "msgid": 969,
+   "n_rows": 1,
+   "pcap": "s3_other_20func.pcap",
+   "product": "czsz",
+   "req_params": [
+    "007",
+    "",
+    "1"
+   ],
+   "resp_len": 556,
+   "sha256": "b0a585cd681455d8c946bd4de53c4531d00e42a172f6c86bcf76f2863878eb30"
+  },
+  "czsz__monthly.bin": {
+   "cmd": "CWServ.ph_datacenter_hg_czsz",
+   "ctl": 30,
+   "mode": "monthly",
+   "msgid": 967,
+   "n_rows": 20,
+   "pcap": "s3_other_20func.pcap",
+   "product": "czsz",
+   "req_params": [
+    "001",
+    "",
+    "20"
+   ],
+   "resp_len": 3374,
+   "sha256": "d7ebc3d22150f8afd311518a304194b0ca37f49d7be1590f576eade48c07ee3e"
+  },
+  "dyjjyxf__code_163001.bin": {
+   "cmd": "CWServ.ph_datacenter_hg_dyjjyxf",
+   "ctl": 33,
+   "mode": "code_163001",
+   "msgid": 979,
+   "n_rows": 20,
+   "pcap": "s3_other_20func.pcap",
+   "product": "dyjjyxf",
+   "req_params": [
+    "004",
+    "163001",
+    "",
+    "1",
+    "20"
+   ],
+   "resp_len": 1898,
+   "sha256": "10500edda7baccdca6f2a2e345195bc22bb1c54b65fad891d52e9e05295c7467"
+  },
+  "dyjjyxf__total.bin": {
+   "cmd": "CWServ.ph_datacenter_hg_dyjjyxf",
+   "ctl": 33,
+   "mode": "total",
+   "msgid": 980,
+   "n_rows": 20,
+   "pcap": "s3_other_20func.pcap",
+   "product": "dyjjyxf",
+   "req_params": [
+    "002",
+    "184000",
+    "",
+    "1",
+    "20"
+   ],
+   "resp_len": 1900,
+   "sha256": "3b642ecdce71a890a880241b8bfe700b0e6eb1a0dbd9a75138e9942ef3407abf"
+  },
+  "gmjjyjy__persons_a.bin": {
+   "cmd": "CWServ.ph_datacenter_mghg_gmjjyjy",
+   "ctl": 35,
+   "mode": "persons_a",
+   "msgid": 998,
+   "n_rows": 20,
+   "pcap": "s3_other_20func.pcap",
+   "product": "gmjjyjy",
+   "req_params": [
+    "003",
+    "0",
+    "20",
+    "1"
+   ],
+   "resp_len": 1382,
+   "sha256": "adf59ece4e144a9f000e3ed50500ad15d99f032f90566fef7540c7d1014ae865"
+  },
+  "gmjjyjy__persons_b.bin": {
+   "cmd": "CWServ.ph_datacenter_mghg_gmjjyjy",
+   "ctl": 35,
+   "mode": "persons_b",
+   "msgid": 999,
+   "n_rows": 20,
+   "pcap": "s3_other_20func.pcap",
+   "product": "gmjjyjy",
+   "req_params": [
+    "005",
+    "",
+    "20",
+    "1"
+   ],
+   "resp_len": 1374,
+   "sha256": "b4afc11c97069b6a7b9ac2e1baa5282c3369d9c0a9ebbebb1596d7b5d931dc48"
+  },
+  "gmjjyjy__quarterly.bin": {
+   "cmd": "CWServ.ph_datacenter_mghg_gmjjyjy",
+   "ctl": 35,
+   "mode": "quarterly",
+   "msgid": 997,
+   "n_rows": 20,
+   "pcap": "s3_other_20func.pcap",
+   "product": "gmjjyjy",
+   "req_params": [
+    "001",
+    "",
+    "20",
+    "1"
+   ],
+   "resp_len": 2476,
+   "sha256": "811353a6de2d44fc997c040bb1eb220deef2c3b5f0ad214e7aa20112743b2a18"
+  },
+  "gyjj__growth.bin": {
+   "cmd": "CWServ.ph_datacenter_hg_gyjj",
+   "ctl": 30,
+   "mode": "growth",
+   "msgid": 977,
+   "n_rows": 20,
+   "pcap": "s3_other_20func.pcap",
+   "product": "gyjj",
+   "req_params": [
+    "001",
+    "",
+    "1",
+    "20"
+   ],
+   "resp_len": 821,
+   "sha256": "96956d86258f8b3fe93363f249eeb87c62e911b6b1763871e3d5b7d5c1c46408"
+  },
+  "gyjj__revenue.bin": {
+   "cmd": "CWServ.ph_datacenter_hg_gyjj",
+   "ctl": 30,
+   "mode": "revenue",
+   "msgid": 978,
+   "n_rows": 20,
+   "pcap": "s3_other_20func.pcap",
+   "product": "gyjj",
+   "req_params": [
+    "003",
+    "N002",
+    "1",
+    "20"
+   ],
+   "resp_len": 1430,
+   "sha256": "dd8354069e9d4d6df8fd98c8c65f254027f4f982d912fac8092d415c1dc61168"
+  },
+  "hg_gdp__by_industry.bin": {
+   "cmd": "CWServ.ph_datacenter_hg_gdp",
+   "ctl": 29,
+   "mode": "by_industry",
+   "msgid": 961,
+   "n_rows": 11,
+   "pcap": "s3_other_20func.pcap",
+   "product": "hg_gdp",
+   "req_params": [
+    "003",
+    "",
+    "",
+    "0",
+    "1"
+   ],
+   "resp_len": 830,
+   "sha256": "942abfc9ae49e2d36911387c3dfa6ca3d8ddf82871abb8b17b1c7430b9099fe8"
+  },
+  "hg_gdp__industries3.bin": {
+   "cmd": "CWServ.ph_datacenter_hg_gdp",
+   "ctl": 29,
+   "mode": "industries3",
+   "msgid": 960,
+   "n_rows": 1,
+   "pcap": "s3_other_20func.pcap",
+   "product": "hg_gdp",
+   "req_params": [
+    "002",
+    "0",
+    "0",
+    "0",
+    "1"
+   ],
+   "resp_len": 459,
+   "sha256": "4be50e3001603487732f7f1a3e8c831fa9c74d42b0706ad82c2b1dff0f99061a"
+  },
+  "hg_gdp__total.bin": {
+   "cmd": "CWServ.ph_datacenter_hg_gdp",
+   "ctl": 29,
+   "mode": "total",
+   "msgid": 959,
+   "n_rows": 20,
+   "pcap": "s3_other_20func.pcap",
+   "product": "hg_gdp",
+   "req_params": [
+    "001",
+    "",
+    "",
+    "0",
+    "20"
+   ],
+   "resp_len": 1483,
+   "sha256": "4f90b6d03d0b6b96d26ce68add67659b994ee64817a474afc15383cbc1590033"
+  },
+  "hg_jmsh__income.bin": {
+   "cmd": "CWServ.ph_datacenter_hg_jmsh",
+   "ctl": 30,
+   "mode": "income",
+   "msgid": 965,
+   "n_rows": 20,
+   "pcap": "s3_other_20func.pcap",
+   "product": "hg_jmsh",
+   "req_params": [
+    "001",
+    "",
+    "20"
+   ],
+   "resp_len": 1826,
+   "sha256": "de8bf6bdda182a4f2d54b0fbbe1a2927fc4d3a7618496abadae91aae784bddbd"
+  },
+  "hg_jmsh__spending.bin": {
+   "cmd": "CWServ.ph_datacenter_hg_jmsh",
+   "ctl": 30,
+   "mode": "spending",
+   "msgid": 966,
+   "n_rows": 20,
+   "pcap": "s3_other_20func.pcap",
+   "product": "hg_jmsh",
+   "req_params": [
+    "003",
+    "",
+    "20"
+   ],
+   "resp_len": 2060,
+   "sha256": "0764a27221102d044a7e2405ae044899762d0756eef9981cdb084cf52db41ca9"
+  },
+  "hg_jybz__annual.bin": {
+   "cmd": "CWServ.ph_datacenter_hg_jybz",
+   "ctl": 30,
+   "mode": "annual",
+   "msgid": 963,
+   "n_rows": 16,
+   "pcap": "s3_other_20func.pcap",
+   "product": "hg_jybz",
+   "req_params": [
+    "003",
+    "",
+    "20"
+   ],
+   "resp_len": 1117,
+   "sha256": "bbafd5a62c26d4708f7384fe5820d3016d915e5a0420c4b384d1e2cdb2cbeea3"
+  },
+  "hg_jybz__three_groups.bin": {
+   "cmd": "CWServ.ph_datacenter_hg_jybz",
+   "ctl": 30,
+   "mode": "three_groups",
+   "msgid": 964,
+   "n_rows": 20,
+   "pcap": "s3_other_20func.pcap",
+   "product": "hg_jybz",
+   "req_params": [
+    "004",
+    "",
+    "20"
+   ],
+   "resp_len": 2237,
+   "sha256": "3b5a99bc551dac72dbb9bbbc84727ee10b32f1f0e938322069767fef3e7eb5a3"
+  },
+  "hg_jybz__two_series.bin": {
+   "cmd": "CWServ.ph_datacenter_hg_jybz",
+   "ctl": 30,
+   "mode": "two_series",
+   "msgid": 962,
+   "n_rows": 5,
+   "pcap": "s3_other_20func.pcap",
+   "product": "hg_jybz",
+   "req_params": [
+    "001",
+    "",
+    "5"
+   ],
+   "resp_len": 574,
+   "sha256": "9dd9bfd77014b7b0c64290d1c273864ab4ecc26a65bfe62eaaaf96b6f5ccaccf"
+  },
+  "hg_nysc__series_1.bin": {
+   "cmd": "CWServ.ph_datacenter_hg_nysc",
+   "ctl": 30,
+   "mode": "series_1",
+   "msgid": 987,
+   "n_rows": 20,
+   "pcap": "s3_other_20func.pcap",
+   "product": "hg_nysc",
+   "req_params": [
+    "001",
+    "1",
+    "1",
+    "20"
+   ],
+   "resp_len": 1224,
+   "sha256": "978a3c78ffe760625c51b320a14b3a7ae2ef3deca54dc336be180abb01640277"
+  },
+  "hg_nysc__series_2.bin": {
+   "cmd": "CWServ.ph_datacenter_hg_nysc",
+   "ctl": 30,
+   "mode": "series_2",
+   "msgid": 988,
+   "n_rows": 20,
+   "pcap": "s3_other_20func.pcap",
+   "product": "hg_nysc",
+   "req_params": [
+    "001",
+    "2",
+    "1",
+    "20"
+   ],
+   "resp_len": 1285,
+   "sha256": "db71ed66fdd202de02961cff9987154a88229fcd64d408d95246f452ff4abb90"
+  },
+  "hg_tz__cumulative.bin": {
+   "cmd": "CWServ.ph_datacenter_hg_tz",
+   "ctl": 28,
+   "mode": "cumulative",
+   "msgid": 982,
+   "n_rows": 20,
+   "pcap": "s3_other_20func.pcap",
+   "product": "hg_tz",
+   "req_params": [
+    "003",
+    "",
+    "1",
+    "20"
+   ],
+   "resp_len": 892,
+   "sha256": "16ab97d833e62652829921e3901d1eacc296e7b0df7c30b4fc02fceddf3b489a"
+  },
+  "hg_tz__monthly.bin": {
+   "cmd": "CWServ.ph_datacenter_hg_tz",
+   "ctl": 28,
+   "mode": "monthly",
+   "msgid": 983,
+   "n_rows": 20,
+   "pcap": "s3_other_20func.pcap",
+   "product": "hg_tz",
+   "req_params": [
+    "004",
+    "",
+    "1",
+    "20"
+   ],
+   "resp_len": 1316,
+   "sha256": "8d3302d3a0ca8992f279a9837dc1d93ea1e62fe98b97b2c6c67650a6e6a90dc7"
+  },
+  "hg_tz__total.bin": {
+   "cmd": "CWServ.ph_datacenter_hg_tz",
+   "ctl": 28,
+   "mode": "total",
+   "msgid": 981,
+   "n_rows": 1,
+   "pcap": "s3_other_20func.pcap",
+   "product": "hg_tz",
+   "req_params": [
+    "001",
+    "",
+    "1",
+    "1"
+   ],
+   "resp_len": 462,
+   "sha256": "5a0f92b0ee33e8b5849d86bb2791592d41551a4355672ed5e06b7caa2287d6d3"
+  },
+  "hg_wjzs__by_code.bin": {
+   "cmd": "CWServ.ph_datacenter_hg_wjzs",
+   "ctl": 30,
+   "mode": "by_code",
+   "msgid": 970,
+   "n_rows": 20,
+   "pcap": "s3_other_20func.pcap",
+   "product": "hg_wjzs",
+   "req_params": [
+    "002",
+    "167001",
+    "1",
+    "20"
+   ],
+   "resp_len": 1237,
+   "sha256": "ada690164e5c3f98caf1945bbf65b5dd5557e16b50f1ff808262c8c6a6e5495d"
+  },
+  "hg_wjzs__four_groups.bin": {
+   "cmd": "CWServ.ph_datacenter_hg_wjzs",
+   "ctl": 30,
+   "mode": "four_groups",
+   "msgid": 972,
+   "n_rows": 20,
+   "pcap": "s3_other_20func.pcap",
+   "product": "hg_wjzs",
+   "req_params": [
+    "003",
+    "",
+    "1",
+    "20"
+   ],
+   "resp_len": 1419,
+   "sha256": "863ee5043293c530cc532b6caa4cdf666253c1c111ce8525b2c338431843ad1b"
+  },
+  "hg_wjzs__quarterly.bin": {
+   "cmd": "CWServ.ph_datacenter_hg_wjzs",
+   "ctl": 30,
+   "mode": "quarterly",
+   "msgid": 971,
+   "n_rows": 20,
+   "pcap": "s3_other_20func.pcap",
+   "product": "hg_wjzs",
+   "req_params": [
+    "005",
+    "",
+    "1",
+    "20"
+   ],
+   "resp_len": 537,
+   "sha256": "3a818421cc7bf68fa3bbd94adec84ce6656f199cf4831e39ec954d8ac555917b"
+  },
+  "holiday__all.bin": {
+   "cmd": "CWServ.ph_datacenter_hg_holiday",
+   "ctl": 33,
+   "mode": "all",
+   "msgid": 1009,
+   "n_rows": 189,
+   "pcap": "s3_other_20func.pcap",
+   "product": "holiday",
+   "req_params": [
+    "001",
+    "0"
+   ],
+   "resp_len": 16846,
+   "sha256": "2d790c996526390d510e832b9248f5a56c9af6d81f411754321c8781ad28f7a3"
+  },
+  "jqzs__components.bin": {
+   "cmd": "CWServ.ph_datacenter_hg_jqzs",
+   "ctl": 30,
+   "mode": "components",
+   "msgid": 974,
+   "n_rows": 20,
+   "pcap": "s3_other_20func.pcap",
+   "product": "jqzs",
+   "req_params": [
+    "003",
+    "",
+    "1",
+    "20"
+   ],
+   "resp_len": 922,
+   "sha256": "f4deff1eaa50d42890662ce8f384d2492a0d6e9c10c1d77ca577f493ee33b90e"
+  },
+  "jqzs__index.bin": {
+   "cmd": "CWServ.ph_datacenter_hg_jqzs",
+   "ctl": 30,
+   "mode": "index",
+   "msgid": 973,
+   "n_rows": 20,
+   "pcap": "s3_other_20func.pcap",
+   "product": "jqzs",
+   "req_params": [
+    "002",
+    "01",
+    "1",
+    "20"
+   ],
+   "resp_len": 1056,
+   "sha256": "95135e5f7c7267ba52273b86a06c57f1682f0d7fee06f36bc2bb550874302948"
+  },
+  "jqzs__unproven_004.bin": {
+   "cmd": "CWServ.ph_datacenter_hg_jqzs",
+   "ctl": 30,
+   "mode": "unproven_004",
+   "msgid": 975,
+   "n_rows": 1,
+   "pcap": "s3_other_20func.pcap",
+   "product": "jqzs",
+   "req_params": [
+    "004",
+    "",
+    "1",
+    "1"
+   ],
+   "resp_len": 226,
+   "sha256": "72efad855cc998e4a898ce7ac5e16bee4fe8370c6f11e3e0cf4541824fecefc8"
+  },
+  "jqzs__unproven_005.bin": {
+   "cmd": "CWServ.ph_datacenter_hg_jqzs",
+   "ctl": 30,
+   "mode": "unproven_005",
+   "msgid": 976,
+   "n_rows": 1,
+   "pcap": "s3_other_20func.pcap",
+   "product": "jqzs",
+   "req_params": [
+    "005",
+    "",
+    "1",
+    "1"
+   ],
+   "resp_len": 226,
+   "sha256": "b33f5290ed6f9fb84e46841186e87898ad401efe698124b4201852cbee3e978d"
+  },
+  "macro_wj__m001.bin": {
+   "cmd": "CWServ.ph_datacenter_mghg_wj",
+   "ctl": 30,
+   "mode": "m001",
+   "msgid": 1000,
+   "n_rows": 359,
+   "pcap": "s3_other_20func.pcap",
+   "product": "macro_wj",
+   "req_params": [
+    "001",
+    "",
+    "-1",
+    "1"
+   ],
+   "resp_len": 18796,
+   "sha256": "83eb51d5161e12958ffb3338cbf0229700035116c3c37bbb1106a94be11d92ed"
+  },
+  "macro_wj__m003.bin": {
+   "cmd": "CWServ.ph_datacenter_mghg_wj",
+   "ctl": 30,
+   "mode": "m003",
+   "msgid": 1001,
+   "n_rows": 359,
+   "pcap": "s3_other_20func.pcap",
+   "product": "macro_wj",
+   "req_params": [
+    "003",
+    "",
+    "-1",
+    "1"
+   ],
+   "resp_len": 17586,
+   "sha256": "17241adf0cebe782f723f4436481c4d40c244ac80dd89881bf2f6ca7ac6d80a7"
+  },
+  "macro_wj__m005.bin": {
+   "cmd": "CWServ.ph_datacenter_mghg_wj",
+   "ctl": 30,
+   "mode": "m005",
+   "msgid": 1002,
+   "n_rows": 358,
+   "pcap": "s3_other_20func.pcap",
+   "product": "macro_wj",
+   "req_params": [
+    "005",
+    "",
+    "-1",
+    "1"
+   ],
+   "resp_len": 11200,
+   "sha256": "75c24b93013375bdc1236b95ed4cca28b68a57dcfbf8ced89ce9f16022b660c4"
+  },
+  "macro_wj__m007.bin": {
+   "cmd": "CWServ.ph_datacenter_mghg_wj",
+   "ctl": 30,
+   "mode": "m007",
+   "msgid": 1003,
+   "n_rows": 358,
+   "pcap": "s3_other_20func.pcap",
+   "product": "macro_wj",
+   "req_params": [
+    "007",
+    "",
+    "-1",
+    "1"
+   ],
+   "resp_len": 10709,
+   "sha256": "8bd6b40c1419c1ec6d3d291cfab6486aebc66054fad32472b02d545a37e841bf"
+  },
+  "macro_yh__snapshot.bin": {
+   "cmd": "CWServ.ph_datacenter_mghg_yh",
+   "ctl": 30,
+   "mode": "snapshot",
+   "msgid": 992,
+   "n_rows": 1,
+   "pcap": "s3_other_20func.pcap",
+   "product": "macro_yh",
+   "req_params": [
+    "001",
+    "",
+    "1",
+    "1"
+   ],
+   "resp_len": 247,
+   "sha256": "c03868c4cd2f4a6734afd29915600904cba4789ed01cee80457bda08f1882895"
+  },
+  "mghg_hbzc__policy_rate.bin": {
+   "cmd": "CWServ.ph_datacenter_mghg_hbzc",
+   "ctl": 32,
+   "mode": "policy_rate",
+   "msgid": 991,
+   "n_rows": 1,
+   "pcap": "s3_other_20func.pcap",
+   "product": "mghg_hbzc",
+   "req_params": [
+    "001",
+    "",
+    "0",
+    "0"
+   ],
+   "resp_len": 154,
+   "sha256": "0c15ff7c06601f8246bea7d3ac9cc75ceaa5f1896121c25fd862696465e3d4a6"
+  },
+  "mghg_mlc__breakdown.bin": {
+   "cmd": "CWServ.ph_datacenter_mghg_mlc",
+   "ctl": 31,
+   "mode": "breakdown",
+   "msgid": 995,
+   "n_rows": 1,
+   "pcap": "s3_other_20func.pcap",
+   "product": "mghg_mlc",
+   "req_params": [
+    "004",
+    "",
+    "1",
+    "1"
+   ],
+   "resp_len": 378,
+   "sha256": "e2105545fc747d0d68df29a1cd02c0fbeeaed18e254593859f2996991ad7bcf5"
+  },
+  "mghg_mlc__stock.bin": {
+   "cmd": "CWServ.ph_datacenter_mghg_mlc",
+   "ctl": 31,
+   "mode": "stock",
+   "msgid": 993,
+   "n_rows": 20,
+   "pcap": "s3_other_20func.pcap",
+   "product": "mghg_mlc",
+   "req_params": [
+    "001",
+    "",
+    "20",
+    "1"
+   ],
+   "resp_len": 1558,
+   "sha256": "820c083f1a049d8de2d6a4190471971985b9d48935c2aac5dbc48d82cd9fe497"
+  },
+  "mghg_mlc__stock_2.bin": {
+   "cmd": "CWServ.ph_datacenter_mghg_mlc",
+   "ctl": 31,
+   "mode": "stock_2",
+   "msgid": 994,
+   "n_rows": 20,
+   "pcap": "s3_other_20func.pcap",
+   "product": "mghg_mlc",
+   "req_params": [
+    "003",
+    "2",
+    "20",
+    "1"
+   ],
+   "resp_len": 1548,
+   "sha256": "7772bc74b4d80d9cf2fce25f751de8ebf93a699e6e73b5ef535bf57ac71bb94f"
+  },
+  "mghg_mlc__stock_5.bin": {
+   "cmd": "CWServ.ph_datacenter_mghg_mlc",
+   "ctl": 31,
+   "mode": "stock_5",
+   "msgid": 996,
+   "n_rows": 1,
+   "pcap": "s3_other_20func.pcap",
+   "product": "mghg_mlc",
+   "req_params": [
+    "005",
+    "0",
+    "1",
+    "1"
+   ],
+   "resp_len": 221,
+   "sha256": "2dbe46e3a2c4f1a5596b47523e088df4403b8b76867bc5f12f5611b5cc549893"
+  },
+  "world_cal__events.bin": {
+   "cmd": "CWServ.ph_datacenter_hg_cal",
+   "ctl": 29,
+   "mode": "events",
+   "msgid": 1008,
+   "n_rows": 65,
+   "pcap": "s3_other_20func.pcap",
+   "product": "world_cal",
+   "req_params": [
+    "002",
+    "0",
+    "1",
+    "2026-10-20"
+   ],
+   "resp_len": 6558,
+   "sha256": "23de30663e0d2ec93f66eed39aa155f92c3231fa073e8116cb0c9a3af740372b"
+  },
+  "world_cal__events_month.bin": {
+   "cmd": "CWServ.ph_datacenter_hg_cal",
+   "ctl": 29,
+   "mode": "events_month",
+   "msgid": 1005,
+   "n_rows": 4,
+   "pcap": "s3_other_20func.pcap",
+   "product": "world_cal",
+   "req_params": [
+    "002",
+    "0",
+    "2",
+    "2026-10-20"
+   ],
+   "resp_len": 647,
+   "sha256": "67aac476869cd831514df3034d7967ce9bb2d30f54cd30c9a7e5b15c5a27e6bc"
+  },
+  "world_cal__trading_days.bin": {
+   "cmd": "CWServ.ph_datacenter_hg_cal",
+   "ctl": 29,
+   "mode": "trading_days",
+   "msgid": 1004,
+   "n_rows": 366,
+   "pcap": "s3_other_20func.pcap",
+   "product": "world_cal",
+   "req_params": [
+    "001",
+    "",
+    "",
+    ""
+   ],
+   "resp_len": 11904,
+   "sha256": "8e39256e8374db8f1f678370d81f4eceaa9ffc673836f3dc36182123c4f29276"
+  },
+  "yhhb__breakdown.bin": {
+   "cmd": "CWServ.ph_datacenter_hg_yhhb",
+   "ctl": 30,
+   "mode": "breakdown",
+   "msgid": 986,
+   "n_rows": 1,
+   "pcap": "s3_other_20func.pcap",
+   "product": "yhhb",
+   "req_params": [
+    "005",
+    "",
+    "1",
+    "1"
+   ],
+   "resp_len": 524,
+   "sha256": "76b5ed95f5546bb44d83c16f06dea062cabf9c23f5662b7d31e4476ceaa4080c"
+  },
+  "yhhb__by_group.bin": {
+   "cmd": "CWServ.ph_datacenter_hg_yhhb",
+   "ctl": 30,
+   "mode": "by_group",
+   "msgid": 985,
+   "n_rows": 20,
+   "pcap": "s3_other_20func.pcap",
+   "product": "yhhb",
+   "req_params": [
+    "004",
+    "01",
+    "1",
+    "20"
+   ],
+   "resp_len": 2178,
+   "sha256": "7eb33c76eecbc327a22305cbf885f8535e846f30fef9261296bc5d7bbd1f317b"
+  },
+  "yhhb__main.bin": {
+   "cmd": "CWServ.ph_datacenter_hg_yhhb",
+   "ctl": 30,
+   "mode": "main",
+   "msgid": 984,
+   "n_rows": 20,
+   "pcap": "s3_other_20func.pcap",
+   "product": "yhhb",
+   "req_params": [
+    "002",
+    "0",
+    "1",
+    "20"
+   ],
+   "resp_len": 1961,
+   "sha256": "0b7e6e468dd24a1c686c1443356aecf5ba9c2432b38d10f3c7dc7fcc3519bded"
+  }
+ },
+ "source_pcap": "s3_other_20func.pcap"
+}

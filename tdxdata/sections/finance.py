@@ -132,9 +132,9 @@ def get_finance(client, symbol, kind: str = "zcfz") -> Table:
     示例
     ----
     >>> t = get_finance(c, "600303", kind="zcfz")        # doctest: +SKIP
-    >>> t.cols[:3]
+    >>> t.cols[:3]                                       # doctest: +SKIP
     ['report_period', 'report_date', 'monetary_fund_yuan']
-    >>> t.rows[0]["total_assets_yuan"]
+    >>> t.rows[0]["total_assets_yuan"]                   # doctest: +SKIP
     3104851614.01
     """
     if kind not in KINDS:

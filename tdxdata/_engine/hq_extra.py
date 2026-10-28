@@ -34,6 +34,7 @@ from .. import errors
 from .. import symbols as _sym
 from . import datacenter as dc
 from . import pb_api as tdx_pb_api
+from . import zliblimit
 from .hq_pb import _bfield, _vfield      # 同一套手工 protobuf，别再造第三份
 
 __all__ = [
@@ -281,8 +282,12 @@ def peel(body: bytes) -> bytes:
                 moved = True
         if body[:1] == b"\x78":                    # 2) zlib
             try:
-                body = zlib.decompressobj().decompress(body)
+                # SEC-2：这里原来是 `decompressobj().decompress(body)`（**无上限**），
+                # 探测链上同样能吃到炸弹。超限抛 ProtocolError → 上抛（不降级）。
+                body = zliblimit.inflate_limited(body, context="探测链剥 zlib 层时的")
                 moved = True
+            except errors.ProtocolError:
+                raise
             except zlib.error:
                 # 探测链语义：「0x78 开头但解不开」= **不是 zlib**（形似而已），
                 # 继续走 base64/裸 protobuf 探测 —— 是控制流不是错误，
@@ -696,27 +701,49 @@ def get_quotes(symbols_, batch=20, *, retry_missing=True, on_missing="raise"):
     if not want:
         raise errors.ParamError("get_quotes 需要至少一个代码")
 
+    # ── DEF-014：**同一个 code 出现在不同市场时不能按裸 code 去重** ──────────────
+    # 回包行里只有 `code`（`COMBHQ_COLS` 里**没有** Setcode 列，只有 XSFLAG/FLAG/SPECTYPE），
+    # 所以 `got[row[0]] = row` 会让"沪 000001"与"深 000001"互相覆盖 —— 用户按
+    # `["sh000001","000001"]` 要两只完全不同的标的，回来的是**同一行出现两次**，
+    # 且都不报错。修法：这类**歧义码**不进批量（批量里无法归属），逐个 `(market, code)`
+    # 单发并按**对**归档；其余码仍走原来的批量路径（行为与旧版一字不差）。
+    markets_of: dict[str, set[int]] = {}
+    for mk, code in want:
+        markets_of.setdefault(code, set()).add(mk)
+    ambiguous = {code for code, mks in markets_of.items() if len(mks) > 1}
+
     cols: list[str] = []
-    got: dict[str, list[str]] = {}
-    for i in range(0, len(want), max(1, batch)):
-        chunk = want[i:i + batch]
+    got: dict[tuple[int, str], list[str]] = {}
+    plain = [(mk, code) for mk, code in want if code not in ambiguous]
+    for i in range(0, len(plain), max(1, batch)):
+        chunk = plain[i:i + batch]
         c2, r2 = _one_batch(chunk)
         cols = cols or c2
+        by_code = {code: mk for mk, code in chunk}      # 批内 code 唯一（歧义码已被排除）
         for row in r2:
             if row:
-                got[row[0]] = row
+                got.setdefault((by_code.get(row[0], 0), row[0]), row)
 
-    missing = [c for _m, c in want if c not in got]
+    for mk, code in [(mk, code) for mk, code in want if code in ambiguous]:
+        if (mk, code) in got:
+            continue
+        c3, r3 = _one_batch([(mk, code)])
+        cols = cols or c3
+        for row in r3:
+            if row and row[0] == code:                  # 单发时服务端按 setcode 归属
+                got[(mk, code)] = row
+                break
+
+    missing = [(mk, code) for mk, code in want if (mk, code) not in got]
     if missing and retry_missing:
-        for code in missing:                   # 逐个单发，仍无就是真没有
-            mkt = next(m for m, c in want if c == code)
-            c3, r3 = _one_batch([(mkt, code)])
+        for mk, code in list(missing):                  # 逐个单发，仍无就是真没有
+            c3, r3 = _one_batch([(mk, code)])
             cols = cols or c3
             for row in r3:
                 if row and row[0] == code:
-                    got[code] = row
+                    got[(mk, code)] = row
 
-    still = [c for _m, c in want if c not in got]
+    still = [(mk, code) for mk, code in want if (mk, code) not in got]
     if still and mode == "raise":
         raise errors.EmptyResult(
             "PBCombHQ 取不到这些代码（服务端静默不返回，单发也没有）：%s。"
@@ -724,8 +751,10 @@ def get_quotes(symbols_, batch=20, *, retry_missing=True, on_missing="raise"):
             "与本通道 **880xxx/881xxx 板块指数**（`Setcode=1`，如 880903 水产品、881007 油气开采）；"
             "881xxx 曾被误判成北交所（2026-10-27 已修，若你用的是旧版请注意）。"
             "老新三板码（如 430047）本通道不认；其余请核代码是否仍存续。"
-            "（若缺失是预期的，用 `get_quotes(..., on_missing=\"skip\")`。）" % ", ".join(still))
-    rows = [got[c] for _m, c in want if c in got]   # 按请求顺序返回，不按服务端顺序
+            "（若缺失是预期的，用 `get_quotes(..., on_missing=\"skip\")`。）"
+            % ", ".join(c for _m, c in still))
+    rows = [got[(mk, code)] for mk, code in want
+            if (mk, code) in got]                       # 按请求顺序返回，不按服务端顺序
     return cols, rows
 
 

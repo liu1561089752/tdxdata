@@ -83,6 +83,16 @@ STR_FIELDS = frozenset([
     "national_group_code", "central_group_code", "local_group_code",
     # 四家评级机构的星级（中文「五星/四星」）：接口不给机构名，只按列序编号
     "rating_star_1", "rating_star_2", "rating_star_3", "rating_star_4",
+    # ── PROD-003（宏观 typed 层，2026-10-28）──
+    # 除下面这些之外，**所有 `*_code` 一律按字符串**（见 `_is_str_field()`）：
+    # 宏观的码列 `"01"`/`"111"`/`"167001"` 带前导零，转成 1/111 会把分组信息抹掉。
+    "data_status",                       # 事件状态（"预期" / null）· hg_cal 模式 B
+    "time_text",                         # "HH:MM"（不是时间戳，保留原文）· hg_cal 模式 B
+    "region_name",                       # 事件的国家/地区 · hg_cal 模式 B
+    "action_text",                       # 决议动作自然语言（"加息25"）· mghg_hbzc
+    "target_rate_range_pct",             # "下限-上限" 字符串（不能直接 float）· mghg_hbzc
+    "subject_name",                      # 科目名（本档只见到 "合计"）· dyjjyxf 002
+    "meeting_date",                      # 决议日（紧凑 `yyyymmdd` 字符串，别变 float）· mghg_hbzc
 ])
 
 # 取整数更自然的标准字段（排名 / 户数 / 市场码 …）
@@ -94,6 +104,9 @@ INT_FIELDS = frozenset([
     "is_trading_day",                    # 是否交易日（1/0）· hg_cal
     "rating_agency_count",               # 评级机构数 · jjpj
     "tracking_fund_count",               # 跟踪基金数 · zsgz
+    # ── PROD-003（宏观 typed 层）──
+    "importance",                        # 财经事件重要度 1–4 · hg_cal 模式 B
+    "status_flag",                       # 状态位（hg_cal 模式 A 恒 1，保留成 int 便于断言）
 ])
 
 
@@ -1197,19 +1210,34 @@ def _template_check(cols, product: str):
     return "mismatch", {"docs_cols": list(tpl), "runtime_cols": list(cols)}
 
 
+def _is_str_field(field: str) -> bool:
+    """该标准字段是否**必须保持字符串**（不能 float 化）。
+
+    规则：显式登记在 `STR_FIELDS` 里的，或者名字以 `_code` 结尾的。
+    后者是宏观域的硬需求：分组码 `"01"`/`"111"`/`"167001"` 带宽窄的前导零，
+    `float()` 会把 `"01"` 变成 `1.0`，**分组身份就没了**。
+    `weight_code` 这类本来就是数值的码已显式登记在 `INT_FIELDS` 里，**不受本规则影响**
+    （这条排除是必须的：不加的话 `weight_code` 会从 int 变成 str，既有映射全部漂移）。
+    """
+    if field in STR_FIELDS:
+        return True
+    return field.endswith("_code") and field not in INT_FIELDS
+
+
 def _cast(field: str, value):
     """空值 → `None`；按字段类型给 str / int / float。"""
     if value is None:
         return None
+    as_str = _is_str_field(field)
     if isinstance(value, str):
         s = value.strip()
         if s in _NULLS:
             return None
-        if field in STR_FIELDS:
+        if as_str:
             return s
     else:
         s = value
-        if field in STR_FIELDS:
+        if as_str:
             return str(value)
 
     try:

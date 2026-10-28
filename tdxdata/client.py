@@ -47,6 +47,7 @@ from . import _core, errors, series_kinds, symbols, timeliness
 from . import _logging as _logging_mod
 from .calendar import TradeCalendar
 from .master import SecMaster
+from .sections.macro import Macro as _Macro
 from .enums import Adjust, KlinePeriod, Status
 from .models import (
     Bar, Bars, Dataset, MinutePoint, Minutes, ProductInfo, Provenance,
@@ -57,6 +58,27 @@ from .timeliness import FINAL_CUTOFF_HHMM, NowInfo
 __all__ = ["Client"]
 
 _DATA = os.path.join(os.path.dirname(os.path.abspath(__file__)), "data", "products.json")
+
+#: `products.json` 的**进程级只读缓存**（ENG-014）：键固定为 `products` / `pb_products`。
+#: 为什么不用 `@lru_cache`：① 测试要能 monkeypatch 成 `{}` 复现"首读"路径；
+#: ② `_catalog()` 里的错误信息要带路径，`lru_cache` 会把异常也缓存住，不利于诊断。
+_CATALOG: dict = {}
+
+
+def _catalog() -> dict:
+    """读一次 `products.json` 并缓存（**跨 Client 共享**，值只读）。
+
+    421 条产品规格随包发布、运行期不会变，所以"每个 Client 重读一次"是纯浪费
+    （77 KB + 一次 JSON 解析 ≈ 1.5 ms/实例）。返回值里的两个 dict **不许原地修改**。
+    """
+    if not _CATALOG:
+        if not os.path.exists(_DATA):
+            raise errors.TdxError("产品数据缺失：%s" % _DATA)
+        with open(_DATA, encoding="utf-8") as f:   # 必须 with：裸 open 会漏句柄
+            payload = json.load(f)
+        _CATALOG["products"] = payload.get("products", {})
+        _CATALOG["pb_products"] = payload.get("pb_products", {})
+    return _CATALOG
 
 # KlinePeriod 枚举 → 协议周期字符串（**不能用 name.lower()**：MIN_60 会变成 min_60）
 _PERIOD_STR = {
@@ -236,6 +258,8 @@ class Client:
         self.calendar = TradeCalendar(self)
         #: 证券主数据（PROD-001）。懒取数：snapshot 首次调用才发请求。
         self.master = SecMaster(self)
+        #: 宏观 typed 层（PROD-003）。纯产品层封装：每次调用都真取数（无缓存）。见 `sections/macro.py`。
+        self.macro = _Macro(self)
         #: 用户是否允许为取时刻/交易日发"便宜的探针"（`__init__` 的 `clock_probe`）。
         self._clock_probe = bool(clock_probe)
         #: 实际是否允许探针。⚠️ 只有跑过 `__init__` 的 Client 才有；
@@ -277,12 +301,16 @@ class Client:
         return market, code
 
     def _load_products(self) -> None:
-        if not os.path.exists(_DATA):
-            raise errors.TdxError("产品数据缺失：%s" % _DATA)
-        with open(_DATA, encoding="utf-8") as f:   # 必须 with：裸 open 会漏句柄
-            payload = json.load(f)
-        self._products = payload.get("products", {})
-        self._pb_products = payload.get("pb_products", {})
+        """挂上产品表（**进程级共享的只读缓存**，见 `_catalog()`）。
+
+        ENG-014：以前每个 `Client()` 都重读一次 `products.json`（77 KB / ~1.5 ms / 重新
+        JSON 解析一次）。421 条产品规格是**随包发布的只读数据**，10 个 Client 读 10 次纯浪费。
+        现在模块级只读一次，所有实例共享同一份 dict —— ⚠️ 因此**谁都不许原地改**
+        `self._products` / `self._pb_products`（要改请先 `dict(...)` 复制一份再改）。
+        """
+        cat = _catalog()
+        self._products = cat["products"]
+        self._pb_products = cat["pb_products"]
 
     def products(self, domain: str | None = None) -> list[ProductInfo]:
         """列出全部数据产品（可按域过滤）。"""
@@ -988,6 +1016,36 @@ class Client:
                 % (retry, self._pacer.gap, self._pacer.limited_events))
         raise errors.ConnectionFailed("重试 %d 次仍失败：%s" % (retry, last_err))
 
+    def _get_with_params(self, name: str, params: Any,
+                         *, allow_empty: bool = False) -> Dataset:
+        """按**已展开的**请求参数取一个产品（`get()` 去掉占位符替换之后的那一半）。
+
+        为什么单独抽出来（PROD-003）：宏观产品的**每个模式是另一张表**（列名相同、
+        语义不同，见 `sections/macro.py`），模式不是 `@code@`/`#date#` 那类占位符，
+        而是 `params[0]` 的 p1 子码。`get(**kwargs)` 只能填占位符，填不了子码，
+        所以产品层需要一条「参数由调用方给定」的入口。
+
+        `get()` 与本方法**共用同一段管道**（`call()` → 盖 meta → `_describe_product`），
+        这样两条路的 provenance 语义不会分叉。
+        """
+        spec = self._products.get(name)
+        if spec is None:
+            raise KeyError("没有这个产品：%s（用 products() 查看全部）" % name)
+        # ARCH-003：DC-JSON 通路的取数管道**就是** `call()`（cache → pace →
+        # transport+retry/switch → codec → 建容器 → 盖 Provenance → log 全在里面），
+        # `get()` 是它的语义层加厚（时效判定需要 data_date/prev_trade_date，
+        # `_fetch` 的 judge(info) 形态表达不了，故留在 `_describe_product`）。
+        table = self.call(spec["cmd"], spec["ctl"], params, allow_empty=allow_empty)
+        table.domain = spec.get("domain", "")
+        # 整列为 None 的列**保留**、只记账：数据中心产品（尤其 ztqd 涨停清单的
+        # 00102 口径）整列空往往是"当日样本还不完整"，那是**数据信号**；
+        # 在这里删列就等于把"数据不全"藏起来。判死列请拿多日样本，别只看今天。
+        from .sections.boards import _flag_all_null_cols
+        _flag_all_null_cols(table, product=name)
+        ds = Dataset(name=name, table=table, params=params)
+        self._describe_product(ds)
+        return ds
+
     def get(self, name: str, allow_empty: bool = False, *,
             mapped: bool = False, **kwargs) -> Dataset:
         """按产品名取数（421 个产品之一）。
@@ -1018,20 +1076,8 @@ class Client:
         spec = self._products.get(name)
         if spec is None:
             raise KeyError("没有这个产品：%s（用 products() 查看全部）" % name)
-        params = _fill(spec["params"], kwargs, name)
-        # ARCH-003：DC-JSON 通路的取数管道**就是** `call()`（cache → pace →
-        # transport+retry/switch → codec → 建容器 → 盖 Provenance → log 全在里面），
-        # `get()` 是它的语义层加厚（时效判定需要 data_date/prev_trade_date，
-        # `_fetch` 的 judge(info) 形态表达不了，故留在 `_describe_product`）。
-        table = self.call(spec["cmd"], spec["ctl"], params, allow_empty=allow_empty)
-        table.domain = spec.get("domain", "")
-        # 整列为 None 的列**保留**、只记账：数据中心产品（尤其 ztqd 涨停清单的
-        # 00102 口径）整列空往往是"当日样本还不完整"，那是**数据信号**；
-        # 在这里删列就等于把"数据不全"藏起来。判死列请拿多日样本，别只看今天。
-        from .sections.boards import _flag_all_null_cols
-        _flag_all_null_cols(table, product=name)
-        ds = Dataset(name=name, table=table, params=params)
-        self._describe_product(ds)
+        ds = self._get_with_params(name, _fill(spec["params"], kwargs, name),
+                                   allow_empty=allow_empty)
         if mapped:
             from .sections import mapping as _mapping
             if name not in _mapping.FIELD_MAP:
