@@ -96,6 +96,11 @@ from .capabilities import (
 )
 from .capabilities import as_markdown_table as capabilities_markdown
 
+#: 恒等式运行时闸门（批次 E，报告 §6.5）：`invariants.validate(container)`
+#: 显式调用入口。闸门不自动开（性能取舍），详见 `tdxdata/invariants.py` 模块文档。
+from . import invariants
+from .invariants import Violation
+
 def __getattr__(name):
     """`AsyncClient` 懒导入：`import tdxdata` 不必拖进 asyncio。
 
@@ -134,5 +139,7 @@ __all__ = [
     "OutOfScope", "AmbiguousSymbol",
     # 工具
     "parse_symbol",
+    # 恒等式运行时闸门（批次 E）：invariants 模块 + Violation 类型
+    "invariants", "Violation",
     "__version__",
 ]

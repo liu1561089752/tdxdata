@@ -165,6 +165,31 @@ def test_n_points_equals_len_points_so_it_is_point_by_point():
     assert d["n_points"] == len(d["points"]) == N_POINTS
 
 
+# ══════════════════════════════════════════════════════════════════════════
+# 构造回放：n_points 恒等式的属性测试（批次 E，报告 §6.5）
+# ══════════════════════════════════════════════════════════════════════════
+@pytest.mark.parametrize("n", [1, 2, 7, 25, 121, 240])
+def test_n_points_identity_survives_constructed_roundtrip(n):
+    """**构造回放**属性测试：用 `_vfield/_f32field` 既有构造函数造 N 点帧
+    → `decode_intraday_samples` 解码 → `n_points(field7) ≡ len(points)`。
+
+    与 `test_n_points_equals_len_points_so_it_is_point_by_point`（单点真实
+    抓包锚定）互补：那条证明"服务端真帧如此"，这条证明"解码层对**任意**
+    N 都保持恒等"（1 点 / 满帧 240 / 越过 240 上限形态都验）。恒等破坏 =
+    解码错位，这条抓的就是它。
+    """
+    pts = [float(i + 1) for i in range(n)]
+    wire = _one(points=tuple(pts))
+    d = hq_pb.decode_intraday_samples(wire)[0]
+    assert d["n_points"] == n
+    assert len(d["points"]) == n
+    assert d["points"] == pts          # 逐点原样（float32 精度内）
+    # 闸门侧同口径：invariants.check_minute_points 对解码输出也是绿的
+    from tdxdata import invariants as inv
+
+    assert inv.check_minute_points([d]) == []
+
+
 def test_points_span_the_session_that_has_elapsed():
     """139 = 121（09:30–11:30）+ 18（13:00–13:18）—— 与同刻 `PBSdstat(minute)` 行数相同。"""
     assert N_POINTS == 121 + 18
