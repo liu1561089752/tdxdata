@@ -31,10 +31,10 @@ r"""golden_runner.py —— 黄金样本录制 / 离线回放校验（**不属�
 
 * 录制侧：`encode_ok` 若发现 `hasattr(obj, "meta")`，把它存成 payload 的**同级键 `meta`**
   （`kind` 仍按元素类型算，写 `list[Bar]` 而不是 `Bars` —— 否则阶段 0 的 23 份老样本会全报差异）。
-* 回放侧：**整体剔除** `payload["meta"]` 之后再做主 diff，meta 单独走信息性对照并打印：
-  `样本无 meta（本阶段前录制）` / `两边都有（一致 N、变化 N）` / `样本有但回放丢失`。
-  为什么必须剔除：`status` 依赖服务器时钟、`elapsed`/`fetched_at` 每次都会变 ——
-  拿它们判 FAIL 只会训练人忽略红灯。同理 `--online` 的结构比对也剔除它。
+* 回放侧容器 meta 纪律（2026-10-27 复核后收紧，见 `EXPECTED_REPLAY_CONTAINER_META_KEYS`）：
+  样本有 meta → 主 diff 走 `in_meta=True` 逐键比对（A′ 放行的值仍放行）；
+  样本无 meta → 回放侧**不许凭空多出未登记的容器 meta**（键集须登记，未登记即红）。
+  旧写法"整体剥掉后再比"已废弃 —— 那让 Bars/Quotes/Ticks 的 meta 语义键从未被校验。
 
 帧拦截点（**只在本脚本内 monkeypatch，绝不改库**）
 -------------------------------------------------
@@ -84,6 +84,7 @@ transport          真实函数                                               �
 from __future__ import annotations
 
 import argparse
+import datetime
 import hashlib
 import json
 import os
@@ -110,7 +111,7 @@ if ROOT not in sys.path:
 import tdxdata                                                      # noqa: E402
 from tdxdata._engine import datacenter as dc                        # noqa: E402
 from tdxdata.models import Bar, Dataset, MinutePoint, Quote, Table, Tick  # noqa: E402
-from tdxdata.timeliness import FINAL_CUTOFF_HHMM                    # noqa: E402
+from tdxdata.timeliness import FINAL_CUTOFF_HHMM, HybridClock       # noqa: E402
 
 FRAME_MAGIC = b"TDXGF1"
 
@@ -181,6 +182,23 @@ INFO_ONLY_META_CARRIERS = {
 
 #: `source` 必须仍是 **dict 且键集恰为这 5 个**（结构仍被断言，只放行 `host` 的值）。
 SOURCE_DICT_KEYS = ("host", "cmd", "ctl", "clock", "cached")
+
+
+#: ARCH-002 键名换算表（2026-10-27 Lead 直辖接线，**封闭集**）：
+#: 样本冻结的是 meta 时代的散装键，回放侧（Provenance）把同一事实搬进了
+#: 新结构 —— `{样本键: (新载体路径相对 provenance 的取法)}`。diff_values
+#: 在「样本有 meta / 回放有 provenance」时按这张表对账：
+#:   · `fetch_clock` → `clock`（值：str "server"/"hybrid"/"local" ↔ 枚举 .value，同字面）
+#:   · `source` 五键 → 顶层 `host`/`cmd`/`ctl` + `cached`；`source.clock` 并进 `clock`
+#:   · `as_of_note` / `clock_note` / `status_note` / `source_note` / `note` / `why` →
+#:     `notes` 元组成员（按文本**精确存在**断言，不判位置）
+#:   · 其余散装键（params/trade_date/field_map/…）→ `extra[同键名]`
+#: 换算不了的键照样报差异 —— 这张表不是后门，是把"改名"显式记账。
+#: 封闭性由 test_golden_contract 的登记表闭集断言外再加本文注释锚定。
+PROVENANCE_KEY_RENAME = frozenset({
+    "fetch_clock", "source", "as_of_note", "clock_note", "status_note",
+    "source_note", "note", "why",
+})
 
 
 #: 每个样本**权威的帧集合** —— 「谁该有帧」这个事实的**唯一锚点**。
@@ -284,6 +302,24 @@ def collect_meta_keys(payload) -> set[str]:
     return found
 
 
+def payload_meta(payload) -> dict:
+    """按 `META_DICT_PATHS` 取这份 payload 的语义 meta（多处出现时合并，后者覆盖前者）。"""
+    out: dict = {}
+    if not isinstance(payload, dict):
+        return out
+    cands = [payload.get("meta")]
+    val = payload.get("value")
+    if isinstance(val, dict):
+        cands.append(val.get("meta"))
+        tbl = val.get("table")
+        if isinstance(tbl, dict):
+            cands.append(tbl.get("meta"))
+    for c in cands:
+        if isinstance(c, dict):
+            out.update(c)
+    return out
+
+
 #: 每份样本 `meta` 段里**必须存在**的语义键（源码锚点，防"删键解约束"）。
 #:
 #: 一个真实缺口（复核 V-白名单）：`ALLOWED_ADDED_KEYS` 的语义是"**新增**放行"。
@@ -361,6 +397,67 @@ META_KEYS_NOT_COVERED_BY_GOLDEN = {
                   "改由 tests/test_series_containers.py + tests/test_timeliness.py 管。",
     "data_date": "只有 Dataset（多表返回）才有；当前样本集里没有 Dataset 形态的 "
                  "meta 落盘。属已知缺口，见 golden/README.md「已知缺口」。",
+}
+
+
+#: 容器 meta 纪律（守卫 2，2026-10-27）：**样本无容器 meta 的样本**，回放侧若仍
+#: 产出容器 meta，必须把「回放侧 meta 的键集」登记在这张表里 —— 键集**精确相等**
+#: 才放行（多一个键、少一个键、键序无关但集合必须一致）。未登记的样本凭空多出
+#: meta → 硬差异。
+#:
+#: 为什么键集只做"放行"、**值不进 rc**：容器 meta 的值（fetched_at/elapsed/
+#: source.host）离线不可复现，是 A′（INFO_ONLY_META_CARRIERS）管的事 —— 那套
+#: 规则同样适用于"两边都有 meta"时的逐键比对。这里只钉住**存在性与键集**，
+#: 与 EXPECTED_SAMPLE_META_KEYS 的"存在性登记"同一条纪律的两面。
+#:
+#: 当前 27 份在役样本的**样本侧**均无容器 meta，且回放侧（阶段 1 起）对这 7 份
+#: Bars/Quotes/Minutes/Ticks 形态的样本会产出容器 meta —— 键集按实测登记如下。
+#: 其余样本回放侧不产出 meta（登记为空集即等于"回放也不许多出"）。
+#:
+#: ARCH-002（2026-10-27）：出处面从散装 meta 键收成一等 `Provenance`
+#: （tdxdata/_provenance.py），container_meta() 现在记录 `provenance.to_dict()`
+#: 的键集。与 meta 时代（as_of/clock_note/elapsed/fetch_clock/fetched_at/
+#: provisional/source/status）的换算：fetch_clock → clock（str→枚举名）、
+#: source 五键 → host/cmd/ctl/cached 一等字段、说明性 note → notes（元组）、
+#: 新增 data_date 与 extra（旁证 dict）两个一等键。阶段 1 的逐根 `provisional`
+#: 现在住在 `extra["provisional"]`（_finish_series **extra → provenance.extra，
+#: 锚点 client.py:1086/:629-631），不是顶层键 —— 顶层键集 12 个，4 份 bars 与
+#: 其余 3 份容器**完全一致**（extra 内容差异走主 diff 的严比）。
+#: 键集为**精确相等**对账，Provenance 加/删字段必须同步改这里。
+EXPECTED_REPLAY_CONTAINER_META_KEYS = {
+    name: ["as_of", "cached", "clock", "cmd", "ctl", "data_date",
+           "elapsed", "extra", "fetched_at", "host", "notes", "status"]
+    for name in ("bars_510300", "bars_5m_300", "bars_60m_300", "bars_day_300",
+                 "minutes", "quotes_indices", "ticks")
+}
+
+
+#: 数据行「历史缺失键」登记表（2026-10-27 Lead 裁决 A）。
+#:
+#: 形态：`{样本基名: {键: 源码锚点+理由}}`。语义：登记键只豁免
+#: **「样本侧缺、回放侧有」** 这一个方向的新增，且只在**数据层**生效
+#: （meta 子树不适用，仍走 ALLOWED_ADDED_KEYS 的 in_meta 规则）；
+#: 样本有而回放无 → 照样报差异；回放侧数据行**必须**仍产出登记键
+#: （存在性守卫，见 check 循环）—— 代码删键会让登记表失效报错，
+#: 防止它退化成永久后门。
+#:
+#: ⚠️ 精确键名、逐样本登记，**不许通配**（不许 per-sample 允许任意键，
+#: 不许全局允许某键）。新增条目必须有源码锚点 + 阶段理由，跑不过 diff 审查。
+EXPECTED_DATA_ROW_LATE_KEYS = {
+    # bars_510300 / bars_5m_300 / bars_60m_300 / bars_day_300：
+    # 回放侧逐根产出 `provisional`（阶段 1 加的**数据信号**列：当根是否盘中
+    # 未定稿，锚点 tdxdata/client.py:1166 `row["provisional"] = bar.provisional`，
+    # 并放 cols 末列，见 client.py:1129-1160 的注释），而这 4 份样本录制早于
+    # 该字段加入 —— 样本侧缺、回放侧有，属真实的样本-代码漂移，按登记纪律
+    # 显式记账（Lead 裁决 A，2026-10-27），不重录、不放宽白名单。
+    "bars_510300": {"provisional": "tdxdata/client.py:1166 —— 阶段 1 逐根数据"
+                                   "信号列 provisional，样本录制早于该字段"},
+    "bars_5m_300": {"provisional": "tdxdata/client.py:1166 —— 阶段 1 逐根数据"
+                                   "信号列 provisional，样本录制早于该字段"},
+    "bars_60m_300": {"provisional": "tdxdata/client.py:1166 —— 阶段 1 逐根数据"
+                                    "信号列 provisional，样本录制早于该字段"},
+    "bars_day_300": {"provisional": "tdxdata/client.py:1166 —— 阶段 1 逐根数据"
+                                    "信号列 provisional，样本录制早于该字段"},
 }
 
 
@@ -501,13 +598,20 @@ def _plain(obj):
 
 
 def _table_dict(tbl: Table) -> dict:
-    """`Table` 固定存成 `{cols, rows, cmd, domain, meta}`（Row → 普通 dict）。"""
+    """`Table` 固定存成 `{cols, rows, cmd, domain, provenance}`（Row → 普通 dict）。
+
+    ARCH-002（2026-10-27）：`Table.meta` 公开面退役，出处一等字段 `Provenance`
+    （`tdxdata/_provenance.py`）。样本侧记录 `provenance.to_dict()`（JSON 安全，
+    fetched_at 为 ISO 文本）。旧样本（meta 时代录制）没有该键 → 值 None；
+    `provenance` 已在 ALLOWED_ADDED_KEYS，新增不红、改值照红。
+    """
+    prov = getattr(tbl, "provenance", None)
     return {
         "cols": list(tbl.cols),
         "rows": [dict(r) for r in tbl.rows],
         "cmd": tbl.cmd,
         "domain": tbl.domain,
-        "meta": dict(tbl.meta or {}),
+        "provenance": prov.to_dict() if prov is not None else None,
     }
 
 
@@ -523,25 +627,24 @@ def _jsonable(val):
 
 
 def container_meta(obj):
-    """list/tuple 子类且带 `.meta` → 该 meta 的 JSON 化副本；否则 `None`。
+    """list/tuple 子类且带 `.provenance` → 该 Provenance 的 JSON 化副本；否则 `None`。
 
     为什么需要它
     ------------
     阶段 1 起 `get_bars` / `get_quotes` / `get_minutes` / `get_ticks` / `get_market_page`
     / `get_universe` 的返回值从 `list` 换成 `list` **子类**（`Bars` / `Quotes` / `Minutes` /
-    `Ticks`），元信息挂在实例的 `.meta` 上（`as_of` / `fetched_at` / `status` / `source` /
-    `elapsed`）。`json.dumps` 只看得到 list 的内容，看不见 `.meta` —— 不显式取出来，
-    门禁就漏掉了本阶段的核心产出。
+    `Ticks`），出处挂在实例的 `provenance`（ARCH-002 前是 `.meta`）。`json.dumps`
+    只看得到 list 的内容，看不见 `provenance` —— 不显式取出来，门禁就漏掉了本阶段的核心产出。
 
     ⚠️ **payload 的 `kind` 仍然按元素类型算**（`Bars` → `list[Bar]`，不写成 `Bars`）：
     容器类名一变就改 `kind` 会让阶段 0 冻结的 23 份老样本全部报差异，那是噪声不是信号。
     """
     if not isinstance(obj, (list, tuple)):
         return None
-    meta = getattr(obj, "meta", None)
-    if not isinstance(meta, dict):
+    prov = getattr(obj, "provenance", None)
+    if prov is None:
         return None
-    return _jsonable(dict(meta))
+    return _jsonable(prov.to_dict())
 
 
 def encode_ok(obj) -> dict:
@@ -929,10 +1032,17 @@ def _brief(val, limit: int = 90) -> str:
 
 
 def _eq(old, new) -> bool:
-    """标量相等判据：数字按值比（`1` 与 `1.0` 视为相同），其它要求类型也一致。"""
+    """标量相等判据：数字按值比但**要求类型一致**，其它要求类型也一致。
+
+    2026-10-27 复核实洞：旧写法把 `1 == 1.0` 当相等 —— int/float 的类型漂移
+    （序列化/解码层把整型字段悄悄变成浮点）完全测不出。现在 int 与 float
+    **算差异**（bool 仍最先截住，绝不与 int 混比）。双 NaN 仍视为相等。
+    """
     if isinstance(old, bool) or isinstance(new, bool):
         return old is new
     if isinstance(old, (int, float)) and isinstance(new, (int, float)):
+        if type(old) is not type(new):
+            return False            # int vs float = 类型漂移，必须报差异
         if old != old and new != new:          # 双 NaN
             return True
         return old == new
@@ -969,15 +1079,148 @@ def _diff_meta_source(old, new, path: str) -> list[str]:
     return out
 
 
+def _old_meta_to_prov_shape(old: dict) -> dict:
+    """把 meta 时代的散装键投影成 Provenance 形状（只投影、不放宽）。
+
+    投影规则（与 PROVENANCE_KEY_RENAME 一致）：
+    · fetch_clock → clock；source 五键 → host/cmd/ctl/cached 顶层
+      （source.clock 与 fetch_clock 同义，两边取一，一致才不报差异）；
+    · 说明性文本键 → notes 列表（成员精确存在断言由 diff_values 文本比对完成）；
+    · 其余键 → extra[同键名]。
+    """
+    prov: dict = {"notes": [], "extra": {}}
+    for k, v in old.items():
+        if k == "fetch_clock":
+            prov["clock"] = v
+        elif k == "source" and isinstance(v, dict):
+            for sk in ("host", "cmd", "ctl", "cached"):
+                if sk in v:
+                    prov[sk] = v[sk]
+            if "clock" in v and "clock" not in prov:
+                prov["clock"] = v["clock"]
+        elif k in ("as_of_note", "clock_note", "status_note", "source_note",
+                   "note", "why"):
+            if isinstance(v, str):
+                prov["notes"].append(v)
+        elif k in ("as_of", "status", "fetched_at", "elapsed", "data_date"):
+            # 与 Provenance 同名的一等字段：样本顶层键 → provenance 顶层键
+            prov[k] = v
+        else:
+            prov["extra"][k] = v
+    return prov
+
+
+def _diff_meta_vs_provenance(old_meta: dict, new_prov: dict, path: str) -> list[str]:
+    """样本冻结的 meta（旧 schema）对回放侧 provenance（新 schema）逐段严比。
+
+    只做键名换算，**值一律走 diff_values 严比**（fetched_at/elapsed/host 的
+    信息性豁免继承 in_meta 规则）。
+    """
+    out: list[str] = []
+    proj = _old_meta_to_prov_shape(old_meta)
+    if not isinstance(new_prov, dict):
+        return ["%s 回放侧 provenance 不是 dict（%s）—— schema 迁移失配"
+                % (path, type(new_prov).__name__)]
+    # notes：样本的说明性文本必须逐条存在于回放 notes **或** extra 的字符串值里
+    #（source_note / note 这两个键在迁移中落了 extra —— 两段都是"文本凭据"，
+    # 对账口径 = 文本精确存在，丢文本才报差异）。
+    new_notes = list(new_prov.get("notes") or [])
+    # extra：样本散装键 → 回放 extra[同键名]，值严比
+    new_extra = new_prov.get("extra") or {}
+    new_extra_texts = [v for v in new_extra.values() if isinstance(v, str)]
+    for want in proj["notes"]:
+        if want in new_notes or want in new_extra_texts:
+            continue
+        # schema 引用型文案的封闭等价对：ARCH-002 把 meta 引用改写为
+        # provenance 引用（文案里 `table.meta["data_date"]` → `provenance.data_date`），
+        # 事实同一、引用键名换了。封闭登记（逐条精确），新的改写必须显式加行。
+        if want == ("这条通道（数据中心 JSON，`ResultSets`）回包**不带数据日期/时间**，"
+                    "所以 as_of 无法确定；要知道数据日请用 `Client.get(...).data_date`"
+                    "（从首行 N001 推）或本表的 meta[\"data_date\"]"):
+            continue
+        out.append("%s.notes 缺样本文本 %s（旧说明性键的文本必须原样迁入 "
+                       "notes 或 extra）" % (path, _brief(want)))
+    for k, v in proj["extra"].items():
+        if k not in new_extra:
+            # 说明性文本键在样本里以散装键形态存在（source_note/note 等），
+            # 若文本已迁入回放 notes，按迁移对账放行（文本精确相等）。
+            if isinstance(v, str) and v in new_notes:
+                continue
+            out.append("%s.extra.%s 被删除（样本值 %s）" % (path, k, _brief(v)))
+            continue
+        out.extend(diff_values(v, new_extra[k], "%s.extra.%s" % (path, k),
+                               in_meta=True))
+    for k in new_extra:
+        if k not in proj["extra"]:
+            # 回放侧把说明性文本记成 extra 键（source_note/note）：样本里它是
+            # 散装说明性键，文本已在 notes 对账里核过 —— 键名换算放行。
+            if isinstance(new_extra[k], str) and new_extra[k] in new_notes:
+                continue
+            if isinstance(new_extra[k], str) and new_extra[k] in [w for w in proj["notes"]]:
+                continue
+            out.append("%s.extra.%s 新增（值 %s）—— 回放侧旁证键在样本 meta 里无对应"
+                       % (path, k, _brief(new_extra[k])))
+    # 顶层：除 notes/extra 外逐键严比
+    for k, v in proj.items():
+        if k in ("notes", "extra"):
+            continue
+        if k not in new_prov:
+            out.append("%s.%s 被删除（样本值 %s）" % (path, k, _brief(v)))
+            continue
+        # A′ 既有口径的三键（INFO_ONLY_META_CARRIERS）：fetched_at/elapsed 的
+        # 值不判（离线不可复现），host 是 source 五键里唯一放行的值 —— 与
+        # meta 时代完全同宽，不是新增豁免。data_date 是 ARCH-002 新一等键、
+        # 样本 schema 里没有（其事实原来在 as_of_note 文本里），null 放行。
+        if k in ("fetched_at", "elapsed", "host"):
+            continue
+        if k == "data_date" and new_prov[k] is None:
+            continue
+        out.extend(diff_values(v, new_prov[k], "%s.%s" % (path, k),
+                               in_meta=True))
+    for k in new_prov:
+        if k in ("notes", "extra") or k in proj:
+            continue
+        # 样本 meta 无对应的一等键：fetched_at/elapsed（A′ 信息性）、
+        # clock/host/cmd/ctl/cached（来源凭据，A′ 既有口径）、
+        # data_date/as_of 为 null 或 status（样本 meta 缺语义键的旧样本——
+        # N3 登记表本就记为空集，回放侧补上一等字段是收紧不是放松）。
+        if k in ("fetched_at", "elapsed", "clock", "host", "cmd", "ctl",
+                 "cached", "data_date", "as_of", "status"):
+            continue
+        out.append("%s.%s 新增（值 %s）—— provenance 新键在样本 meta 里无对应"
+                   % (path, k, _brief(new_prov[k])))
+    return out
+
+
 def diff_values(old, new, path: str = "payload",
-                in_meta: bool = False) -> list[str]:
+                in_meta: bool = False,
+                late_keys: dict | None = None) -> list[str]:
     """递归 diff，返回差异描述列表（空 = 完全一致）。
 
     `in_meta=True` 表示当前处在某个 `meta` dict 内：那里只有
     `INFO_ONLY_META_CARRIERS` 登记的 3 个载体是"值不判"，其余一律严比。
+
+    `late_keys`（check 侧传入，数据层专用豁免）：`{键名: 锚点说明}` ——
+    登记"样本侧历史缺失"的键只豁免**新增方向**（样本缺、回放有），且只在
+    数据层（meta 子树内不适用）。见 `EXPECTED_DATA_ROW_LATE_KEYS`。
     """
     out: list[str] = []
     if isinstance(old, dict) and isinstance(new, dict):
+        # ARCH-002 同位键：样本冻结的 `meta`（旧散装 schema）对回放侧
+        # `provenance`（新一等字段 schema）按换算表对账（严比，见
+        # _diff_meta_vs_provenance）。反向（样本有 provenance）不需要——
+        # 在役样本全部是 meta 时代录制的。
+        if "meta" in old and "provenance" in new and "meta" not in new:
+            out.extend(_diff_meta_vs_provenance(old["meta"], new["provenance"],
+                                                "%s.meta↔provenance" % path))
+            for key in old:
+                if key != "meta" and key not in new:
+                    out.append("%s.%s 被删除（旧值 %s）" % (path, key, _brief(old[key])))
+            for key in new:
+                if key != "provenance" and key not in old:
+                    out.append("%s.%s 新增（值 %s），不在允许新增清单内"
+                               % (path, key, _brief(new[key])))
+            return out
         for key in old:
             if key not in new:
                 out.append("%s.%s 被删除（旧值 %s）" % (path, key, _brief(old[key])))
@@ -990,10 +1233,18 @@ def diff_values(old, new, path: str = "payload",
                 # `fetched_at` / `elapsed`：存在性已经保证，**值**不判
                 continue
             out.extend(diff_values(old[key], new[key], "%s.%s" % (path, key),
-                                   in_meta=in_meta or key == "meta"))
+                                   in_meta=in_meta or key == "meta",
+                                   late_keys=late_keys))
         for key in new:
             if key not in old:
-                if key in ALLOWED_ADDED_KEYS:
+                # ⚠️ `ALLOWED_ADDED_KEYS` 只在 **meta 层**（in_meta=True 的子树）放行。
+                # 2026-10-27 复核实洞：旧写法不分层，往**数据行**里塞一个名为
+                # `status` 的键也能 diff=0 —— 白名单泄漏进了数据层。修法：数据层
+                # 新增键一律报差异，唯一例外是 `EXPECTED_DATA_ROW_LATE_KEYS`
+                # 登记的「历史缺失键」（Lead 裁决 A，只豁免新增方向）。
+                if in_meta and key in ALLOWED_ADDED_KEYS:
+                    continue
+                if (not in_meta and late_keys and key in late_keys):
                     continue
                 out.append("%s.%s 新增（值 %s），不在允许新增清单内"
                            % (path, key, _brief(new[key])))
@@ -1003,7 +1254,7 @@ def diff_values(old, new, path: str = "payload",
             out.append("%s 长度变化 %d → %d" % (path, len(old), len(new)))
         for idx in range(min(len(old), len(new))):
             out.extend(diff_values(old[idx], new[idx], "%s[%d]" % (path, idx),
-                                   in_meta=in_meta))
+                                   in_meta=in_meta, late_keys=late_keys))
         return out
     if _eq(old, new):
         return out
@@ -1514,6 +1765,39 @@ EXPECTED_ARCHIVED = {
 }
 
 
+def _freeze_replay_clock(client, sample_meta: dict, payload) -> None:
+    """回放时钟**确定化**：把「本机日期」冻结到录制当天，复现录制时的 hybrid 判定。
+
+    为什么需要它（2026-10-28 实测的跨日缺陷，不是臆测）
+    --------------------------------------------------
+    `HybridClock` 的前置条件是「本机日期 == 服务器交易日」，否则两源都不信、
+    降级 `clock="local"`（timeliness.py:459-463）。回放时服务器日期来自**录制帧**
+    （冻结在 2026-10-27），而本机日期是**真实今天** —— 一旦录制日 ≠ 今天，
+    8 份 hybrid 样本的 `source.clock` / `fetch_clock` 全部由 "hybrid" 降成 "local"，
+    回放报 8×2 处差异（数据字段 0 差异）。这不是行为回归，是**门禁自身对日期敏感**：
+    同一份帧在"第二天"回放就不再与录制同构。
+
+    修法：用样本自己 `meta.fetched_at`（= 录制时的本机时刻，on-disk 事实）冻结本机钟，
+    回放因此与录制同构。**严格比对一个字都没放宽**：`source.clock` / `fetch_clock` /
+    `status` / `as_of` 仍是逐值严比 —— 时钟逻辑真退化了，这里照样红。
+    只对**录制时钟确实是 `hybrid`** 的样本冻结；其余样本保持默认（否则会凭空造出
+    hybrid，反而制造假差异）。
+    """
+    rec = payload_meta(payload)
+    if rec.get("fetch_clock") != "hybrid":
+        return
+    raw = str(sample_meta.get("fetched_at") or "")
+    for fmt in ("%Y-%m-%dT%H:%M:%S", "%Y-%m-%d %H:%M:%S"):
+        try:
+            frozen = datetime.datetime.strptime(raw[:19], fmt)
+            break
+        except ValueError:
+            continue
+    else:                                   # 解析不出就保持默认（宁可报差异，不造假）
+        return
+    client._clock = HybridClock(client._probe_quote_time, local=lambda: frozen)
+
+
 def cmd_check(online: bool = False) -> int:
     print("=" * 92)
     print("黄金样本离线回放校验（不联网）")
@@ -1700,6 +1984,7 @@ def cmd_check(online: bool = False) -> int:
                 n_metasha_legacy += 1
 
             try:
+                _freeze_replay_clock(client, meta, payload)
                 value = spec["run"](client)
                 got = encode_ok(value)
             except FrameMissing as exc:
@@ -1728,18 +2013,66 @@ def cmd_check(online: bool = False) -> int:
             except BaseException as exc:                        # noqa: BLE001
                 got = encode_error(exc)
 
-            # 主比对**整体剔除**容器 meta：键名 `meta` 虽在 ALLOWED_ADDED_KEYS 里，
-            # 但那只放行"新增"。一旦样本与回放两边都有 `meta`，diff 会递归进去比
-            # `status`/`elapsed`/`fetched_at` —— 那些本来就每次都变，会把门禁变成噪声。
-            # 所以 meta 一律走下面那段**信息性**对照，不进 PASS/FAIL。
+            # ══ 容器 meta 纪律（守卫 2，2026-10-27 复核）══════════════════
+            # 旧写法把 `payload["meta"]` 两边整体剥掉后再做主 diff —— 27 份样本
+            # 都没有容器 meta，等于 Bars/Quotes/Ticks 的 meta 12 个语义键**从未
+            # 被主比对校验过**，回放侧凭空塞 meta 也静默通过。现在：
+            #   · 样本有 meta → 必须与回放侧逐键比对（走 in_meta=True 规则）；
+            #   · 样本无 meta → 回放侧**不许凭空多出未登记的容器 meta**；
+            #     多出即报差异（想合法登记走 `EXPECTED_REPLAY_CONTAINER_META_KEYS`，
+            #     与 `EXPECTED_SAMPLE_META_KEYS` 同一条登记纪律）。
+            # 不再"剥掉后静默"。两边都有的 meta 的值比对交给 diff_values 的
+            # in_meta=True 规则（fetched_at/elapsed/source.host 仍按 A′ 放行），
+            # 不会再把门禁变成时钟噪声。
             body_old = payload
             body_new = got
-            if isinstance(body_old, dict) and "meta" in body_old:
-                body_old = {k: v for k, v in body_old.items() if k != "meta"}
-            if isinstance(body_new, dict) and "meta" in body_new:
-                body_new = {k: v for k, v in body_new.items() if k != "meta"}
+            if isinstance(body_old, dict) and isinstance(body_new, dict):
+                old_meta = body_old.get("meta")
+                new_meta = body_new.get("meta")
+                if old_meta is None and new_meta is not None:
+                    got_keys = sorted(new_meta) if isinstance(new_meta, dict) \
+                        else ["<non-dict meta>"]
+                    registered = EXPECTED_REPLAY_CONTAINER_META_KEYS.get(name)
+                    if registered is None or sorted(registered) != got_keys:
+                        all_diffs.append(
+                            "%s：样本无容器 meta，回放却产出 meta 键 %s —— "
+                            "凭空多出的容器 meta 算差异（若确属新语义，"
+                            "请登记进 EXPECTED_REPLAY_CONTAINER_META_KEYS）"
+                            % (name, got_keys))
+                    else:
+                        # 键集与登记表精确一致 → 按登记放行。主 diff 里把回放侧
+                        # 的这个 meta 剔出"新增"（否则 diff_values 会重复报一遍
+                        # 守卫 2 已裁定的差异）。样本侧本来没有 meta，无需动
+                        # body_old；meta 的**键集**刚被上面对账过，**值**仍由
+                        # 信息性统计可见（下面 n_no_meta / meta_notes 那段）。
+                        body_new = {k: v for k, v in body_new.items()
+                                    if k != "meta"}
 
-            diffs = diff_values(body_old, body_new)
+            # 存在性守卫（裁决 A 落地要求 2①）：登记键在回放侧数据行里**必须**
+            # 仍然产出 —— 代码删键（如 client.py 不再写 provisional）时这里当场红，
+            # 登记表失效，不许它退化成永久后门。
+            late = EXPECTED_DATA_ROW_LATE_KEYS.get(name) or {}
+            if late:
+                rows_new = []
+                v = body_new.get("value") if isinstance(body_new, dict) else None
+                if isinstance(v, list):
+                    rows_new = [r for r in v if isinstance(r, dict)]
+                elif isinstance(v, dict):
+                    rows_new = [r for r in (v.get("rows") or []) if isinstance(r, dict)]
+                if not rows_new:
+                    bad.append("%s：登记了数据行历史缺失键 %s，但回放侧没有可检的"
+                               "数据行（空列表/形态变了）—— 登记表失效" % (name, sorted(late)))
+                    continue
+                for r in rows_new:
+                    missing = [k for k in late if k not in r]
+                    if missing:
+                        bad.append("%s：登记的历史缺失键 %s 在回放侧数据行里不存在"
+                                   " —— 代码已不再产出该键，登记表失效（请删登记或修代码）"
+                                   % (name, missing))
+                        break
+
+            diffs = diff_values(body_old, body_new,
+                                late_keys=EXPECTED_DATA_ROW_LATE_KEYS.get(name))
             compared += 1
             if diffs:
                 all_diffs.append("%s：%d 处" % (name, len(diffs)))
@@ -1800,14 +2133,16 @@ def cmd_check(online: bool = False) -> int:
     if not bad and not all_diffs:
         print("  差异 0：解码层输出与冻结样本逐字段一致")
 
-    # 容器 meta 一律**信息性**：`status` 依赖服务器时钟、`elapsed`/`fetched_at` 每次都变，
-    # 拿它们判 FAIL 只会训练人忽略红灯。这一行永远打印（0 份也要看得见口径）。
-    print("  容器 meta（信息性，不计入失败）：样本无 meta %d 份 / 两边都有 %d 份"
+    # 容器 meta：信息性统计仍打印（口径可见），纪律已升级 —— 见守卫 2 与
+    # EXPECTED_REPLAY_CONTAINER_META_KEYS。样本无 meta 而回放多出未登记 meta
+    # 的样本已在主 diff 报差异；两边都有时主 diff 走 in_meta=True 逐键比。
+    print("  容器 meta（纪律：样本无 meta → 回放侧键集须登记；两边都有 → in_meta 逐键比）："
+          "样本无 meta %d 份 / 两边都有 %d 份"
           "（一致 %d、变化 %d）/ 样本有但回放丢失 %d 份"
           % (n_no_meta, n_meta_same + n_meta_diff, n_meta_same, n_meta_diff, n_meta_lost))
     if n_no_meta:
-        print("    阶段 1 之前录的样本本来就没有容器 meta，缺它不是差异"
-              "（\"meta\" 在 ALLOWED_ADDED_KEYS 里）")
+        print("    阶段 1 之前录的样本本来就没有容器 meta；回放侧多出的 meta 键集"
+              "必须登记进 EXPECTED_REPLAY_CONTAINER_META_KEYS（未登记即红）")
     for line in meta_notes[:60]:
         print("    " + line)
     if len(meta_notes) > 60:

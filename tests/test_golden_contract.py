@@ -750,6 +750,35 @@ def test_meta_source_structure_is_still_asserted():
         "source 多一个键**必须**判红（键集必须恰为 5 个）"
 
 
+def test_scalar_eq_is_type_strict():
+    """`_eq` 数值判据必须**类型严格**（2026-10-27 复核三洞之三）。
+
+    旧实现把 `1 == 1.0` 当相等 —— int/float 类型漂移（序列化/解码层把整型
+    字段悄悄变成浮点）完全测不出。现在 int vs float 算差异；bool 与数值隔离、
+    双 NaN 仍相等（不回退既有语义）。
+    """
+    sys.path.insert(0, HERE)
+    import golden_runner as gr
+
+    assert gr._eq(1, 1.0) is False, "int 1 与 float 1.0 必须算差异（类型漂移）"
+    assert gr._eq(1.0, 1) is False, "方向也要红（对称）"
+    assert gr._eq(1, 1) is True
+    assert gr._eq(1.0, 1.0) is True
+    assert gr._eq(True, 1) is False, "bool 不得与数值混比"
+    assert gr._eq(False, 0) is False
+    assert gr._eq(True, True) is True
+    assert gr._eq(float("nan"), float("nan")) is True, "双 NaN 仍视为相等"
+    assert gr._eq(0.0, -0.0) is True, "0.0 == -0.0 保持数值相等语义"
+    assert gr._eq("1", 1) is False
+
+    # diff 层端到端：payload 行内 vol 从 int 变 float → 必须报差异
+    old = {"outcome": "ok", "kind": "list[dict]", "value": [{"vol": 100}]}
+    new = {"outcome": "ok", "kind": "list[dict]", "value": [{"vol": 100.0}]}
+    diffs = gr.diff_values(old, new)
+    assert diffs, "int→float 漂移必须报差异"
+    assert "vol" in diffs[0], "差异描述应指向漂移字段"
+
+
 def _runner_source() -> str:
     with open(os.path.join(HERE, "golden_runner.py"), encoding="utf-8") as fh:
         return fh.read()
@@ -982,32 +1011,118 @@ def test_allowed_added_keys_matches_runner():
 
 
 def test_container_meta_is_recorded_but_never_judged():
-    """容器 meta（阶段 1 的 `Bars`/`Quotes`/`Minutes`/`Ticks`.meta）必须被录进 payload，
-    但**只能作信息性输出**、绝不能让 check 判 FAIL。
+    """容器出处（ARCH-002 后是 `Bars`/`Quotes`/`Minutes`/`Ticks`.provenance）必须被
+    录进 payload，但**只能作信息性输出**、绝不能让 check 判 FAIL。
 
     守的是两件容易一起退化的东西：
-      ① `json.dumps` 看不见普通 list 的 `.meta` —— 不显式取出来就等于门禁漏掉本阶段产出；
+      ① `json.dumps` 看不见普通 list 的 `.provenance` —— 不显式取出来就等于门禁漏掉本阶段产出；
       ② `status`/`elapsed`/`fetched_at` 本来每次都变 —— 一旦进主 diff，门禁就会被关掉。
     """
     sys.path.insert(0, HERE)
     import golden_runner as gr
 
-    class CaseBars(list):        # 冒充阶段 1 的 `Bars`：list 子类 + .meta
+    class CaseBars(list):        # 冒充阶段 1 的 `Bars`：list 子类 + .provenance
         pass
 
+    from tdxdata._provenance import Provenance, ClockSource
+    from datetime import datetime
+    prov = Provenance(fetched_at=datetime(2026, 10, 27, 15, 0, 0),
+                      clock=ClockSource.LOCAL, cmd="HQServ.PBFXT",
+                      status="final", elapsed=0.42)
     obj = CaseBars([{"code": "600519", "close": 1335.0}])
-    obj.meta = {"as_of": "2026-10-27", "status": "final", "elapsed": 0.42}
+    obj.provenance = prov
 
     payload = gr.encode_ok(obj)
     assert payload["kind"] == "list[dict]", "容器类名不该改变 kind（老样本按元素类型记）"
     assert payload["value"] == [{"code": "600519", "close": 1335.0}]
-    assert payload.get("meta") == obj.meta, "带 .meta 的 list 子类必须把 meta 记成同级键"
+    got = payload.get("meta") or {}
+    assert got.get("status") == "final" and got.get("elapsed") == 0.42 \
+        and got.get("cmd") == "HQServ.PBFXT", \
+        "带 .provenance 的 list 子类必须把 provenance.to_dict() 记成同级 meta 键"
 
     assert "meta" not in gr.encode_ok([{"code": "600519"}]), \
         "普通 list / tuple 不该凭空多出 meta 键"
 
-    # meta 键单独出现在"新增"侧时按 ALLOWED_ADDED_KEYS 放行（老样本没有它）
+    # ── 2026-10-27 复核收紧（B2 三洞之一）：容器 meta 纪律 ──────────────
+    # 旧断言「样本无 meta 时，回放新增 meta 不该算差异」已废止：那让
+    # Bars/Quotes/Ticks 的 meta 语义键从未被校验、回放凭空塞 meta 也静默通过。
+    # 新纪律：样本无 meta → 回放侧 meta 键集必须登记进
+    # EXPECTED_REPLAY_CONTAINER_META_KEYS（键集精确相等才放行）；未登记 → 红。
     old = {"outcome": "ok", "kind": "list[Bar]", "value": []}
     new = dict(old, meta={"status": "final"})
-    assert gr.diff_values(old, new) == [], "样本无 meta 时，回放新增 meta 不该算差异"
-    assert "meta" in gr.ALLOWED_ADDED_KEYS
+    assert gr.diff_values(old, new) != [], \
+        "样本无 meta 时，回放塞**未登记**的容器 meta 必须报差异（旧豁免已废止）"
+    assert "meta" in gr.ALLOWED_ADDED_KEYS  # 键名仍登记（meta 层语义），但豁免
+    # 只属于 diff 层的 in_meta 规则，顶层 meta 新增由 check 侧登记表管。
+
+    # ① diff_values 层：数据行加白名单键（如 status）→ 必须红（白名单只在 meta 层生效）
+    base_row = {"outcome": "ok", "kind": "list[dict]",
+                "value": [{"code": "600519", "close": 1335.0}]}
+    row_status = {"outcome": "ok", "kind": "list[dict]",
+                  "value": [{"code": "600519", "close": 1335.0, "status": "final"}]}
+    assert gr.diff_values(base_row, row_status) != [], \
+        "往数据行里加 status（白名单键）必须报差异 —— ALLOWED_ADDED_KEYS 只放行 meta 层"
+    # ② 对照：meta 子树内新增白名单键 → 绿
+    m_old = dict(base_row, meta={"existing": "a"})
+    m_new = dict(base_row, meta={"existing": "a", "as_of": "2026-10-27"})
+    assert gr.diff_values(m_old, m_new) == [], \
+        "meta 子树内新增白名单键（as_of）不报差异（in_meta 放行语义保留）"
+    # ③ 对照：meta 子树内新增非白名单键 → 红
+    m_bad = dict(base_row, meta={"existing": "a", "random_new": 1})
+    assert gr.diff_values(m_old, m_bad) != [], \
+        "meta 子树内新增非白名单键必须报差异"
+
+    # ④ 登记表纪律：EXPECTED_REPLAY_CONTAINER_META_KEYS 键集双向闭集（与样本集合对齐）
+    sample_names = {os.path.basename(p)[:-5] for p in SAMPLES}
+    reg = set(gr.EXPECTED_REPLAY_CONTAINER_META_KEYS)
+    assert reg <= sample_names, (
+        "EXPECTED_REPLAY_CONTAINER_META_KEYS 登记了不存在的样本：%s"
+        % sorted(reg - sample_names))
+    for sname, keys in gr.EXPECTED_REPLAY_CONTAINER_META_KEYS.items():
+        assert isinstance(keys, list) and keys, \
+            "%s：登记键集必须是非空 list（不许空放行）" % sname
+        assert "meta" not in keys and "value" not in keys, \
+            "%s：登记键集里不该出现 payload 结构键" % sname
+
+    # ⑤ 数据行历史缺失键登记表（Lead 裁决 A）：双向闭集 + 存在性 + 单向豁免
+    late = gr.EXPECTED_DATA_ROW_LATE_KEYS
+    assert set(late) <= sample_names, (
+        "EXPECTED_DATA_ROW_LATE_KEYS 登记了不存在的样本：%s" % sorted(set(late) - sample_names))
+    for sname, keys in late.items():
+        assert keys, "%s：late_keys 登记不许为空" % sname
+        for k, why in keys.items():
+            assert "tdxdata/" in why or "锚点" in why, \
+                "%s.%s：登记必须写源码锚点" % (sname, k)
+            assert "*" not in k and "?" not in k, \
+                "%s.%s：不许通配" % (sname, k)
+        # 方向性：豁免只覆盖「样本缺、回放有」。回放侧**没有**该键时两边都不含，
+        # diff_values 不报（对称缺键本就相等）；「回放侧必须仍产出登记键」的
+        # 存在性由 runner check 的存在性守卫管（代码删键 → check 硬错误），
+        # 不属于 diff_values 的职责 —— 这里验证的是 diff 层语义不被误用。
+        replay_miss = gr.encode_ok(CaseBars([{"code": "600519", "close": 1335.0}]))
+        replay_have = gr.encode_ok(CaseBars([{"code": "600519", "close": 1335.0,
+                                              "provisional": False}]))
+        frozen = {"outcome": "ok", "kind": "list[dict]",
+                  "value": [{"code": "600519", "close": 1335.0}]}
+        assert gr.diff_values(frozen, replay_miss,
+                              late_keys=late.get(sname)) == [], \
+            "%s：两边都无该键 → 对称相等，不报（存在性由 check 守卫管）" % sname
+        assert gr.diff_values(frozen, replay_have,
+                              late_keys=late.get(sname)) == [], \
+            "%s：样本缺、回放按登记产出 provisional → 不报差异（豁免生效）" % sname
+
+    # ⑥ 豁免只对登记键生效：同一样本数据行加**其它**键（如 status）仍必须红
+    row_other = {"outcome": "ok", "kind": "list[dict]",
+                 "value": [{"code": "600519", "close": 1335.0, "status": "final"}]}
+    assert gr.diff_values(frozen, row_other,
+                          late_keys=late.get(sname)) != [], \
+        "登记表只豁免登记键；数据行加其它键（status）必须照红"
+
+    # ⑦ runner 侧存在性守卫不许被删：登记键在回放侧数据行里必须仍产出，
+    #    否则登记表退化成永久后门。源码级断言（行为在 check 里，行为测试太贵）。
+    src = _runner_source()
+    assert "EXPECTED_DATA_ROW_LATE_KEYS.get(name)" in src, \
+        "golden_runner 的 check 循环不再消费 EXPECTED_DATA_ROW_LATE_KEYS —— " \
+        "存在性守卫被删了？"
+    assert "登记表失效" in src, \
+        "check 的「代码删键 → 登记表失效报错」分支不见了（防后门退化）"
