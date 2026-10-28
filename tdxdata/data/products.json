@@ -4,7 +4,12 @@
   "PRODUCTS": 421,
   "PB_PRODUCTS": 36,
   "说明": "PRODUCTS = 表格型产品（get() 可直接返回 列名+行）；PB_PRODUCTS = protobuf/JSON 非表格通道，仅供 raw 调用",
-  "域分类": "由 tdxdata/domains.py 的 domain_of() 生成"
+  "域分类": "由 tdxdata/domains.py 的 domain_of() 生成",
+  "参数占位符": {
+   "说明": "params 里可用占位符：@code@（6 位代码，kwargs code=）与 #date#（YYYY-MM-DD/YYYYMMDD，kwargs date=）；由 tdxdata.client._fill 在 get() 时填充，kwargs 未给时用内置默认值（code=600519、date=最近收盘日）。占位符写法沿用本仓两处既有先例：_engine/catalog/page_cmd_params.json 的 #code#/#date# 族与 sections/f10.py 的 @code@/@sub@。",
+   "登记轮次": "2026-10-28 批次 B3（task-3）：35 条写死代码/日期的产品参数位对号入座；每条占位位均有出处：page_cmd_params.json 同 cmd 模板形状逐位匹配，或 sections/f10.py::SECTIONS 子码证据。其余未改产品（无形状证据）在任务报告中逐条登记。",
+   "gate 判据供 Lead 落测试": "421 条 products 的 params 序列化后不得残留「写死 6 位代码/日期且无占位符且无出处」的条目；机械判据（供 gate.py 引用）：存在 #dateTime# / 未登记占位符 token 即 FAIL（当前唯一残留：无——lzzdscj 的 #dateTime# 属 page_cmd_params 既有机制但 products.json 未登记该 key，见报告）。"
+  }
  },
  "products": {
   "holiday": {
@@ -233,7 +238,7 @@
    "ctl": 26,
    "params": [
     "00102",
-    "2026-10-23",
+    "#date#",
     60,
     ""
    ],
@@ -339,7 +344,7 @@
    "ctl": 22,
    "params": [
     "00103",
-    "600303",
+    "@code@",
     "0"
    ],
    "domain": "F10与个股资料"
@@ -349,7 +354,7 @@
    "ctl": 27,
    "params": [
     "00102",
-    "600303"
+    "@code@"
    ],
    "domain": "F10与个股资料"
   },
@@ -438,7 +443,7 @@
     "0",
     "1"
    ],
-   "domain": "涨停与题材"
+   "domain": "新股与再融资"
   },
   "lhzy": {
    "cmd": "CWServ.ph_zt_lhb_sy_zy",
@@ -548,7 +553,7 @@
    "ctl": 33,
    "params": [
     "002",
-    "2026-10-23"
+    "#date#"
    ],
    "domain": "板块与行业"
   },
@@ -557,7 +562,7 @@
    "ctl": 26,
    "params": [
     "00101",
-    "2026-10-23",
+    "#date#",
     "",
     0,
     0,
@@ -1137,7 +1142,7 @@
    "ctl": 22,
    "params": [
     "00101",
-    "600303"
+    "@code@"
    ],
    "domain": "F10与个股资料"
   },
@@ -1146,7 +1151,7 @@
    "ctl": 22,
    "params": [
     "00201",
-    "600303",
+    "@code@",
     "",
     "",
     0
@@ -1168,7 +1173,7 @@
    "ctl": 24,
    "params": [
     "zhpf",
-    "920091",
+    "@code@",
     "2"
    ],
    "domain": "F10与个股资料"
@@ -1178,7 +1183,7 @@
    "ctl": 24,
    "params": [
     "jdbxzxt",
-    "920091",
+    "@code@",
     "1",
     "",
     ""
@@ -1190,7 +1195,7 @@
    "ctl": 24,
    "params": [
     "ztms",
-    "600303",
+    "@code@",
     ""
    ],
    "domain": "F10与个股资料"
@@ -1200,7 +1205,7 @@
    "ctl": 23,
    "params": [
     "rdzt",
-    "920091"
+    "@code@"
    ],
    "domain": "F10与个股资料"
   },
@@ -1209,7 +1214,7 @@
    "ctl": 23,
    "params": [
     "zhpf",
-    "920091"
+    "@code@"
    ],
    "domain": "F10与个股资料"
   },
@@ -1260,7 +1265,7 @@
    "params": [
     "00502",
     "qb",
-    "600303",
+    "@code@",
     "1"
    ],
    "domain": "股东与持股"
@@ -1303,7 +1308,7 @@
    "ctl": 40,
    "params": [
     "001",
-    "600303",
+    "@code@",
     "",
     "",
     0,
@@ -1387,7 +1392,7 @@
    "ctl": 27,
    "params": [
     "00101",
-    "2026-10-23",
+    "#date#",
     0,
     0,
     0
@@ -1449,7 +1454,7 @@
    "ctl": 27,
    "params": [
     "00101",
-    "2026-10-23",
+    "#date#",
     0,
     0,
     0
@@ -1677,7 +1682,7 @@
    "ctl": 22,
    "params": [
     "00301",
-    "920091",
+    "@code@",
     ""
    ],
    "domain": "F10与个股资料"
@@ -2402,7 +2407,7 @@
    "ctl": 24,
    "params": [
     "00103",
-    "600303",
+    "@code@",
     "",
     1
    ],
@@ -2664,7 +2669,7 @@
    "ctl": 23,
    "params": [
     "00501",
-    "920091",
+    "@code@",
     "",
     ""
    ],
@@ -2683,7 +2688,7 @@
    "ctl": 23,
    "params": [
     "00101",
-    "920091",
+    "@code@",
     0
    ],
    "domain": "F10与个股资料"
@@ -2703,9 +2708,9 @@
    "ctl": 29,
    "params": [
     "30",
-    "600303",
+    "@code@",
     "1",
-    "2026-10-23"
+    "#date#"
    ],
    "domain": "其他"
   },
@@ -2755,8 +2760,8 @@
    "ctl": 35,
    "params": [
     "00102",
-    "600303",
-    "2026-10-23"
+    "@code@",
+    "#date#"
    ],
    "domain": "其他"
   },
@@ -2774,7 +2779,7 @@
    "cmd": "CWServ.phf10_zx_dstx",
    "ctl": 22,
    "params": [
-    "600303",
+    "@code@",
     "dstx_gg",
     ""
    ],
@@ -3270,7 +3275,7 @@
    "params": [
     "001",
     "",
-    "600303",
+    "@code@",
     "",
     ""
    ],
@@ -3668,8 +3673,8 @@
    "ctl": 35,
    "params": [
     "00102",
-    "600303",
-    "2025-12-31"
+    "@code@",
+    "#date#"
    ],
    "domain": "其他"
   },
@@ -3678,8 +3683,8 @@
    "ctl": 35,
    "params": [
     "00102",
-    "600303",
-    "2026-10-23"
+    "@code@",
+    "#date#"
    ],
    "domain": "其他"
   },
@@ -3688,8 +3693,8 @@
    "ctl": 35,
    "params": [
     "00102",
-    "600303",
-    "2026-10-23"
+    "@code@",
+    "#date#"
    ],
    "domain": "其他"
   },
@@ -3697,8 +3702,8 @@
    "cmd": "CWServ.ph_tdxdatacenter_tjcb_scbx",
    "ctl": 35,
    "params": [
-    "600303",
-    "2026-10-23"
+    "@code@",
+    "#date#"
    ],
    "domain": "其他"
   },
@@ -3707,8 +3712,8 @@
    "ctl": 35,
    "params": [
     "00101",
-    "600303",
-    "2026-06-30"
+    "@code@",
+    "#date#"
    ],
    "domain": "其他"
   },
@@ -3931,7 +3936,7 @@
     "00101",
     "",
     "",
-    "600303"
+    "@code@"
    ],
    "domain": "其他"
   },
@@ -4010,7 +4015,7 @@
     "",
     "0"
    ],
-   "domain": "新股与再融资"
+   "domain": "其他"
   },
   "tfp_v2_kzzxq": {
    "cmd": "CWServ.ph_tdxdatacenter_tfp_v2_kzzxq",
@@ -4021,7 +4026,7 @@
     "0",
     "0"
    ],
-   "domain": "新股与再融资"
+   "domain": "其他"
   },
   "sc_xgrl": {
    "cmd": "CWServ.phsj_sc_xgrl",
@@ -4045,7 +4050,7 @@
    "ctl": 18,
    "params": [
     "00101",
-    "600303"
+    "@code@"
    ],
    "domain": "其他"
   },
@@ -4062,7 +4067,7 @@
    "ctl": 22,
    "params": [
     "00101",
-    "600303",
+    "@code@",
     "0",
     "0"
    ],
@@ -4073,7 +4078,7 @@
    "ctl": 23,
    "params": [
     "00201",
-    "920091"
+    "@code@"
    ],
    "domain": "F10与个股资料"
   },
@@ -4082,7 +4087,7 @@
    "ctl": 20,
    "params": [
     "00104",
-    "920091"
+    "@code@"
    ],
    "domain": "F10与个股资料"
   },
@@ -4345,7 +4350,7 @@
    "cmd": "CWServ.ph_tdxdatacenter_hsgt_v3_agxq",
    "ctl": 38,
    "params": [
-    "600519",
+    "@code@",
     "1",
     1,
     5
@@ -4378,7 +4383,7 @@
      "machineInfo": "4;192.168.0.104;Redmi;;;;;14;117.147.45.243,0;;;;GPhone_Standard;7.27;2026-08-06 15:15 2.02.76;@ec0:QcR0FDq2vJinPkrZFY5kG2RuclyFpjV4ovL6Xjwvo5ChK/sVmUhLpdm/M9jUQSlG;f4f652dbff48aa10;;;;10736;Redmi_22122RK93C_34_14;;;;"
     }
    ],
-   "domain": "其它"
+   "domain": "其他"
   },
   "pb_tdx_pv": {
    "cmd": "CWSearch.tdx_pv",
@@ -4388,7 +4393,7 @@
     "ns": "pv:find",
     "id": "scjd_100093"
    },
-   "domain": "其它"
+   "domain": "其他"
   },
   "pb_rcache": {
    "cmd": "CWSearch.tzx_rcache",
@@ -4400,7 +4405,7 @@
     "size": "3",
     "qsid": "999"
    },
-   "domain": "其它"
+   "domain": "其他"
   },
   "pb_combhq": {
    "cmd": "HQServ.CombHQ",
@@ -4638,7 +4643,7 @@
     "check_flag": "1",
     "sort": "issue_date"
    },
-   "domain": "其它"
+   "domain": "其他"
   },
   "bklist_v2": {
    "cmd": "JNLPSE.bkList",
@@ -4661,7 +4666,7 @@
      "categoryType": "2"
     }
    ],
-   "domain": "其它"
+   "domain": "其他"
   },
   "card_type": {
    "cmd": "JNLPSE.getCardType",
@@ -4671,7 +4676,7 @@
      "sceneType": "1"
     }
    ],
-   "domain": "其它"
+   "domain": "其他"
   },
   "hot_ques": {
    "cmd": "JNLPSE.getHotQues",
@@ -4682,7 +4687,7 @@
      "pageSize": "4"
     }
    ],
-   "domain": "其它"
+   "domain": "其他"
   },
   "strategy_detail": {
    "cmd": "JNLPSE.getStrategyDetail",
@@ -4692,7 +4697,7 @@
      "strategyName": "主力活动,boll线突破中轨,底部特征,双底启动,资金持续流入,集合竞价有异动,主力有拉升迹象,强势突破年线,绩优股反弹,回马枪,好友反攻,上涨会合线,三兵进军,短线超卖,蜻蜓点水,上升三法,双针探底,射击之星,底部反转,弱市捡钱包"
     }
    ],
-   "domain": "其它"
+   "domain": "其他"
   },
   "title": {
    "cmd": "JNLPSE.getTitile",
@@ -4703,7 +4708,7 @@
      "phCard": "17"
     }
    ],
-   "domain": "其它"
+   "domain": "其他"
   },
   "hot_list_card": {
    "cmd": "JNLPSE.hotListCard",
@@ -4714,7 +4719,7 @@
      "pageSize": "3"
     }
    ],
-   "domain": "其它"
+   "domain": "其他"
   },
   "hot_stock_des": {
    "cmd": "JNLPSE.hotStockDetailDes",
@@ -4727,7 +4732,7 @@
      "listType": "0"
     }
    ],
-   "domain": "其它"
+   "domain": "其他"
   },
   "result_get": {
    "cmd": "JNLPSE.resultGet",
@@ -4739,7 +4744,7 @@
      "currentPage": "1"
     }
    ],
-   "domain": "其它"
+   "domain": "其他"
   },
   "yesterday_list": {
    "cmd": "JNLPSE.yesterdayList",
@@ -4749,7 +4754,7 @@
      "occurTime": "2026-10-20"
     }
    ],
-   "domain": "其它"
+   "domain": "其他"
   },
   "hot_ques_v2": {
    "cmd": "JNLPSE:getHotQues",
@@ -4760,7 +4765,7 @@
      "pageSize": "20"
     }
    ],
-   "domain": "其它"
+   "domain": "其他"
   },
   "hot_strategy": {
    "cmd": "JNLPSE:hotStrategy",
@@ -4770,7 +4775,7 @@
      "limit": "3"
     }
    ],
-   "domain": "其它"
+   "domain": "其他"
   },
   "result_get_v2": {
    "cmd": "JNLPSE:resultGet",
@@ -4782,7 +4787,7 @@
      "strategyName": "心动选股"
     }
    ],
-   "domain": "其它"
+   "domain": "其他"
   },
   "wenda": {
    "cmd": "JNLPSE:wendaQuery",
@@ -4798,7 +4803,7 @@
      "removeDate": "1"
     }
    ],
-   "domain": "其它"
+   "domain": "其他"
   }
  }
 }

@@ -185,19 +185,109 @@
   "响应": "protobuf（空）",
   "说明": "可能需要在特定页面/会话状态下才有数据"
  },
+ "HQServ.PBCombHQ": {
+  "kind": "table",
+  "ctl": [
+   17
+  ],
+  "verified": "2026-10-27（hq_extra.py 已实装公开，get_quotes / _probe_quote_time 每天在用）",
+  "内容": "组合行情快照（列名+行 的 rowtable 形状）",
+  "响应": "protobuf（Base64/zlib 套娃外壳，hq_extra.peel() 剥）",
+  "规模": "请求 17~20 列 → 响应 22~23 列（服务端补 Code/Setcode/Name）× N 行",
+  "参数": "Base64 protobuf：field2=列名×N、field3=市场号(packed varint)、field4=代码×N、field6=0；field1=固定头 0a013110001a0022002800",
+  "列名": [
+   "Code",
+   "Setcode",
+   "Name",
+   "XSFLAG",
+   "FLAG",
+   "SPECTYPE",
+   "HqDate",
+   "HqTime",
+   "HASTIP",
+   "VAR0514",
+   "RELAG",
+   "DELAYMIN",
+   "CLOSE",
+   "NOW",
+   "ZSSJL",
+   "OPEN",
+   "MGJZC",
+   "WTB",
+   "MAX",
+   "MIN",
+   "VOL",
+   "AMOUNT",
+   "LB"
+  ],
+  "列含义": {
+   "Code": "股票代码",
+   "Setcode": "市场代码 0=深 1=沪 2=北",
+   "Name": "名称",
+   "HqDate": "服务器交易日 YYYYMMDD",
+   "HqTime": "最后成交时刻 HHMMSS（收盘后冻结，见 timeliness.HybridClock）",
+   "CLOSE": "昨收价（不是现价）",
+   "NOW": "现价",
+   "OPEN": "开盘价",
+   "MAX": "最高价",
+   "MIN": "最低价",
+   "VOL": "成交量（2026-10-27 实网补要生效）",
+   "AMOUNT": "成交额（2026-10-27 实网补要生效）",
+   "LB": "疑似量比，语义未定 → 只留 raw"
+  },
+  "注意": "VOLUME 服务端不认（列数不变）；老新三板码（430047 等）本通道不回；880xxx/881xxx 是板块指数（Setcode=1）不是北交所",
+  "用途": "批量报价（Client.get_quotes 的底层通道）+ 服务器时钟探针（Client._probe_quote_time）"
+ },
+ "HQServ.PBHQInfo": {
+  "kind": "pb",
+  "ctl": [
+   17
+  ],
+  "verified": "2026-10-27（hq_extra.py 已实装公开，Client.get_name 底层）",
+  "内容": "代码 → 名称",
+  "响应": "protobuf（空包/无中文串 = 查不到）",
+  "参数": "protobuf：field1=0a022800、field2=varint 品种域（推荐 3：个股/指数/板块都对）、field3=代码、field4=市场 varint、field9=5 要多字段",
+  "注意": "field2 必须是 varint（10 03），写成 bytes（12 01 03）深市代码查不到（399001 直接回 15B 空包）",
+  "用途": "名称查询（hq_extra.name_of / Client.get_name）"
+ },
+ "HQServ.PBXmlBlock": {
+  "kind": "json",
+  "ctl": [
+   19
+  ],
+  "verified": "2026-10-27（hq_extra.py 已实装公开，Client.get_block_data 底层）",
+  "内容": "块数据（服务端 JSON 数组文本）",
+  "响应": "protobuf（field7 = JSON 数组文本；单页上限实测 100 行）",
+  "参数": "protobuf：field2=varint（999 或 0，语义未定）、field3=取数规格 \"类别,级别,起始,数量\"（如 RN,0,2 / HY,1,0,3）、field4/field5=varint 0（必须是 varint 20 00，写成空 bytes 只回一个头）、field6=块名（MStock_ 前缀）",
+  "注意": "请求 ctl 是 0x13、**响应 ctl 是 0x11**；field5 不是成功标志（9/128 都回完整数据），有没有数据只看 field7 在不在；field6 不是行数（与实际行数毫无对应）",
+  "用途": "块数据分页（hq_extra.block_data / block_rows → Client.get_block_data）"
+ },
+ "HQServ.PBSampleMore": {
+  "kind": "pb",
+  "ctl": [
+   21
+  ],
+  "verified": "2026-10-27（hq_extra.py 已实装公开，Client.get_samples 底层）",
+  "内容": "批量分时抽样点位（昨收 + 打包 float32 数组）",
+  "响应": "protobuf（重复 field1 包装，每代码一条）",
+  "参数": "protobuf：重复 field1，每条嵌套 = 0a022800 1001 1a06<code> 2001（16B）",
+  "结构": "单条 = field3=代码、field4=市场、field5=全天点数上限（60）、field6=昨收(fixed32)、field7=本帧点数、field8=打包 float32",
+  "注意": "field8 数组的**列序至今未锚定**（只给 f0..fN，不许当 high/low/volume 用）；pre_close 与 get_boards CLOSE 已交叉验证",
+  "用途": "批量抽样（hq_extra.samples → Client.get_samples）"
+ },
+ "HQServ.PBHYStat": {
+  "kind": "table",
+  "ctl": [
+   17
+  ],
+  "verified": "2026-10-27（hq_extra.py 已实装公开，Client.get_board_stat 底层）",
+  "内容": "板块成分统计（rowtable 形状，与 PBCombHQ 同构）",
+  "响应": "protobuf",
+  "参数": "protobuf：field2=6、field3=板块类别（-1/0/6/8=行业三级、1=行业按涨幅、3=概念、4=特色榜单、5=地区、7=一级行业、2=空包）、field5=视图（0=纯板块 12 行 / 14=板块行+成分行交替）、f4/f6/f7/f8 恒 0/6/0/2",
+  "注意": "f3=-1 编码为二补码 varint（18ffffffffffffffffff01）；f5 无条件写出（f5=0 也写 28 00）；Other 列量纲随 f5 变，原样返回",
+  "用途": "板块统计（hq_extra.board_stat → Client.get_board_stat）"
+ },
  "未打通": {
-  "PBCombHQ": {
-   "ctl": [
-    17
-   ],
-   "现象": "WinError 10053 连接中止"
-  },
-  "PBXmlBlock": {
-   "ctl": [
-    19
-   ],
-   "现象": "WinError 10054 连接重置"
-  },
   "PBDeepWarn": {
    "ctl": [
     19,
@@ -205,19 +295,7 @@
    ],
    "现象": "有响应但空；参数是 protobuf 且含股票代码 600215"
   },
-  "PBHQInfo": {
-   "ctl": [
-    17
-   ],
-   "现象": "有响应但空"
-  },
   "PBGPTips": {
-   "ctl": [
-    17
-   ],
-   "现象": "有响应但空"
-  },
-  "PBSample": {
    "ctl": [
     17
    ],
@@ -240,10 +318,6 @@
     17
    ],
    "现象": "无响应"
-  },
-  "PBHYStat": {
-   "状态": "C 组（有参数缺 ctl）",
-   "参数": "['00101','xxx']"
   }
  }
 }
