@@ -15,6 +15,16 @@ sys.stdout.reconfigure(encoding="utf-8")
 sys.path.insert(0, os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
 
 from tdxdata import errors                                              # noqa: E402
+from datetime import datetime as _dt
+from tdxdata._provenance import ClockSource as _CS, Provenance
+
+_T = _dt(2026, 10, 28, 9, 30)
+
+
+def _prov_of(meta, cmd=""):
+    """旧 meta dict 夹具 → Provenance（extra 收结构化旁证）。"""
+    return (Provenance(fetched_at=_T, clock=_CS.SERVER, cmd=cmd,
+                       extra=dict(meta)) if meta else None)
 from tdxdata.models import Table                                        # noqa: E402
 from tdxdata.sections import f10, mapping, xdxr                         # noqa: E402
 
@@ -24,12 +34,15 @@ from tdxdata.sections import f10, mapping, xdxr                         # noqa: 
 # ══════════════════════════════════════════════════════════════════════════
 def _primary_table(cmd, cols, rows, union=None):
     """按**新契约**造表：`cols` 只放主表自己的列名（与行值严格对齐），
-    「各 RS 列名并集」放 `meta["cols_union"]`（协议层 `client._make_table` 就是这么给的）。
+    「各 RS 列名并集」放 `provenance.extra["cols_union"]`
+    （协议层 `client._make_table` 就是这么给的）。
     """
-    meta = {"cols_source": "primary"} if union else {}
+    prov = None
     if union:
-        meta["cols_union"] = list(union)
-    return Table(cols=list(cols), rows=rows, cmd=cmd, meta=meta)
+        prov = Provenance(fetched_at=_T, clock=_CS.SERVER, cmd=cmd,
+                          extra={"cols_source": "primary",
+                                 "cols_union": list(union)})
+    return Table(cols=list(cols), rows=rows, cmd=cmd, provenance=prov)
 
 
 def gsjj_table():
@@ -296,10 +309,10 @@ def test_apply_hypm_primary_cols():
     """主表是 RS1（N003/N004/sc/lx）→ 直接按 cols 取就是对的。"""
     src = hypm_table()
     assert len(src.cols) == len(src.rows[0]) == 4
-    assert src.meta["cols_union"][:2] == ["N001", "N002"]
+    assert src.provenance.extra["cols_union"][:2] == ["N001", "N002"]
     t = mapping.apply(src, "hypm")
-    assert t.meta["cols_align"] == "server", t.meta
-    assert t.meta["template_check"] == "match", t.meta
+    assert t.provenance.extra["cols_align"] == "server", t.provenance
+    assert t.provenance.extra["template_check"] == "match", t.provenance
     r = t.rows[0]
     assert r["name"] == "思进智能"
     assert r["code"] == "003025"
@@ -314,7 +327,7 @@ def test_apply_jyfx_primary_cols():
     src = jyfx_table()
     assert len(src.cols) == len(src.rows[0]) == 4
     t = mapping.apply(src, "jyfx")
-    assert t.meta["template_check"] == "match", t.meta
+    assert t.provenance.extra["template_check"] == "match", t.provenance
     assert t.cols == ["main_business", "business_scope"], t.cols
     r = t.rows[0]
     assert r["main_business"].startswith("茅台酒及系列酒")
@@ -330,8 +343,8 @@ def test_jyfx_other_branch_guarded():
     src = Table(cols=cols, rows=[[None] * 9], cmd="CWServ.ph_agf10_jyfx")
     t = mapping.apply(src, "jyfx")
     assert t.cols == [], t.cols
-    assert t.meta["mapping_skipped"] == "cols-guard"
-    assert t.meta["template_check"] == "mismatch"
+    assert t.provenance.extra["mapping_skipped"] == "cols-guard"
+    assert t.provenance.extra["template_check"] == "mismatch"
 
 
 def test_apply_zg_yq_zg_zs():
@@ -367,7 +380,7 @@ def test_apply_zxts_is_raw_only():
     assert len(src.cols) == len(src.rows[0]) == 9
     t = mapping.apply(src, "zxts")
     assert t.cols == [], t.cols
-    assert t.meta["template_check"] == "match", t.meta
+    assert t.provenance.extra["template_check"] == "match", t.provenance
     raw = t.rows[0]["raw"]
     assert list(raw) == ["N001", "N002", "N003", "N004", "N005",
                          "N006", "N007", "N008", "N020"], list(raw)
@@ -379,7 +392,7 @@ def test_apply_zxts_is_raw_only():
 def test_apply_zxts2_zj_raw_only():
     t2 = mapping.apply(zxts2_table(), "zxts2")
     assert t2.cols == []
-    assert t2.meta["template_check"] == "match", t2.meta
+    assert t2.provenance.extra["template_check"] == "match", t2.provenance
     assert len(t2.rows[0]["raw"]) == 12
 
     zj = mapping.apply(agf10_zj_table(), "agf10_zj")
@@ -713,7 +726,7 @@ def real_gsjj_table():
     if src.get("cols_union"):
         meta["cols_union"] = list(src["cols_union"])
     return Table(cols=list(src["cols"]), rows=[list(r) for r in src["rows"]],
-                 cmd='CWServ.ph_agf10_gsjj', meta=meta)
+                 cmd='CWServ.ph_agf10_gsjj', provenance=_prov_of(meta))
 
 REAL_FHRZ_600519 = {
     "cmd": 'CWServ.ph_agf10_fhrz',
@@ -736,7 +749,7 @@ def real_fhrz_table():
     if src.get("cols_union"):
         meta["cols_union"] = list(src["cols_union"])
     return Table(cols=list(src["cols"]), rows=[list(r) for r in src["rows"]],
-                 cmd='CWServ.ph_agf10_fhrz', meta=meta)
+                 cmd='CWServ.ph_agf10_fhrz', provenance=_prov_of(meta))
 
 REAL_JYFX_600519 = {
     "cmd": 'CWServ.ph_agf10_jyfx',
@@ -760,7 +773,7 @@ def real_jyfx_table():
     if src.get("cols_union"):
         meta["cols_union"] = list(src["cols_union"])
     return Table(cols=list(src["cols"]), rows=[list(r) for r in src["rows"]],
-                 cmd='CWServ.ph_agf10_jyfx', meta=meta)
+                 cmd='CWServ.ph_agf10_jyfx', provenance=_prov_of(meta))
 
 REAL_HYPM_600519 = {
     "cmd": 'CWServ.ph_agf10_hypm',
@@ -785,7 +798,7 @@ def real_hypm_table():
     if src.get("cols_union"):
         meta["cols_union"] = list(src["cols_union"])
     return Table(cols=list(src["cols"]), rows=[list(r) for r in src["rows"]],
-                 cmd='CWServ.ph_agf10_hypm', meta=meta)
+                 cmd='CWServ.ph_agf10_hypm', provenance=_prov_of(meta))
 
 REAL_ZXTS5_600519 = {
     "cmd": 'CWServ.ph_agf10_zxts5',
@@ -810,7 +823,7 @@ def real_zxts5_table():
     if src.get("cols_union"):
         meta["cols_union"] = list(src["cols_union"])
     return Table(cols=list(src["cols"]), rows=[list(r) for r in src["rows"]],
-                 cmd='CWServ.ph_agf10_zxts5', meta=meta)
+                 cmd='CWServ.ph_agf10_zxts5', provenance=_prov_of(meta))
 
 REAL_ZP_600519 = {
     "cmd": 'CWServ.ph_agf10_zp',
@@ -835,7 +848,7 @@ def real_zp_table():
     if src.get("cols_union"):
         meta["cols_union"] = list(src["cols_union"])
     return Table(cols=list(src["cols"]), rows=[list(r) for r in src["rows"]],
-                 cmd='CWServ.ph_agf10_zp', meta=meta)
+                 cmd='CWServ.ph_agf10_zp', provenance=_prov_of(meta))
 
 
 def t_cols(applied):
@@ -874,7 +887,7 @@ def test_real_jyfx_is_rs0_not_product_lines():
     src = real_jyfx_table()
     assert src.shape == (1, 4)
     t = mapping.apply(src, "jyfx")
-    assert t.meta["template_check"] == "match", t.meta
+    assert t.provenance.extra["template_check"] == "match", t.provenance
     r = t.rows[0]
     assert t.cols == ["main_business", "business_scope"]
     assert r["main_business"].startswith("茅台酒")
@@ -889,7 +902,7 @@ def test_real_hypm_600519():
     src = real_hypm_table()
     assert src.shape == (2, 4) and REAL_HYPM_600519["n_rows"] == 25
     t = mapping.apply(src, "hypm")
-    assert t.meta["template_check"] == "match", t.meta
+    assert t.provenance.extra["template_check"] == "match", t.provenance
     r = t.rows[0]
     assert r["name"] == "泸州老窖"
     assert r["code"] == "000568"
@@ -902,7 +915,7 @@ def test_real_zxts5_600519():
     src = real_zxts5_table()
     assert src.shape == (2, 4) and REAL_ZXTS5_600519["n_rows"] == 8
     t = mapping.apply(src, "zxts5")
-    assert t.meta["template_check"] == "match", t.meta
+    assert t.provenance.extra["template_check"] == "match", t.provenance
     r = t.rows[0]
     assert r["per_capita_hold_amt_wan_yuan"] == 1185.49
     assert r["holder_count"] == 296404

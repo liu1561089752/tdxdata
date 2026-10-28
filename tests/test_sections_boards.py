@@ -231,9 +231,9 @@ def test_boards_industry_from_real_sample():
     assert {c[2]["market"] for c in backfill} == {10001}, fc.calls
     # 本 fixture 的 industry2 里没有 881002/881005/881007/881008 →
     # 回填**必须留 None，不许猜**，并把四个码报进 change_pct_unavailable
-    assert t.meta["change_pct_method"] == "industry2 回填", t.meta
-    assert t.meta["unavailable"] == ["change_pct"], t.meta
-    assert t.meta["change_pct_unavailable"] == ["881002", "881005", "881007", "881008"], t.meta
+    assert t.provenance.extra["change_pct_method"] == "industry2 回填", t.provenance
+    assert t.provenance.extra["unavailable"] == ["change_pct"], t.provenance
+    assert t.provenance.extra["change_pct_unavailable"] == ["881002", "881005", "881007", "881008"], t.provenance
 
 
 def test_boards_concept_from_real_sample():
@@ -251,8 +251,8 @@ def test_boards_concept_from_real_sample():
         want = (float(r["now"]) / float(r["close"]) - 1.0) * 100.0
         assert abs(r["change_pct"] - want) < 1e-9, (r["board_code"], r["change_pct"], want)
     assert abs(t.rows[0]["change_pct"] - (-1.0065288356909563)) < 1e-9, t.rows[0]
-    assert t.meta["change_pct_method"] == "PBMultiHQ.NOW/CLOSE", t.meta
-    assert t.meta["unavailable"] == [], "concept 的涨跌幅现在算得出来，不该再声明缺列"
+    assert t.provenance.extra["change_pct_method"] == "PBMultiHQ.NOW/CLOSE", t.provenance
+    assert t.provenance.extra["unavailable"] == [], "concept 的涨跌幅现在算得出来，不该再声明缺列"
     r0 = t.rows[0]
     assert r0["board_code"] == "880903"
     assert r0["board_name"] == "水产品"
@@ -326,15 +326,15 @@ def test_boards_meta_declares_unavailable_column():
     fc = _fake_all()
     # concept：PBMultiHQ 自带 CLOSE/NOW → 算得出来 → 不许声明缺列
     t = boards.get_boards(fc, "concept")
-    assert t.meta.get("unavailable") == [], t.meta
-    assert t.meta.get("change_pct_method") == "PBMultiHQ.NOW/CLOSE", t.meta
+    assert t.provenance.extra.get("unavailable") == [], t.provenance
+    assert t.provenance.extra.get("change_pct_method") == "PBMultiHQ.NOW/CLOSE", t.provenance
     # industry：本 fixture 的 industry2 里没有这 4 个码 → 必须声明缺列，并点名是哪些码
     for kind in ("industry", "all"):
         fc = _fake_all()
         t = boards.get_boards(fc, kind)
-        assert t.meta.get("unavailable") == ["change_pct"], (kind, t.meta)
-        assert t.meta.get("change_pct_unavailable"), (kind, t.meta)
-        why = t.meta.get("why")
+        assert t.provenance.extra.get("unavailable") == ["change_pct"], (kind, t.provenance)
+        assert t.provenance.extra.get("change_pct_unavailable"), (kind, t.provenance)
+        why = "；".join(t.provenance.notes)
         assert isinstance(why, str) and len(why) > 10, (kind, why)
         assert "涨跌" in why, (kind, why)
 
@@ -357,8 +357,8 @@ def test_boards_all_is_documented_partial_union():
                       "industry_code", "level1_code", "level1_name"], t.cols
     assert t.rows[-1]["industry_code"] is None
     assert t.rows[0]["level1_code"] == "X10"
-    assert t.meta["partial"] is True
-    assert t.meta["missing"] == ["index"]
+    assert t.provenance.extra["partial"] is True
+    assert t.provenance.extra["missing"] == ["index"]
     # 每行 raw 里加了 _source，能追溯来自哪条命令
     assert t.rows[0]["raw"]["_source"] == "app_bklist_ag"
     assert t.rows[-1]["raw"]["_source"] == "PBMultiHQ"
@@ -439,8 +439,8 @@ def test_board_members_by_code_uses_real_sample():
     assert r0["price"] is None
     assert r0["change_pct"] is None
     # Lead 要求：拿不到的列必须在 meta 里显式声明
-    assert t.meta.get("unavailable") == ["price", "change_pct"], t.meta
-    assert "不含价格与涨跌幅" in t.meta.get("why", ""), t.meta
+    assert t.provenance.extra.get("unavailable") == ["price", "change_pct"], t.provenance
+    assert "不含价格与涨跌幅" in t.provenance.extra.get("why", ""), t.provenance
     # raw 完整（9 列全在）
     assert set(r0["raw"]) == set(_zttz_xggp_table()[0])
 
@@ -617,7 +617,7 @@ def test_boards_six_domains_map_to_right_market():
         assert t.rows[0]["board_code"] == code, kind
         assert t.rows[0]["board_name"] == name, kind
         assert t.rows[0]["board_type"] == kind, kind
-        assert t.meta["params"]["market"] == market, kind
+        assert t.provenance.extra["params"]["market"] == market, kind
         # 阶段 4：涨跌幅由 `NOW/CLOSE-1` 实算（六类的 fake 行都带 CLOSE/NOW）——
         # 逐行按 fake 真值复算，不再断言 None。
         want_cp = (float(t.rows[0]["now"]) / float(t.rows[0]["close"]) - 1.0) * 100.0

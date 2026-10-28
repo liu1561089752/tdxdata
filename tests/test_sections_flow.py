@@ -186,7 +186,7 @@ def test_capital_flow_none_from_real_sample():
     assert fc.calls == [(
         "CWServ.ph_zt_zjlx_cxlclr", 0x1A, ["00202", "", 6, 1, 1],
     )], fc.calls
-    assert t.meta["p1"] == "00202"
+    assert t.provenance.extra["p1"] == "00202"
 
 
 def test_capital_flow_none_semantics():
@@ -331,8 +331,8 @@ def test_market_stat_industry_loops_level1_codes():
     t = flow.get_market_stat(fc, "industry")
 
     assert [c[2] for c in fc.calls] == [[1, "H01"], [2, "X10"], [2, "X11"]], fc.calls
-    assert t.meta["level1_codes"] == ["X10", "X11"]
-    assert t.meta["calls"] == 3
+    assert t.provenance.extra["level1_codes"] == ["X10", "X11"]
+    assert t.provenance.extra["calls"] == 3
 
     assert t.cols == ["industry_name", "industry_code", "board_code", "level",
                       "date", "change_pct", "up_count", "down_count"], t.cols
@@ -368,7 +368,7 @@ def test_market_stat_industry_skips_empty_but_propagates_other_errors():
     }
     fc = LoopFake(by_params=base)
     t = flow.get_market_stat(fc, "industry")
-    assert t.meta["skipped_codes"] == ["X11"], t.meta
+    assert t.provenance.extra["skipped_codes"] == ["X11"], t.meta
     assert len(t.rows) == 2, "只应留下 X10 的 2 行明细"
 
     # ParamError 不是"没数据"，必须往上抛（不许当空表吞掉）
@@ -585,7 +585,7 @@ def test_live_20261025_market_stat():
     assert len(se.rows[0]["raw"]) == 12           # 12 列原样保留
 
     ind = flow.get_market_stat(fc, "industry")
-    assert ind.meta["level1_codes"] == ["X10"]    # 非 X 码被过滤
+    assert ind.provenance.extra["level1_codes"] == ["X10"]    # 非 X 码被过滤
     r0 = ind.rows[0]
     assert r0["industry_name"] == "煤炭开采"
     assert r0["industry_code"] == "X1001"

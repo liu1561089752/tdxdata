@@ -105,8 +105,8 @@ def test_concept_change_pct_is_computed_from_now_close():
     assert r0["change_pct"] == pytest.approx((545.85 / 551.40 - 1) * 100)   # 约 -1.01
     assert r1["change_pct"] == pytest.approx((2850.12 / 2841.55 - 1) * 100)  # 约 +0.30
     assert "change_pct" in t.cols and "now" in t.cols and "close" in t.cols
-    assert t.meta["change_pct_method"] == "PBMultiHQ.NOW/CLOSE"
-    assert t.meta["unavailable"] == [], "算得出来就不许再声称这一列不可用"
+    assert t.provenance.extra["change_pct_method"] == "PBMultiHQ.NOW/CLOSE"
+    assert t.provenance.extra["unavailable"] == [], "算得出来就不许再声称这一列不可用"
 
 
 def test_six_domains_all_carry_real_change_pct():
@@ -117,7 +117,7 @@ def test_six_domains_all_carry_real_change_pct():
     for kind in ("industry1", "industry2", "industry3", "concept", "style", "area"):
         t = boards.get_boards(fc, kind)
         assert t.rows[0]["change_pct"] == pytest.approx(1.0), kind
-        assert t.meta["change_pct_method"] == "PBMultiHQ.NOW/CLOSE", kind
+        assert t.provenance.extra["change_pct_method"] == "PBMultiHQ.NOW/CLOSE", kind
 
 
 def test_missing_price_row_stays_none_but_column_kept():
@@ -130,8 +130,8 @@ def test_missing_price_row_stays_none_but_column_kept():
     assert t.rows[1]["change_pct"] is None
     assert t.rows[0]["change_pct"] is not None
     assert "change_pct" in t.cols
-    assert t.meta["unavailable"] == ["change_pct"]
-    assert t.meta["change_pct_unavailable"] == ["880904"]
+    assert t.provenance.extra["unavailable"] == ["change_pct"]
+    assert t.provenance.extra["change_pct_unavailable"] == ["880904"]
 
 
 # ══════════════════════════════════════════════════════════════════════════
@@ -155,13 +155,13 @@ def test_industry_backfills_from_industry2():
     ]))
     t = boards.get_boards(fc, "industry")
 
-    assert t.meta["change_pct_method"] == "industry2 回填"
+    assert t.provenance.extra["change_pct_method"] == "industry2 回填"
     assert t.rows[0]["board_code"] == "881002"
     assert t.rows[0]["now"] == 1212.0 and t.rows[0]["close"] == 1200.0
     assert t.rows[0]["change_pct"] == pytest.approx(1.0)
     assert t.rows[1]["change_pct"] == pytest.approx(-0.5)
-    assert "change_pct_unavailable" not in t.meta
-    assert t.meta["unavailable"] == []
+    assert "change_pct_unavailable" not in t.provenance.extra
+    assert t.provenance.extra["unavailable"] == []
     # 那一轮 industry2 确实打出去了（market=10001）
     assert ("PBMultiHQ.board_page", 0x12,
             {"offset": 0, "page_size": 44, "market": 10001}) in fc.calls
@@ -177,8 +177,8 @@ def test_industry_backfill_miss_is_recorded_not_guessed():
 
     assert t.rows[0]["change_pct"] == pytest.approx(1.0)
     assert t.rows[1]["change_pct"] is None, "回填不到必须 None（不是 0）"
-    assert t.meta["change_pct_unavailable"] == ["881005"]
-    note = t.meta["change_pct_note"]
+    assert t.provenance.extra["change_pct_unavailable"] == ["881005"]
+    note = t.provenance.extra["change_pct_note"]
     assert "industry2" in note and "881005" in note
     assert t.rows[1]["now"] is None and t.rows[1]["close"] is None
 
@@ -189,9 +189,9 @@ def test_industry_when_industry2_is_empty_says_so():
     t = boards.get_boards(fc, "industry")
     assert len(t.rows) == 2, "行业清单不能因为价格没取到就整张失败"
     assert all(r["change_pct"] is None for r in t.rows)
-    assert t.meta["change_pct_method"] == "industry2 回填"
-    assert "industry2" in t.meta["change_pct_note"]
-    assert t.meta["unavailable"] == ["change_pct"]
+    assert t.provenance.extra["change_pct_method"] == "industry2 回填"
+    assert "industry2" in t.provenance.extra["change_pct_note"]
+    assert t.provenance.extra["unavailable"] == ["change_pct"]
 
 
 def test_industry_name_lookup_does_not_pay_for_prices():
@@ -211,7 +211,7 @@ def test_all_kind_documents_both_branches():
                10004: _mhq([("880903", "水产品", "551.40", "545.85")])},
     )
     t = boards.get_boards(fc, "all")
-    method = t.meta["change_pct_method"]
+    method = t.provenance.extra["change_pct_method"]
     assert "industry2 回填" in method and "PBMultiHQ.NOW/CLOSE" in method
     assert t.rows[0]["change_pct"] == pytest.approx(1.0)         # industry 支路
     assert t.rows[-1]["change_pct"] == pytest.approx((545.85 / 551.40 - 1) * 100)

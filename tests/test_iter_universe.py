@@ -298,11 +298,11 @@ def test_get_universe_reports_truncation_in_meta():
     _stub_page(c, total=800, page_size=50)
     out = c.get_universe(market=6, max_pages=2, page_size=50)
     assert len(out) == 100
-    assert out.meta["truncated"] is True
-    assert out.meta["pages"] == 2
-    assert out.meta["rows"] == 100
-    assert out.meta["estimated_cost_seconds"] == 4.4
-    note = out.meta["note"]
+    assert out.provenance.extra["truncated"] is True
+    assert out.provenance.extra["pages"] == 2
+    assert out.provenance.extra["rows"] == 100
+    assert out.provenance.extra["estimated_cost_seconds"] == 4.4
+    note = "；".join(out.provenance.notes)
     assert "5577" in note and "iter_universe" in note, "必须给出全量与出路"
     assert "max_pages" in note
 
@@ -312,9 +312,9 @@ def test_get_universe_not_truncated_when_finished():
     _stub_page(c, total=30, page_size=50)
     out = c.get_universe(market=6, max_pages=20, page_size=50)
     assert len(out) == 30
-    assert out.meta["truncated"] is False
-    assert out.meta["pages"] == 1
-    assert "末页" in out.meta["note"]
+    assert out.provenance.extra["truncated"] is False
+    assert out.provenance.extra["pages"] == 1
+    assert "末页" in "；".join(out.provenance.notes)
 
 
 def test_get_universe_signature_is_unchanged():
@@ -328,14 +328,17 @@ def test_get_universe_signature_is_unchanged():
 
 
 def test_get_universe_keeps_semantic_meta():
-    """阶段 1/1.5 的语义层键必须还在（新 meta 是**追加**，不是替换）。"""
+    """阶段 1/1.5 的语义层必须还在（ARCH-002：一等字段 + extra 旁证）。"""
     c = _bare_client()
     _stub_page(c, total=30, page_size=50)
     out = c.get_universe()
-    for k in ("as_of", "status", "fetched_at", "elapsed", "source",
-              "pages", "truncated", "rows", "estimated_cost_seconds", "note"):
-        assert k in out.meta, "缺 %s" % k
-    assert tuple(out.meta["source"]) == ("host", "cmd", "ctl", "clock", "cached")
+    prov = out.provenance
+    assert prov is not None
+    for f in ("as_of", "status", "fetched_at", "elapsed", "cmd"):
+        assert hasattr(prov, f), "缺 %s" % f
+    for k in ("pages", "truncated", "rows", "estimated_cost_seconds"):
+        assert k in prov.extra, "缺 %s" % k
+    assert prov.notes, "翻页口径必须写在 notes 里"
 
 
 # ══════════════════════════════════════════════════════════════════════════

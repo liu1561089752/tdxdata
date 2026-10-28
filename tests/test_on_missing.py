@@ -142,9 +142,9 @@ def test_skip_returns_partial_and_lists_missing(monkeypatch):
     assert isinstance(out, Quotes)
     assert [q.code for q in out] == ["600519", "000001", "600036", "999999"], \
         "按请求顺序返回能拿到的那些"
-    assert out.meta["requested"] == 5
-    assert out.meta["returned"] == 4
-    miss = out.meta["missing"]
+    assert out.provenance.extra["requested"] == 5
+    assert out.provenance.extra["returned"] == 4
+    miss = out.provenance.extra["missing"]
     assert isinstance(miss, list) and len(miss) == 1
     item = miss[0]
     assert set(item) == {"symbol", "market", "code", "reason"}, \
@@ -159,7 +159,7 @@ def test_skip_is_not_silent(monkeypatch):
     """`skip` 只是"不抛"，**绝不是"不说"**：`missing` 必须在 meta 里。"""
     _install_engine(monkeypatch)
     out = _bare_client().get_quotes(["600519", "881999"], on_missing="skip")
-    assert "missing" in out.meta and out.meta["missing"]
+    assert out.provenance.extra["missing"]
 
 
 def test_skip_all_missing_returns_empty_not_error(monkeypatch):
@@ -167,16 +167,16 @@ def test_skip_all_missing_returns_empty_not_error(monkeypatch):
     _install_engine(monkeypatch, served=set())
     out = _bare_client().get_quotes(["600519", "881999"], on_missing="skip")
     assert len(out) == 0
-    assert out.meta["returned"] == 0
-    assert out.meta["requested"] == 2
-    assert {d["code"] for d in out.meta["missing"]} == {"600519", "881999"}
+    assert out.provenance.extra["returned"] == 0
+    assert out.provenance.extra["requested"] == 2
+    assert {d["code"] for d in out.provenance.extra["missing"]} == {"600519", "881999"}
 
 
 def test_skip_no_missing_gives_empty_list(monkeypatch):
     _install_engine(monkeypatch)
     out = _bare_client().get_quotes(["600519", "000001"], on_missing="skip")
-    assert out.meta["missing"] == []
-    assert out.meta["returned"] == out.meta["requested"] == 2
+    assert out.provenance.extra["missing"] == []
+    assert out.provenance.extra["returned"] == out.provenance.extra["requested"] == 2
 
 
 # ══════════════════════════════════════════════════════════════════════════
@@ -189,7 +189,7 @@ def test_report_is_skip_plus_exactly_one_warning(monkeypatch):
         warnings.simplefilter("always")
         out = c.get_quotes(["600519", "881999"], on_missing="report")
     assert len(out) == 1
-    assert out.meta["missing"][0]["code"] == "881999"
+    assert out.provenance.extra["missing"][0]["code"] == "881999"
     ours = [w for w in caught if "881999" in str(w.message)]
     assert len(ours) == 1, "只许 warn 一次（引擎层也 warn 就变成两条同义噪声）"
 
@@ -279,6 +279,6 @@ def test_quotes_missing_entries_are_json_serializable(monkeypatch):
 
     _install_engine(monkeypatch)
     out = _bare_client().get_quotes(["600519", "881999"], on_missing="skip")
-    text = json.dumps(out.meta["missing"], ensure_ascii=False)
+    text = json.dumps(out.provenance.extra["missing"], ensure_ascii=False)
     assert "881999" in text
 

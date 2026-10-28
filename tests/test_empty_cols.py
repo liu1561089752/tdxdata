@@ -22,9 +22,9 @@ from tdxdata.models import Table
 from tdxdata.sections import boards, flow
 
 
-def _table(cols, rows, **meta):
+def _table(cols, rows, **extra):
     return Table(cols=list(cols), rows=[dict(r) for r in rows],
-                 cmd="CWServ.test").inherit_meta(**meta)
+                 cmd="CWServ.test").inherit_provenance(**extra)
 
 
 # ══════════════════════════════════════════════════════════════════════════
@@ -37,8 +37,8 @@ def test_drops_only_fully_empty_columns():
     ])
     out = boards._drop_empty_cols(t)
     assert out.cols == ["a", "c"]
-    assert out.meta["dropped_empty_cols"] == ["b"]
-    assert "dropped_empty_note" in out.meta
+    assert out.provenance.extra["dropped_empty_cols"] == ["b"]
+    assert any("100% 为 None" in n for n in out.provenance.notes)
 
 
 def test_dropped_column_is_gone_from_rows_too():
@@ -57,14 +57,16 @@ def test_no_key_when_nothing_dropped():
     t = _table(["a", "b"], [{"a": 1, "b": 2}, {"a": 3, "b": 4}])
     out = boards._drop_empty_cols(t)
     assert out.cols == ["a", "b"]
-    assert "dropped_empty_cols" not in out.meta
+    assert (out.provenance is None
+            or "dropped_empty_cols" not in out.provenance.extra)
 
 
 def test_one_single_value_is_enough_to_keep_the_column():
     t = _table(["a"], [{"a": None}, {"a": None}, {"a": 0}])   # 0 不是空
     out = boards._drop_empty_cols(t)
     assert out.cols == ["a"]
-    assert "dropped_empty_cols" not in out.meta
+    assert (out.provenance is None
+            or "dropped_empty_cols" not in out.provenance.extra)
 
 
 def test_empty_table_is_left_alone():
@@ -79,7 +81,7 @@ def test_protect_keeps_contract_columns():
                                        {"contract": None, "extra": None}])
     out = boards._drop_empty_cols(t, protect=("contract",))
     assert out.cols == ["contract"], "契约列留着，非契约列删掉"
-    assert out.meta["dropped_empty_cols"] == ["extra"]
+    assert out.provenance.extra["dropped_empty_cols"] == ["extra"]
 
 
 # ══════════════════════════════════════════════════════════════════════════
@@ -92,16 +94,17 @@ def test_flag_never_drops_columns():
     ])
     out = boards._flag_all_null_cols(t, product="ztqd")
     assert out.cols == ["N025", "N029", "N002"], "**一列都不许删**"
-    assert out.meta["all_null_cols"] == ["N025", "N029"]
-    assert "当日样本不完整" in out.meta["all_null_note"]
-    assert "dropped_empty_cols" not in out.meta, "这条路径不该碰 dropped_*"
+    assert out.provenance.extra["all_null_cols"] == ["N025", "N029"]
+    assert "当日样本不完整" in "；".join(out.provenance.notes)
+    assert "dropped_empty_cols" not in out.provenance.extra, "这条路径不该碰 dropped_*"
 
 
 def test_flag_silent_when_no_all_null_column():
     t = _table(["a"], [{"a": 1}])
     out = boards._flag_all_null_cols(t, product="lrmx")
-    assert "all_null_cols" not in out.meta
-    assert "all_null_note" not in out.meta
+    assert out.provenance is None
+    assert not any("all_null" in n for n in (out.provenance.notes
+                                              if out.provenance else ()))
 
 
 def test_the_two_helpers_disagree_on_purpose():
@@ -140,7 +143,7 @@ def test_market_stat_drops_dead_column():
         ),
     })
     t = flow.get_market_stat(fc, "updown")
-    dropped = t.meta.get("dropped_empty_cols") or []
+    dropped = t.provenance.extra.get("dropped_empty_cols") or []
     assert dropped, "N003 整列为空，应当被删并记账"
     for c in dropped:
         assert c not in t.cols
@@ -168,9 +171,10 @@ def test_core_products_keep_columns_via_client_get(monkeypatch):
 
     ds = c.get("ztqd")
     assert ds.table.cols == ["N001", "N025", "N029"], "列必须原样保留"
-    assert ds.table.meta["all_null_cols"] == ["N025", "N029"]
-    assert "all_null_note" in ds.table.meta
-    assert "dropped_empty_cols" not in ds.table.meta
+    assert ds.table.provenance.extra["all_null_cols"] == ["N025", "N029"]
+    assert any("样本不完整" in n or "整列为 None" in n
+               for n in ds.table.provenance.notes)
+    assert "dropped_empty_cols" not in ds.table.provenance.extra
 
 
 def test_boards_keeps_its_contract_columns(monkeypatch):
@@ -193,4 +197,4 @@ def test_boards_keeps_its_contract_columns(monkeypatch):
     for c in ("board_code", "board_name", "board_type", "change_pct", "now", "close"):
         assert c in t.cols, "契约列 %s 不许因为整列空就消失" % c
     # 非契约列（N006/N007 全空 → level1_*）才是守卫该管的
-    assert t.meta.get("dropped_empty_cols") == ["level1_code", "level1_name"]
+    assert t.provenance.extra.get("dropped_empty_cols") == ["level1_code", "level1_name"]

@@ -224,28 +224,28 @@ def test_get_breadth_renames_fields_and_keeps_raw(monkeypatch):
     # provisional 逐根带（阶段 1 语义照旧）：16:00 已过 15:35 → 当根也 FINAL
     assert first["provisional"] is False
     assert t.rows[1]["provisional"] is False, "历史根恒 False"
-    assert t.meta["status"] == "final"
-    assert t.meta["fetch_clock"] == "server"
+    assert t.provenance.status == "final"
+    assert t.provenance.clock.value == "server"
 
 
 def test_get_breadth_meta_carries_field_map_and_unavailable(monkeypatch):
-    """`meta`：`field_map` 与登记表一致、`unavailable` 指出没定义的字段、阶段 1 的键都在。"""
+    """`provenance`：`field_map` 与登记表一致、`unavailable` 指出没定义的字段、语义字段都在。"""
     _stub_hq(monkeypatch, rows=[ROW1])
     c = _bare_client()
-    meta = c.get_breadth("880005", count=1).meta
+    prov = c.get_breadth("880005", count=1).provenance
 
-    assert meta["series"] == "880005" and meta["series_name"] == "涨跌家数"
-    assert meta["field_map"] == {"open": "down_count", "high": "total",
-                                 "low": "flat_count", "close": "up_count"}
-    assert meta["note"] == sk.NON_PRICE_SERIES["880005"].note
-    assert meta["unavailable"] == [], "880005 的四个字段都有定义"
-    for key in ("as_of", "status", "fetched_at", "source", "elapsed", "fetch_clock"):
-        assert key in meta, "阶段 1 的键一个都不许少：%s" % key
-    assert meta["as_of"] == "2026-10-27"
-    assert meta["fetch_clock"] == "local", "裸 Client 不探针 → 必须是 local 且被标注"
+    assert prov.extra["series"] == "880005" and prov.extra["series_name"] == "涨跌家数"
+    assert prov.extra["field_map"] == {"open": "down_count", "high": "total",
+                                       "low": "flat_count", "close": "up_count"}
+    assert sk.NON_PRICE_SERIES["880005"].note in "；".join(prov.notes)
+    assert prov.extra["unavailable"] == [], "880005 的四个字段都有定义"
+    for f in ("as_of", "status", "fetched_at", "cmd", "elapsed", "clock"):
+        assert hasattr(prov, f), "语义字段一个都不许少：%s" % f
+    assert prov.as_of == "2026-10-27"
+    assert prov.clock.value == "local", "裸 Client 不探针 → 必须是 local 且被标注"
     # `period` 是"数据来自哪个周期"的凭据，保留；`count` 由 len(rows) 可得 → 冗余，删掉
-    assert meta["period"] == "day"
-    assert "count" not in meta, "`count` 是冗余信息（len(t.rows) 直接可得），多一个键多一处漂移"
+    assert prov.extra["period"] == "day"
+    assert "count" not in prov.extra, "`count` 是冗余信息（len(t.rows) 直接可得），多一个键多一处漂移"
 
 
 def test_get_breadth_880006_marks_undefined_fields_unavailable(monkeypatch):
@@ -255,7 +255,7 @@ def test_get_breadth_880006_marks_undefined_fields_unavailable(monkeypatch):
     t = c.get_breadth("880006", count=1)
     assert t.cols == ["date", "series", "series_name",
                       "limit_up_count", "limit_down_count", "provisional"]
-    assert t.meta["unavailable"] == ["high", "low"]
+    assert t.provenance.extra["unavailable"] == ["high", "low"]
     assert t.rows[0]["limit_up_count"] == 1317.0     # close → 涨停家数
     assert t.rows[0]["limit_down_count"] == 1000.0   # open → 跌停家数
     for banned in ("open", "high", "low", "close"):
@@ -297,7 +297,7 @@ def test_get_breadth_row_keys_cover_cols_plus_raw(monkeypatch):
     assert "provisional" in t.cols, "provisional 是正式列，不是辅助键"
     assert isinstance(t.rows[0]["provisional"], bool)
     assert t.rows[0]["value"] == 1317.0        # close → value（指标点位，不是家数）
-    assert t.meta["unavailable"] == ["open", "high", "low"]
+    assert t.provenance.extra["unavailable"] == ["open", "high", "low"]
 
 
 # ══════════════════════════════════════════════════════════════════════════
