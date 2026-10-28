@@ -22,13 +22,15 @@
   - `mapping._resolve_cols()` 新增 `server-prefix` / `server-suffix` 两个来源标记：
     只在**前缀窗口或后缀窗口唯一命中登记形状**时才对齐，歧义/无命中一律不猜；
   - `mapping.apply()` 的对齐窗口行改按**位置**取值（曾经按新列名 `r.get()` 绕回错位值）；
-  - 新增第二条守卫：登记形状逐位相等、但**行长更短** → `mapping_skipped="cols-guard-ragged"`，
-    一列都不映射（反例 `ph_zt_lrzt_lrmx` 9 名 / 6 值：行首是日期，`N001` 却登记为
-    `margin_balance_yuan`，旧守卫会把它塞进「融资余额」）。
+  - 新增第二条守卫（**只对登记过 `COL_GUARD` 的产品生效**）：登记形状逐位相等、
+    但**行长更短** → `mapping_skipped="cols-guard-ragged"`，一列都不映射
+    （反例 `ph_zt_lrzt_lrmx` 9 名 / 6 值：行首是日期，`N001` 却登记为
+    `margin_balance_yuan`，旧守卫会把它塞进「融资余额」）。没登记形状的产品
+    沿用 M3 结论（缺值在尾部、前缀映射成立，`tjcj` 有实证），不一刀切。
   - 验收：24 个「已登记但错位」产品中 **13 个**从「整表退化成 raw」变成正确映射
     （`zdsl`/`zdzq`/`hq_nlp_zjlx`/`xjllb`/`fin`/`lyb`/`zgyq`/`zyzbxq`/`zyzb`/`zxts5`/
     `hypm`/`zpggld`/`gscb`），其余 11 个仍 fail-closed。夹具 4 份真实回包字节 +
-    `tests/test_ragged_table.py`（19 例）。证据：`reports/eval3/findings/M8-错位表与NLP家族.md`、
+    `tests/test_ragged_table.py`（20 例）。证据：`reports/eval3/findings/M8-错位表与NLP家族.md`、
     `notes/12-错位表与NLP家族.md`。
 
 ---

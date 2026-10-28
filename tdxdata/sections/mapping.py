@@ -1318,21 +1318,26 @@ def apply(table: Table, product: str) -> Table:
     mapping = FIELD_MAP.get(product) or {}
     skipped = None
     guard = COL_GUARD.get(product)
-    if mapping and guard is not None:
+    if mapping:
         # 守卫语义：运行时列清单必须**逐位相等**于登记的形状之一，才允许套映射。
         # `COL_GUARD` 里是主形状（映射依据的那张表）；`COL_GUARD_MORE` 里是**同一产品键下
         # 另外登记过的合法形状**（目前只有 etf_kjzs 的两套：4 列精简 / 15 列明细）。
-        allowed = [list(guard)] + [list(s) for s in COL_GUARD_MORE.get(product, ())]
-        if list(cols) not in allowed:
+        allowed = ([list(guard)] + [list(s) for s in COL_GUARD_MORE.get(product, ())]
+                   if guard is not None else [])
+        if guard is not None and list(cols) not in allowed:
             # 行业变体 / 换了参数的另一张表：同一套 N0xx 含义不同 → 一列都不映射
             skipped = "cols-guard"
             mapping = {}
-        elif table.is_ragged and align == "server":
+        elif guard is not None and table.is_ragged and align == "server":
             # 列名数 ≠ 行长，且前缀/后缀窗口都没命中登记形状（`_resolve_cols` 已判「不猜」）。
             # 这时**列名不足以说明值的归属**：实证反例 `ph_zt_lrzt_lrmx` 9 名 / 6 值，
             # 行首是日期 `2026-04-16` 而 `FIELD_MAP` 把 N001 登记成 `margin_balance_yuan`
             # —— 照旧映射就会把日期塞进"融资余额"，值本身没错、名字全错。
             # 旧的守卫拿「补齐后的行宽」比，所以看不出来；现在按真实行宽挡下。
+            # ⚠️ 只对**登记过形状**（COL_GUARD）的产品这么挡：没登记形状的产品沿用
+            # M3 的既定结论 —— 缺的值在**尾部**（`tests/test_mapping_products.py::
+            # test_rows_shorter_than_cols_are_missing_values_not_misaligned` 有实证），
+            # 前缀映射照样成立，不能一刀切。
             skipped = "cols-guard-ragged"
             mapping = {}
 

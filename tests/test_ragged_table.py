@@ -201,3 +201,21 @@ def test_guard_matches_but_row_is_short_is_rejected():
     assert out.provenance.extra["mapping_skipped"] == "cols-guard-ragged"
     assert out.cols == []
     assert out.rows[0]["raw"]["zqdm"] == "301313"
+
+
+def test_unguarded_product_keeps_tail_missing_convention():
+    """**没登记形状**的产品不走 M8 的新守卫 —— 沿用 M3 结论：缺的值在尾部（前缀映射成立）。
+
+    分辨依据：登记了 `COL_GUARD` = 该产品的"正确形状"已被实测锚定，行长对不上就说明
+    这不是那张表；没登记形状 = 没有可比的锚点，只能沿用既定的"尾部缺值"口径
+    （`tests/test_mapping_products.py::test_rows_shorter_than_cols_are_missing_values_
+    not_misaligned` 对 `tjcj` 有实证）。
+    """
+    assert "tjcj" not in _mapping.COL_GUARD, "前提变了：tjcj 现在有形状登记了"
+    table = Table(cols=["zqjc", "zqdm", "N001", "N002", "N003"],
+                  rows=[["某股份", "600303", "2026-06-30"]])
+    out = _mapping.apply(table, "tjcj")
+    assert out.provenance.extra.get("mapping_skipped") is None
+    row = out.rows[0]
+    assert row["name"] == "某股份"
+    assert row["report_period"] == "2026-06-30"
