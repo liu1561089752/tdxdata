@@ -265,9 +265,9 @@ def _shape(src: Table, spec: tuple[tuple[str, str, str], ...], *,
         out["raw"] = _row_dict(src, src_row)             # 红线：原始列一个都不许丢
         rows.append(out)
 
-    # ⚠️ 同 boards._shape：重建表必须继承 `src.meta`，否则语义层键全丢
+    # ⚠️ 同 boards._shape：重建表必须继承 `src.provenance`，否则语义层键全丢
     return Table(cols=out_cols, rows=rows, cmd=cmd,
-                 domain=domain).inherit_meta(src, **(meta or {}))
+                 domain=domain).inherit_provenance(src, **(meta or {}))
 
 
 def _row_dict(src: Table, row: Any) -> dict[str, Any]:
@@ -435,7 +435,7 @@ def get_market_stat(client, kind: str = "updown") -> Table:
       **实网确认就是 30 个一级码（X10..X99）→ 1 + 30 = 31 次**，
     默认间隔 2.2s → 约 70 秒。这是本模块最贵的一条，调用方要知道）。
       这是唯一带「上涨家数/下跌家数」的通道，所以没得选；
-      当期无数据的行业会被跳过并记进 `meta["skipped_codes"]`。
+      当期无数据的行业会被跳过并记进 `provenance.extra["skipped_codes"]`。
 
     认识不到 `kind` → `ValueError`（消息里列出全部合法取值）。
     """
@@ -507,17 +507,17 @@ def _market_sentiment(client) -> Table:
 
 
 def _map_or_serial(client, fn, items):
-    """把一批**彼此独立**的取数并发跑完，结果**按 `items` 原序**返回。
+    """把一批**彼此独立**的取数跑完，结果**按 `items` 原序**返回（**恒为串行**）。
 
-    这是本模块唯一会并发的地方，而且**判据不在这一层**（阶段 5）：
-      * `Client._map_independent` 在 `concurrency == 1`（默认）时就是
-        `[fn(x) for x in items]` —— 纯串行、不起线程池、不进队列；
-      * 只有用户显式 `Client(concurrency>1)` 时它才真的多 lane 并发；
-      * 拿不到这个入口（测试里的假 client、`Client.__new__` 裸对象）→ 老实串行。
+    名字里的 "map" 只是为了保留既有接缝，**不代表并发**：2026-10 起本库
+    不再提供任何形式的并发取数（实测配额按来源 IP 算，多开连接换不来多份
+    配额，且旧实现带永久死锁 —— 见 `Client` 模块 docstring 的实测表）。
+    `Client._map_independent` 现在是纯串行 `[fn(x) for x in items]`。
 
-    ⚠️ 只许用于"互不依赖"的调用。**翻页、先目录后明细这类有顺序依赖的链路**
-    一律串行 —— 并发化它们只会拿错数据或漏数据。
-    ⚠️ 结果顺序 = 输入顺序：并发完成的先后**绝不影响**输出顺序。
+    拿不到这个入口（测试里的假 client、`Client.__new__` 裸对象）→ 本地老实串行。
+    两条路径的行为现在**完全一致**：遇错即停、按原类型上抛。
+
+    ⚠️ 结果顺序 = 输入顺序。
     """
     runner = getattr(client, "_map_independent", None)
     if callable(runner):
@@ -537,14 +537,12 @@ def _market_industry(client) -> Table:
     合计 **1 + N 次**调用。数据本身没法一次取全（服务端就是这么设计的），
     所以把成本写进 docstring，而不是偷偷返回一张不完整表。
 
-    并发（阶段 5，**默认关**）
-    --------------------------
-    这 30 个一级码的明细**彼此独立**（各自一个参数、互不引用对方的返回值），
-    是本库唯一值得并发的点。用户显式 `Client(concurrency>1)` 时，
-    `_map_or_serial` 会把它分发到多条 lane（每条 lane 钉一台服务器）。
-    **默认 `concurrency=1` 时它就是下面那个普通 for 循环**：不建线程池、
-    不进队列、`pacer.wait()` 不传 `host` —— 与改造前逐字节相同。
-    无论并发与否：结果一律**按 `codes` 原序**拼装（完成的先后不影响顺序），
+    成本与顺序
+    ----------
+    这 30 个一级码的明细**彼此独立**，所以走 `_map_or_serial`；
+    但它**恒为串行**（本库不再有并发取数 —— 实测配额按来源 IP 算，
+    多开连接换不来多份配额，且旧实现带永久死锁）。
+    结果一律**按 `codes` 原序**拼装；
     `skipped_codes` / `calls` / `truncated` / `params_dir` / `level1_codes`
     等 meta 一个字节都不变（黄金样本 `market_stat_industry` 会直接照出漂移）。
     """
@@ -585,7 +583,7 @@ def _market_industry(client) -> Table:
         )
 
     # 30 个一级码**彼此独立** → 唯一的并发收益点（阶段 5）。
-    # 默认 `concurrency=1` 时这就是个普通 for 循环，一个线程都不起。
+    # 恒为串行：一次只发一个请求，一个线程都不起。
     parts = _map_or_serial(client, _fetch_one, codes)
 
     rows: list[dict[str, Any]] = []
@@ -611,14 +609,14 @@ def _market_industry(client) -> Table:
             % (len(codes), " ".join(codes[:6]) + ("…" if len(codes) > 6 else ""))
         )
 
-    # 逐行业拼接出来的表也必须带上语义层 meta：以**第一份**分表的 meta 为准
+    # 逐行业拼接出来的表也必须带上语义层出处：以**第一份**分表的 provenance 为准
     # （同一轮里陆续取的，`as_of`/`status` 同源；`calls` 里另有真实请求次数）
     merged = Table(
         cols=list(_STAT_COLS["industry"]),
         rows=rows,
         cmd=_CMD_HYFX_SY,
         domain=_DOMAIN_STAT,
-    ).inherit_meta(_meta_src, **{
+    ).inherit_provenance(_meta_src, **{
             "params_dir": [_HYFX_MODE_DIR, _HYFX_DIR_P2],
             "level1_codes": codes,
             "calls": 1 + len(codes),
@@ -629,7 +627,10 @@ def _market_industry(client) -> Table:
     })
     # 继承来的 `params` / `level1_code` 描述的是**某一个**一级行业（来自第一份分表），
     # 放在拼接表上会变成「整张表只取了一个行业」的假陈述 —— 整表的参数口径看
-    # `params_dir` / `level1_codes`。这两个键必须删掉，不许留。
-    for _stale in ("params", "level1_code"):
-        merged.meta.pop(_stale, None)
+    # `params_dir` / `level1_codes`。这两个旁证必须删掉，不许留。
+    prov = merged.provenance
+    if prov is not None:
+        clean = {k: v for k, v in prov.extra.items()
+                 if k not in ("params", "level1_code")}
+        merged.provenance = prov._replace_for(extra=clean)
     return _drop_empty_cols(merged)

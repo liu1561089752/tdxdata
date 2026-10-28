@@ -15,29 +15,39 @@
 异步/并发收益极小，反而容易触发断连（实测 10053/10054）。需要异步的调用方
 在外层用 `asyncio.to_thread` 即可，不必让库承担两套实现。
 
-并发（阶段 5，**默认关闭**）
---------------------------
-`Client(concurrency=1)` 是默认值：**完全不起线程池、不建额外连接**，走的是
-和改造前逐字节相同的代码路径。只有显式 `concurrency>1`（keyword-only）时，
-才会建 `min(concurrency, 4)` 条 lane，第 i 条 lane 钉死 `HOSTS[i]` 并用
-`pacer.wait(host=...)` 的**独立槽位** —— 详见 `Client` 类文档的"并发与限流"。
+并发（2026-10 起**已删除**）
+---------------------------
+本库**不再提供并发取数**。曾有 `Client(concurrency=2..4)`：建 N 条 lane、
+每条钉一台服务器、用 per-host 槽位分摊配额。**已按实测结论删除**：
+
+| 轮次 | 耗时 | `limited_events` 增量 | 结果 |
+|---|---|---|---|
+| 串行 `concurrency=1` | **68.64 s**（439 行 × 8 列，31 次调用） | **+0** | 全部成功 |
+| 并发 `concurrency=4` | **未达成**：头 5 秒即被重置，之后 175 s 内 0 次成功 | **+3**（间隔 2.2→12.0，3 台进冷却） | 全失败 |
+
+结论：**配额按来源 IP 算，不按「IP × 服务器」算**。4 台服务器并没有换来 4 份配额，
+只换来 4 份被判超频的机会。而该特性还带来一个**永久死锁**
+（`lane.lock` 不可重入 + `_run_in_lane` 持锁调用 `_ensure` 再取同一把锁），
+`get_market_stat("industry")` 一调就挂住、无超时无提示。
+
+要更快只有两条路：**减少调用次数**，或**跨进程/跨机分摊**（后者需自行验证配额口径）。
 """
 from __future__ import annotations
 
+import dataclasses
 import json
 import os
 import threading
 import time
 import warnings
-from concurrent.futures import ThreadPoolExecutor
 from datetime import date, datetime
 from typing import Any
 
 from . import _core, errors, series_kinds, symbols, timeliness
 from .enums import Adjust, KlinePeriod, Status
 from .models import (
-    Bar, Bars, Dataset, MinutePoint, Minutes, ProductInfo, Quote, Quotes,
-    Table, Tick, Ticks,
+    Bar, Bars, Dataset, MinutePoint, Minutes, ProductInfo, Provenance,
+    Quote, Quotes, Table, Tick, Ticks, ClockSource,
 )
 from .timeliness import FINAL_CUTOFF_HHMM, NowInfo, probe_or_none
 
@@ -80,32 +90,21 @@ _ADJUST_NAME = {1: "NONE", 2: "HFQ", 3: "QFQ", 4: "FIELD8_4"}
 #:     ⚠️ `fetch_clock` 是**一等字段**（`"server"` / `"local"`），不是自由文本；
 #:     `*_note` 只承载"为什么"，**绝不承载唯一信息**（删掉它，结论仍要从
 #:     `as_of`/`status`/`fetch_clock` 拿得到）。
-META_KEYS = frozenset({
-    "meta", "as_of", "fetched_at", "status", "source", "elapsed",
-    "provisional", "data_date",
-    # 2026-10-27 Lead 批准：来源凭据类
-    "fetch_clock", "clock_note", "status_note", "as_of_note",
-})
-
-#: `meta["source"]` 的**子键集**（Lead 2026-10-27 拍板：形状固定，不许再长）。
-#:
-#: 为什么是 dict 而不是 `(host, cmd, ctl)` 三元组：黄金样本白名单只放行**精确键名**，
-#: 而"时钟可不可信"（`clock`）与"是不是缓存"（`cached`）都是来源凭据、必须可见 ——
-#: 两条都塞进 `source` 的**值**里是最小改动（值不参与比对）。
-#: ⚠️ `host` 取不到就给 `None`（**键必须在**，不许省）：省键会让下游 `source["host"]`
-#: 抛 `KeyError`，而"这台服务器是谁"本身就是排查要问的第一个问题。
-#: `Client.last_call["source"]` 仍是精简的三元组 `(host, cmd, ctl)`，两者刻意不同。
-META_SOURCE_KEYS = ("host", "cmd", "ctl", "clock", "cached")
+# ── ARCH-002：meta dict 公开面已移除 ──────────────────────────────────────
+# 旧 `META_KEYS` / `META_SOURCE_KEYS` 随 ARCH-002 的 meta dict 公开面移除一并删除：
+# 出处凭据是一等字段 `Provenance`（`tdxdata/_provenance.py`）。
+# 说明性文本（status_note / as_of_note / clock_note）进 `provenance.notes`；
+# 结构化旁证（cols_union / missing_cols / requested …）进 `provenance.extra`。
 
 #: 「这条通道为什么给不出 `as_of`」的标准说法（数据中心 JSON 通道专用）。
 #:
-#: ⚠️ 它必须写在 **`as_of_note`** 里，**不许**塞进 `status_note`：
-#: `status_note` 回答"为什么判成这个时效档"，`as_of_note` 回答"为什么没有数据时刻"。
+#: ⚠️ 它进 **`provenance.notes`**（与时效判定原因同放但语义不同段）：
+#: "为什么没有数据时刻"与"为什么判成这个时效档"都要能从 notes 里看出来。
 #: 合成一句会让人分不清"是数据不定稿"还是"是通道压根没给时刻"——两件事的处置完全不同
 #: （前者等收盘，后者只能自己按数据日推断）。
 _NO_AS_OF_DC = ("这条通道（数据中心 JSON，`ResultSets`）回包**不带数据日期/时间**，"
                 "所以 as_of 无法确定；要知道数据日请用 `Client.get(...).data_date`"
-                "（从首行 N001 推）或本表的 meta[\"data_date\"]")
+                "（从首行 N001 推）或本表 provenance.data_date")
 
 #: `Client.capabilities()` 的**列名 → `Capability` 字段名**（阶段 6）。
 #:
@@ -123,36 +122,29 @@ _CAP_FIELD = {
 }
 
 
-class _Lane:
-    """一条并发 lane：**钉死**一台服务器 + 自己的 `Session` + 自己的锁。
-
-    为什么 lane 必须有自己的 `Session`：`Session` 里是一根 socket + 一把 `RLock`，
-    两条 lane 共用一根 socket 就等于还是串行（`ask()` 会互相阻塞），
-    "钉主机"就成了摆设 —— 那样并发收益必然是 0%。所以一条 lane 一条长连接。
-
-    为什么还要一把 `lane.lock`：lane 是**逻辑槽位**（下标 `i % lanes`），
-    `ThreadPoolExecutor` 不保证同一个下标永远落在同一个物理线程上；
-    这把锁保证"同一时刻只有一个线程在用这条 lane / 这根 socket"。
-    """
-
-    __slots__ = ("host", "sess", "lock")
-
-    def __init__(self, host: str):
-        self.host = host
-        self.sess = None                 # 懒建：不预热、不额外建连
-        self.lock = threading.Lock()
-
-    def __repr__(self) -> str:                                # pragma: no cover
-        return "<lane %s sess=%s>" % (self.host, "up" if self.sess is not None else "-")
-
-
 class Client:
     """通达信 7615 数据客户端（同步，可作上下文管理器）。
 
     参数
     ----
     host : str | None
-        指定单台服务器；不给则用内置 4 台轮询。
+        指定单台服务器；不给则用内置服务器轮询。
+
+        ⚠️ 它同时作用于**两条独立性很高的通路**（2026-10 修 `DEF-048`）：
+
+        | 通路 | 受影响的接口 | 生效方式 |
+        |---|---|---|
+        | 数据中心 JSON | `get` / `get_f10` / `get_finance` / `get_boards` / `call` … | 本实例的 `Session` |
+        | **PB**（protobuf） | `get_bars` / `get_minutes` / `get_quotes` / `get_ticks` / `get_breadth` / 分页 … | `datacenter.set_preferred_host()` |
+
+        ⚠️ PB 通路是**一条进程级持久连接**（`datacenter._CONN`，本来就是模块级
+        单例），所以这条主机偏好也是**进程级**的：同进程里**后建**的
+        `Client(host=…)` 会覆盖前一个（并丢掉旧连接）；传 `host=None`（默认）
+        **不会**清掉已有偏好。要显式清除请调
+        `datacenter.set_preferred_host(None)`。
+
+        ⚠️ 修之前 PB 通路**完全无视** `host=`，照样连内置服务器且没有任何提示 ——
+        想钉住镜像/代理/抓包目标的人会拿到别处的数据。
     timeout : float
         单次收发超时（秒）。
     gap : float
@@ -162,16 +154,6 @@ class Client:
         需要减少重复请求时显式传一个缓存对象，例如
         `Client(cache=tdxdata._engine.cache.TTLCache(ttl=300))` ——
         命中缓存**不占用限流闸门**（未命中才 `wait()`）。
-    concurrency : int
-        **keyword-only，默认 1 = 完全串行**（与改造前逐字节相同的路径：
-        不起线程池、不建额外连接、`pacer.wait()` 不传 `host`）。
-        `1 < concurrency <= 4`（= 内置服务器数）时建 `concurrency` 条 lane，
-        第 i 条 lane **钉死** `HOSTS[i]`，每条 lane 有自己的长连接和自己的
-        `pacer` 槽位；只有**明确列出的"彼此独立的多次调用"**（目前是
-        `get_market_stat('industry')` 的 30 个一级行业码）会真的走并发。
-        `> 4` → **`ValueError`**（不是截断）：第 5 条 lane 只能和别的 lane
-        共用同一个 per-host 桶，**不会更快**，只会多占一条连接。
-        实际生效值见 `rate_stats()["concurrency_effective"]`。
 
     语义层（阶段 1）与它的**取数成本**
     ---------------------------------
@@ -188,43 +170,36 @@ class Client:
     ⚠️ 上面两次请求是本库**唯一**会"自己多发"的取数。它们受
     `clock_probe`（keyword-only，**默认 `True`**）控制：传 `clock_probe=False`
     就**一次探针都不发**（连"上一交易日"也不去取），此时
-    `meta["fetch_clock"]="local"`、`meta["clock_note"]="local-clock-disabled-by-user"`
+    `Provenance(clock=LOCAL)` 且降级 note 为 `"local-clock-disabled-by-user"`
     （刻意与"探针失败"的 `"local-clock-fallback"` 区分，两者原因不同），
     时效判定照旧按保守档降级。**不许让用户在不知情时多花配额**。
 
-    ⚠️ 取不到就**降级并标注**（`meta["fetch_clock"]="local"` +
-    `meta["clock_note"]`），且时效判定自动更保守 ——
+    ⚠️ 取不到就**降级并标注**（`Provenance.clock=LOCAL` + 降级 note），且时效判定自动更保守 ——
     **绝不拿本机时钟冒充服务器时刻而不标注**。
     ⚠️ 用 `Client.__new__` 造的裸对象（测试里那种）**不会**为补 meta 而联网。
 
-    并发与限流（阶段 5，**默认关**）
+    并发（**已删除**，2026-10）
+    -------------------------
+    本类**没有任何并发参数**。曾经存在的 `concurrency=2..4` 已按实测结论移除：
+    服务端配额按**来源 IP** 算（4 台服务器换不来 4 份配额），实测并发 4 条 lane
+    在头 5 秒就被重置、之后 175 秒 0 次成功；而且它还带一个永久死锁
+    （`get_market_stat("industry")` 一调就挂住）。详见模块 docstring 的表。
+
+    因此 `rate_stats()` 里的 `concurrency*` / `lanes` 三个键**恒为 1 / 1 / []**，
+    只为保持快照结构稳定而保留。
+
+    线程安全（**能跑，但没有承诺**）
     ------------------------------
-    **默认 `concurrency=1` = 不增加任何服务器压力。** 这不是"优化没做"，
-    而是刻意的保守默认：`_engine/pacer.py` 的模块头写了，库内部对"配额按
-    来源 IP 算还是按 IP × 服务器算"**至今没有定论**。在没定论之前替用户
-    多开连接、多占槽位，等于替所有用户私自放大请求频率。
-
-    `concurrency>1` 是**用户显式自担风险**的开关，语义边界写在下面三条：
-
-    | `concurrency` | 连接 | `pacer` 槽位 | 收益 |
-    |---|---|---|---|
-    | `1`（默认） | 就是原来那一条 | 只有**全局**槽位（`wait()` 不传 host） | 与改造前逐字节相同 |
-    | `2..4` | 每条 lane 一条，钉 `HOSTS[i]` | 每条 lane **独立**槽位 | 多主机能否分摊，**取决于服务端配额口径** |
-    | `>4` / `<1` / 非整数 | — | — | `ValueError`（第 5 条 lane 只会共用桶，不会更快 → 拒绝，不静默截断） |
-
-    ⚠️ **可能触发按来源 IP 的限流**：如果服务端按来源计配额（这是更保守、
-    也更可能的那种口径），多开 lane **不会更快**，只会更容易被踢 ——
-    一次限流事件的实测代价是 **+28.15 s**。所以默认必须是 `1`。
-    ⚠️ 并发**只**用在"彼此独立的多次调用"上（例：30 个一级行业码逐个取明细）。
-    **有依赖顺序的链路一律串行**（翻页必须一页接一页，先目录后明细必须等目录）。
-    ⚠️ 结果**顺序稳定**：并发完成先后绝不影响输出顺序，拼装按输入原序。
-    ⚠️ `close()` 会 `shutdown(wait=True)` 收掉线程池并关掉每条 lane 的连接，
-    不留悬挂线程。
+    多线程共用**同一个** `Client` 是安全的**仅限于结果正确性**：串行化来自
+    `Session` 内部那把 `RLock`（一根 socket 不会被两个线程同时写）。
+    `Client` 自身**没有**加锁 —— `_last_call` / `_cal` / `_clock` 都是裸可变状态。
+    要并发请**每个线程一个 `Client`**，且注意 `pacer` 是进程级单例
+    （同一进程里多个 Client 共享同一份退避状态）。
     """
 
     def __init__(self, host: str | None = None, timeout: float = 15.0,
                  gap: float = 2.2, cache=None, *, clock_probe: bool = True,
-                 strict_symbols: bool = False, concurrency: int = 1):
+                 strict_symbols: bool = False):
         from ._engine import session as _session
 
         from ._engine import pacer as _pacer
@@ -233,6 +208,10 @@ class Client:
 
         self._dc_mod = _dc
         self._session_mod = _session
+        if host:
+            # ★ PB 通路是进程级连接，主机偏好只能登记到 datacenter（DEF-048）。
+            #   不登记的话 `Client(host=…)` 对 K 线/分时/快照/逐笔/涨跌家数全无影响。
+            _dc.set_preferred_host(host)
         self._pacer = _pacer.get_pacer(base_gap=gap)   # 进程级单例
         self._sess = None                 # 懒建连
         self._ensure_lock = threading.Lock()   # 防多线程重复建连
@@ -242,19 +221,6 @@ class Client:
         self._cache = cache               # None = 不缓存（默认行为不变）
         self._products: dict[str, dict] = {}
         self._pb_products: dict[str, dict] = {}
-        # ── 并发（阶段 5，**默认关**）─────────────────────────────────────
-        #: `concurrency` 的**请求值**（用户传什么就记什么，截断另记）。
-        self._concurrency, self._concurrency_eff = self._check_concurrency(
-            concurrency, len(_session.HOSTS))
-        #: 线程池。**`concurrency==1` 时永远是 `None`** —— 默认路径一个线程都不起。
-        self._pool = None
-        #: lane 列表；`concurrency==1` 时是**空列表**（连对象都不造）。
-        self._lanes: list[_Lane] = []
-        #: 线程局部：当前线程跑在哪条 lane 上（不在 lane 上 → 没有这个属性）。
-        self._tls = threading.local()
-        if self._concurrency_eff > 1:
-            self._lanes = [_Lane(_session.HOSTS[i % len(_session.HOSTS)])
-                           for i in range(self._concurrency_eff)]
         # ── 语义层状态（阶段 1 新增；全部有默认值，不影响既有签名）────────
         #: 时钟（`timeliness.Clock`）。`None` = 懒建 `ServerClock`；单测可注入 `FakeClock`。
         self._clock = None
@@ -276,56 +242,6 @@ class Client:
         #: 拿不到确定答案就 `errors.AmbiguousSymbol` 炸掉，而不是生成一批错口径的数据。
         self._strict_symbols = bool(strict_symbols)
         self._load_products()
-
-    @staticmethod
-    def _check_concurrency(value, hosts: int) -> tuple[int, int]:
-        """校验 `concurrency`，返回 `(请求值, 生效值)`。
-
-        规则只有一条（阶段 5，Lead 拍板）：
-
-        ```
-        1 <= concurrency <= len(HOSTS)  → 正常（lane = concurrency，第 i 条钉 HOSTS[i]）
-        concurrency >  len(HOSTS)       → ValueError
-        concurrency <  1 / 非整数        → ValueError
-        ```
-
-        **为什么上限是 `len(HOSTS)` 而不是别的数**：per-host 桶的全部意义就是
-        "每条 lane 独占**一台不同**的主机"。第 5 条 lane 必然和某条 lane 共用
-        同一个桶 → **它不会更快**，只会多占一条连接、多一份被踢的概率。
-        所以宁可**拒绝**，也不静默截断（"截断 = 用户以为拿到了 99 的语义，
-        实际拿到 4" —— 这与本库「宁可拒绝，不许静默降级」的纪律直接冲突）。
-
-        想要更快只有两条路：**减少调用次数**，或**等服务端放宽配额**；
-        跨进程/跨机分摊也可以，但那不归一个进程内的 `concurrency` 管。
-
-        `hosts` 由调用方传（= `session.HOSTS` 的长度，现在是 4），
-        这样这个函数不依赖模块级常量，单测可以直接喂不同的 `hosts`。
-        """
-        try:
-            n = int(value)
-            integral = (float(value) == n)
-        except (TypeError, ValueError):
-            raise ValueError(
-                "concurrency 必须是整数（收到 %r）" % (value,)) from None
-        if not integral:
-            raise ValueError(
-                "concurrency 必须是整数（收到 %r）—— 没有「半条 lane」这回事。"
-                % (value,))
-        if n < 1:
-            raise ValueError(
-                "concurrency 必须 ≥ 1（收到 %r）。默认 1 = 完全串行、不起线程池、"
-                "不建额外连接。" % (value,))
-        hosts = int(hosts)
-        if n > hosts:
-            raise ValueError(
-                "concurrency=%d 超过上限 %d（= 内置服务器数）。"
-                "每条 lane 必须绑定**一台不同**的主机，per-host 桶才有意义；"
-                "第 %d 条 lane 只能和别的 lane 共用同一个桶 → 它**不会更快**，"
-                "只会多占一条连接、多一份被踢的概率。想要更快只有两条路："
-                "减少调用次数，或等服务端放宽配额（跨进程/跨机分摊也可以，"
-                "但那个不归一个进程内的 concurrency 管）。"
-                % (n, hosts, hosts + 1))
-        return n, n
 
     # ── 产品表 ────────────────────────────────────────────────────────────
     def _check_symbol(self, symbol):
@@ -376,44 +292,21 @@ class Client:
         return sorted({v.get("domain", "") for v in self._products.values()})
 
     # ── 底层调用 ──────────────────────────────────────────────────────────
-    def _current_lane(self):
-        """当前线程跑在哪条 lane 上？不在任何 lane 上 → `None`。
-
-        ⚠️ 这是**默认路径与并发路径的唯一分岔点**：`None` 时下面每一处都走
-        和改造前一字不差的老代码（全局槽位 + 实例那一条 `Session`）。
-        ⚠️ 用 `Client.__new__` 造的裸对象没有 `_tls`，这里必须能返回 `None`。
-        """
-        tls = getattr(self, "_tls", None)
-        return getattr(tls, "lane", None) if tls is not None else None
-
     def _pace(self) -> None:
         """走**进程级**匀速闸门（不是本实例私有时钟）。
 
         这样同一进程里开多个 Client 也不会把请求频率叠加起来 ——
-        服务端限流是按来源算的，不是按 Client 对象算的。
+        服务端限流是按**来源 IP** 算的，不是按 Client 对象算的
+        （这也正是"多开连接换不来多份配额"的原因）。
 
-        阶段 5：在 lane 上时改用**这条 lane 的主机**的独立槽位。
-        ⚠️ 不在 lane 上时调用的是 `wait()`（**不传 `host=`**）——
-        参数列表和调用形态与改造前完全一致，`golden_runner._NoPacer` 那种
-        只实现 `wait(self)` 的假闸门照样能用。
+        调用形态恒为 `wait()`（**不传 `host=`**），所以
+        `golden_runner._NoPacer` 那种只实现 `wait(self)` 的假闸门照样能用。
         """
-        lane = self._current_lane()
-        if lane is None:
-            self._pacer.wait()
-        else:
-            self._pacer.wait(host=lane.host)
+        self._pacer.wait()
 
     def _note_limited(self) -> float:
-        """记一次限流（间隔翻倍 + 推槽位）。
-
-        ⚠️ 不在 lane 上时调用的是 `note_limited()`（**不传 `host=`**），
-        与改造前完全一致；在 lane 上才连带推该主机的槽位
-        （`Pacer.note_limited(host=…)` 内部**同时**推全局槽位，保守）。
-        """
-        lane = self._current_lane()
-        if lane is None:
-            return self._pacer.note_limited()
-        return self._pacer.note_limited(host=lane.host)
+        """记一次限流（全局间隔翻倍）。"""
+        return self._pacer.note_limited()
 
     def _ensure(self):
         """懒建连（长连接复用；断了换服务器重连）。
@@ -424,14 +317,6 @@ class Client:
         阶段 5：在 lane 上时返回**这条 lane 自己的** `Session`（钉死主机），
         不复用实例那条 —— 否则多 lane 会抢同一根 socket，等于还是串行。
         """
-        lane = self._current_lane()
-        if lane is not None:
-            with lane.lock:
-                if lane.sess is not None and lane.sess.alive:
-                    return lane.sess
-                lane.sess = self._session_mod.Session(
-                    lane.host, self._timeout, pin=True).connect()
-                return lane.sess
         if self._sess is not None and self._sess.alive:
             return self._sess
         with self._ensure_lock:
@@ -441,91 +326,33 @@ class Client:
             return self._sess
 
     def _live_session(self):
-        """当前上下文实际在用的那条 `Session`（lane 上 → lane 的；否则实例的）。"""
-        lane = self._current_lane()
-        if lane is not None:
-            return lane.sess
+        """本实例当前那条 `Session`（可能为 `None`：还没建连或刚被丢弃）。"""
         return self._sess
 
     def _drop_session(self) -> None:
-        """丢弃当前上下文那条 `Session`（断连且重连也失败时用）。
+        """丢弃本实例那条 `Session`（断连且重连也失败时用）。
 
-        行为与改造前一致：只把引用置 `None`，**不在这里 close**
-        （重连/换机内部已经 `_kill()` 过 socket）。
+        只把引用置 `None`，**不在这里 close**（重连/换机内部已经 `_kill()` 过 socket）。
         """
-        lane = self._current_lane()
-        if lane is not None:
-            lane.sess = None
-        else:
-            self._sess = None
+        self._sess = None
 
-    # ── 并发（阶段 5，**默认关**）─────────────────────────────────────────
-    def _executor(self, workers: int):
-        """懒建 lane 线程池（`concurrency>1` 才可能被调用到）。"""
-        if self._pool is None:
-            self._pool = ThreadPoolExecutor(
-                max_workers=workers, thread_name_prefix="tdxdata-lane")
-        return self._pool
-
-    def _run_in_lane(self, idx: int, fn, item):
-        """在线程池里跑一个任务：把它**标记**成"在 lane idx 上"。"""
-        lane = self._lanes[idx]
-        tls = getattr(self, "_tls", None)
-        with lane.lock:                     # 同一条 lane 同一时刻只有一个线程
-            prev = getattr(tls, "lane", None) if tls is not None else None
-            if tls is not None:
-                tls.lane = lane
-            try:
-                return fn(item)
-            finally:
-                if tls is not None:
-                    tls.lane = prev
-
+    # ── 批处理（**恒为串行**）───────────────────────────────────────────
     def _map_independent(self, fn, items, *, what: str = ""):
-        """把**一批彼此独立**的取数跑完，结果**按 `items` 原序**返回。
+        """把一批**彼此独立**的取数跑完，结果**按 `items` 原序**返回。
 
-        这是本库唯一"会真的并发"的入口，用它的前提是三条**同时**满足：
+        ⚠️ **这是纯串行**（`[fn(x) for x in items]`）。名字里的 "map" 是为了
+        保留调用方（`sections/flow.py`）的既有接缝，**不代表并发** ——
+        2026-10 起本库不再提供任何形式的并发取数，原因见模块 docstring
+        的实测表（按来源 IP 配额，多开连接换不来多份配额，还会永久死锁）。
 
+        用它的前提仍然成立（且现在只有第一个是必需的）：
         1. 这些调用**彼此独立**（互不依赖对方的返回值）；
-        2. 拼装结果时**顺序有意义**，所以要按输入原序拿回结果；
-        3. 单个失败不该拖垮整批（失败怎么处置由 `fn` 自己决定 ——
-           `fn` 抛什么，这里就按**原类型**往外抛第一个）。
-
-        `concurrency == 1`（默认）→ **纯串行** `[fn(x) for x in items]`：
-        **不建线程池、不进队列、不碰 `ThreadPoolExecutor`** —— 这是
-        "默认路径逐字节不变"的技术保证，不是口头承诺。
-
-        `concurrency > 1` → 提交到 lane 池，第 `i` 个任务跑在 lane `i % lanes`
-        上（该 lane 的主机 = `HOSTS[i % len(HOSTS)]`），完成后**按 `i` 原序**拼装。
-
-        ⚠️ **不要**用它并发化有顺序依赖的链路：翻页（下一页的 offset 依赖上一页）、
-        先取目录后逐项取明细（明细的 key 来自目录）都属于"必须串行"。
-        目前唯一被允许的用法是 `get_market_stat('industry')` 的 30 个一级行业码。
+        2. 拼装结果时**顺序有意义**，所以按输入原序返回；
+        3. `fn` 抛什么，这里就按**原类型**往外抛第一个。
         """
-        items = list(items)
-        workers = getattr(self, "_concurrency_eff", 1)
-        if workers <= 1 or len(items) <= 1:
-            return [fn(x) for x in items]
-        # 先把时钟锚点取好：否则 4 条 lane 会同时首次触发时钟探针（多一次请求）
-        try:
-            self._now()
-        except BaseException:                                # noqa: BLE001
-            pass                                             # 补 meta 绝不拖垮取数
-        pool = self._executor(min(workers, len(items)))
-        futures = [pool.submit(self._run_in_lane, i % workers, fn, x)
-                   for i, x in enumerate(items)]
-        out: list = []
-        first_err: BaseException | None = None
-        for fut in futures:
-            try:
-                out.append(fut.result())
-            except BaseException as exc:                     # noqa: BLE001
-                out.append(None)
-                if first_err is None:
-                    first_err = exc
-        if first_err is not None:
-            raise first_err       # 按**原类型**抛出（EmptyResult 之类由 fn 自己先接住）
-        return out
+        # ⚠️ **遇错即停**（与改造前串行路径逐字节一致）：不吞异常、不继续烧配额。
+        # `fn` 抛什么就按原类型往外抛（`EmptyResult` 之类由 `fn` 自己先接住）。
+        return [fn(x) for x in list(items)]
 
     # ── 语义层：时刻 / 时效 / 来源（阶段 1）───────────────────────────────
     #
@@ -554,7 +381,7 @@ class Client:
         return clk
 
     def _local_clock_note(self) -> str:
-        """本机时钟兜底时写进 `meta["clock_note"]` 的**稳定**取值。
+        """本机时钟兜底时写进 `Provenance.notes` 的**稳定**取值。
 
         两个值刻意区分开（都是有限枚举，不随过程变，否则黄金门禁会抖）：
           · `"local-clock-disabled-by-user"` —— 用户传了 `clock_probe=False`；
@@ -572,7 +399,7 @@ class Client:
         所以只能按 CLOSE_CUTOFF 判 `FINAL` / `PROVISIONAL`，`as_of` 一律 `None`
         + `as_of_note` 说明为什么（阶段 1.5 的契约：`as_of is None` 必须配 note）。
         """
-        return timeliness.judge_intraday(self._now().at,
+        return timeliness.judge_intraday(self._now(),
                                          cutoff=timeliness.CLOSE_CUTOFF)
 
     def _now(self) -> NowInfo:
@@ -659,13 +486,9 @@ class Client:
     def _session_host(self):
         """长连接那台服务器的主机名（取不到 `None`，**不编**）。
 
-        阶段 5：在 lane 上时如实报**那条 lane** 的主机 ——
-        `meta["source"]["host"]` 要能回答"这个数是从哪台服务器拿的"，
-        报实例那条（可能压根没建）就是假陈述。
+        `Provenance.host` 要能回答"这个数是从哪台服务器拿的"；
+        没有活连接时返回 `None`（**绝不编一个**）。
         """
-        lane = self._current_lane()
-        if lane is not None:
-            return getattr(lane.sess, "host", None) if lane.sess is not None else None
         sess = getattr(self, "_sess", None)
         return getattr(sess, "host", None) if sess is not None else None
 
@@ -688,20 +511,18 @@ class Client:
                      cached: bool = False) -> dict:
         """记下这次调用的来源/耗时/时刻（同时刷新 `self._last_call`）。
 
-        ⚠️ `clock_note` **只取有限几个稳定取值**：
+        ⚠️ 降级标注 `clock_note` **只取有限几个稳定取值**（细节另存
+        `clock_detail`，只进 `Client.last_call`）：
           · `"local-clock-fallback"` —— 想探针但没拿到服务器时刻；
           · `"local-clock-disabled-by-user"` —— 用户传了 `clock_probe=False`。
-        因为黄金样本一旦重新录制，两边都有这个键时**改值仍会判红** ——
-        若把"探针冷却中/超时/无结果"这类**过程性**细节编进 `clock_note`，
-        同一份数据在不同样本里就可能出现不同阶段，门禁会抖。
-        细节另存 `clock_detail`（只进 `Client.last_call`，不进 meta）。
+        两者原因完全不同，混成一个会让"用户主动关掉"看起来像"探针坏了"。
         """
         info = self._now()
         rec = {
             "source": (host, cmd, ctl),
             "elapsed": (round(max(0.0, time.monotonic() - t0), 4)
                         if t0 is not None else None),
-            "fetched_at": info.at.isoformat(sep=" ", timespec="seconds"),
+            "fetched_at": info.at,
             "fetch_clock": info.clock,
             "cached": bool(cached),
         }
@@ -711,7 +532,7 @@ class Client:
             rec["clock_detail"] = info.note                 # 细节：仅排查用
         if info.market_closed is False:
             # 「时间说收盘了、行情说没到」→ 这条必须让人看见（它是判定被压低的**原因**），
-            # 所以单独记一笔，由 `_stamp_table` / `_finish_series` 并进 `status_note`。
+            # 所以单独记一笔，由 `_stamp_table` / `_finish_series` 并进 notes。
             rec["status_conflict"] = info.note or "时钟与行情自相矛盾，按保守处理"
         self._last_call = rec
         return rec
@@ -720,110 +541,247 @@ class Client:
     def last_call(self) -> dict:
         """最近一次取数的 `{source, elapsed, fetched_at, fetch_clock, cached}`。
 
-        这是**排查用**的完整记录；容器/表的 `meta` 里只放 `META_KEYS` 那 8 个键
-        （见 `_meta_from`）。
+        这是**排查用**的完整记录（`fetched_at` 是 aware datetime）；
+        容器/表的对外出处是 `Provenance`（`provenance.to_dict()` 给 ISO 文本）。
         """
-        return dict(getattr(self, "_last_call", {}) or {})
+        out = dict(getattr(self, "_last_call", {}) or {})
+        at = out.get("fetched_at")
+        if isinstance(at, datetime):
+            out["fetched_at"] = at.isoformat(sep=" ", timespec="seconds")
+        return out
 
     @staticmethod
-    def _meta_from(rec: dict) -> dict:
-        """把 `_record_call` 的结果摊成 meta 的公共部分（`as_of` 由调用方补）。
+    def _prov_from(rec: dict) -> Provenance:
+        """把 `_record_call` 的结果摊成 `Provenance`（`as_of`/status 由调用方补）。
 
-        ⚠️ **只放 `META_KEYS` 里的键**：黄金样本回放只放行这些"新增键"，
-        多一个键就会被判成"不在允许新增清单内"。
-        `fetch_clock` 是一等字段（`"server"` / `"local"`），不是自由文本 ——
-        本库红线是"绝不许用本机时钟冒充服务器时刻而不标注"，标注就落在它上面。
+        时钟来源映射：`"hybrid"` → ClockSource.HYBRID（探针+本机交叉校验通过）；
+        其余 trusted（`"server"`）→ SERVER；降级（`"local"` 等）→ LOCAL。
+        降级原因（`clock_note` 的稳定取值）进 notes —— 闭 DEF-018/019 的标注通道。
         """
         info = rec.get("source")
         host, cmd, ctl = (info if isinstance(info, tuple) and len(info) == 3
-                          else (None, None, None))
-        meta = {
-            "fetched_at": rec.get("fetched_at"),
-            # 子键集**固定为 META_SOURCE_KEYS**（5 个，一个不多一个不少）；
-            # `host` 取不到就是 None，但**键必须在**（省键会让下游 KeyError）。
-            "source": {
-                "host": host,                       # 取不到就是 None（不编主机名）
-                "cmd": cmd,
-                "ctl": ctl,
-                "clock": rec.get("fetch_clock"),      # "server" | "local"
-                "cached": rec.get("cached"),
-            },
-            "elapsed": rec.get("elapsed"),
-            "fetch_clock": rec.get("fetch_clock"),
-        }
+                          else (None, "", None))
+        clock_raw = str(rec.get("fetch_clock") or "local")
+        if clock_raw == "server":
+            clock = ClockSource.SERVER
+        elif clock_raw == "hybrid":
+            clock = ClockSource.HYBRID
+        else:
+            clock = ClockSource.LOCAL
+        at = rec.get("fetched_at")
+        if not isinstance(at, datetime):
+            at = datetime.now()
+        notes: list[str] = []
         if rec.get("clock_note"):
-            meta["clock_note"] = rec["clock_note"]
-        return meta
+            notes.append(rec["clock_note"])
+        return Provenance(fetched_at=at, clock=clock, host=host,
+                          cmd=str(cmd or ""), ctl=ctl,
+                          cached=bool(rec.get("cached")),
+                          elapsed=rec.get("elapsed") or 0.0,
+                          notes=tuple(notes))
 
     def _stamp_table(self, table: Table, cmd: str, ctl, *, host, t0,
                      cached: bool = False, status=None, as_of=None,
                      status_note: str | None = None,
-                     as_of_note: str | None = None) -> Table:
-        """给 `Table.meta` **补**语义层键（`Table.meta` 原有的键一个都不删）。"""
+                     as_of_note: str | None = None,
+                     data_date: str | None = None) -> Table:
+        """给 `Table` **补**语义层出处（`provenance`；原有键不删，走合并）。"""
         rec = self._record_call(cmd, ctl, host=host, t0=t0, cached=cached)
-        meta = table.meta if isinstance(table.meta, dict) else {}
-        meta.update(self._meta_from(rec))
-        meta["as_of"] = as_of
-        meta["status"] = status.value if isinstance(status, Status) else status
+        base = table.provenance or self._prov_from(rec)
+        notes: list[str] = []
+        if rec.get("clock_note") and base.clock is not ClockSource.SERVER:
+            if rec["clock_note"] not in notes and rec["clock_note"] not in base.notes:
+                notes.append(rec["clock_note"])
         if rec.get("status_conflict"):
-            status_note = ("%s；%s" % (status_note, rec["status_conflict"])
-                           if status_note else rec["status_conflict"])
+            notes.append(rec["status_conflict"])
         if status_note:
-            meta["status_note"] = status_note
+            notes.append(status_note)
         if as_of_note:
-            meta["as_of_note"] = as_of_note
-        table.meta = meta
+            notes.append(as_of_note)
+        base = base._replace_for(
+            status=(status.value if isinstance(status, Status) else status),
+            as_of=as_of,
+            data_date=data_date if data_date is not None else base.data_date,
+            cached=bool(cached) if cached else base.cached,
+        ).with_notes(*notes)
+        table.provenance = base
         return table
 
     def _finish_series(self, container, rec: dict, *, as_of, status,
-                       as_of_note: str | None = None):
-        """给 `Series` 容器补 meta。
+                       as_of_note: str | None = None,
+                       **extra) -> object:
+        """给 `Series` 容器补 provenance（出处一等字段）。
 
-        容器 meta 与 `Table.meta` 的**契约宽严不同**：
-          · `Table.meta` 里只能出现 `META_KEYS`（那 8 个）—— 黄金样本会把
-            `Table.meta` 逐字段比，多一个键就报"不在允许新增清单内"；
-          · 容器（`Bars`/`Quotes`/`Ticks`/`Minutes`）的 meta 在黄金样本里走的是
-            **信息性**口径（`golden_runner` 主比对前会把顶层 `meta` 整段剔除），
-            所以这里可以多带**来源凭据**：`fetch_clock` / `clock_note` / `as_of_note`。
-
-        ⚠️ `fetch_clock` 是**一等字段**（不是自由文本）：`"server"` = 服务端时刻，
-        `"local"` = 本机兜底。`clock_note` 只在降级时出现，说明为什么降级。
-        数据信号（`status` / `provisional` / `as_of` / `data_date`）一律进
-        **结构化字段**，绝不只写在 `*_note` 里。
+        数据信号（`status` / `as_of`）进**结构化字段**；`as_of_note` /
+        时钟降级 / 判定冲突进 `notes`；其余口径凭据（`provisional`、
+        `missing_cols`、`pages`、`requested`…）走 `**extra` 进 `provenance.extra`。
         """
-        meta = dict(self._meta_from(rec))
-        meta["as_of"] = as_of
-        meta["status"] = status.value if isinstance(status, Status) else status
-        meta["fetch_clock"] = rec.get("fetch_clock")
+        base = self._prov_from(rec)
+        notes: list[str] = []
         if rec.get("clock_note"):
-            meta["clock_note"] = rec["clock_note"]
+            notes.append(rec["clock_note"])
         if rec.get("status_conflict"):
-            meta["status_note"] = rec["status_conflict"]
+            notes.append(rec["status_conflict"])
         if as_of_note:
-            meta["as_of_note"] = as_of_note
-        container.meta = meta
+            notes.append(as_of_note)
+        prov = base._replace_for(
+            status=(status.value if isinstance(status, Status) else status),
+            as_of=as_of,
+        ).with_notes(*notes)
+        if extra:
+            prov = prov.with_extra(**{
+                k: v for k, v in extra.items() if v is not None})
+        container.provenance = prov
         return container
-    @staticmethod
-    def _set_meta(container, **kw):
-        """只往 meta 里写**白名单**键（`META_KEYS`），其余一律拒绝。
 
-        这是本次改造的**防呆**：黄金样本契约只放行 8 个键，
-        "顺手多写一个 `status_note`" 就会让 23 份样本全部报差异。
-        需要说明性文字请写进 `source` 的值里，或走 `Client.last_call`。
+    # ── ARCH-003：统一取数契约（FetchSpec + _fetch 管道）─────────────────
+    #
+    # 33 个公开方法曾经各自手写同一段 6 步样板：
+    #   t0 = time.monotonic() → 传输调用 → 编解码/建容器 →
+    #   时效判定 → 盖 Provenance → 返回。
+    # 横切重复的实测数（迁移前）：`t0 = time.monotonic()` ×15、
+    # `timeliness.judge_*` ×22、`_stamp_table` ×10、`_record_call` ×9、
+    # `_finish_series` ×8。
+    # `_fetch(spec)` 把这 6 步收口成**一处**；公开方法的差异全部落进
+    # `FetchSpec` 的声明字段里（见各方法的调用点）。
+    @dataclasses.dataclass(frozen=True)
+    class _FetchSpec:
+        """一次取数的**声明式描述**（ARCH-003）。
+
+        `_fetch()` 按它跑管道：cache → pace（由传输层自管）→ transport →
+        codec → 建容器 → 判时效 → 盖 Provenance → 返回。
+
+        字段
+        ----
+        cmd / ctl : 通道名与命令码（进 Provenance 的来源凭据）。
+        transport : **零参可调用**，真正发请求的那一步（返回任意 codec 的输入）。
+            重试/换机语义**在传输层内部**（DC-JSON 是 `call()` 的 2×3s 循环；
+            PB 是 `datacenter._send` 的既有重连），`_fetch` **不**再包一层 ——
+            与批次 A 的判据逐位一致（断网 <6s、异常全 typed）。
+        codec : 传输回包 → (cols, rows) 或容器行；`None` = 传输层已直接给出。
+        shape : `"table"`（Table）/ `"table_empty_ok"`（有列无行不抛）/
+            `"series"`（Bars/Quotes/Ticks/Minutes 容器）。
+        empty_msg : 空结果的异常文案（`shape != table_empty_ok` 且 0 行时抛
+            `EmptyResult`）。
+        as_of : 数据时刻 / 时刻说明（str 或 None）。
+        as_of_note : `as_of` 拿不出时的说明（进 `provenance.notes`）。
+        judge : 时效判定器（接收 `NowInfo`，返回 `Status`）；默认快照口径
+            （`CLOSE_CUTOFF`）。**ARCH-002 的类型锁不变**：只收 NowInfo/Provenance。
+        extra : 盖到 `provenance.extra` 的结构化旁证（None 值键不收）；
+            **可给可调用** —— 参数是 transport() 的回包，返回 extra dict
+            （旁证常取自回包本身，如 `block_status`）。
+        notes : 盖到 `provenance.notes` 的说明文本（str / list / callable(got)）。
+        table_cmd : Table 对外落的 `cmd`（缺省用 `cmd`）。
         """
-        meta = getattr(container, "meta", None)
-        if not isinstance(meta, dict):
-            meta = {}
-        for key, val in kw.items():
-            if key not in META_KEYS:
-                raise KeyError(
-                    "%r 不在容器 meta 的允许键里（%s）：扩键必须同步 "
-                    "tests/golden_runner.ALLOWED_ADDED_KEYS 与 "
-                    "tests/test_golden_contract.ALLOWED_ADDED_KEYS"
-                    % (key, ", ".join(sorted(META_KEYS))))
-            meta[key] = val.value if isinstance(val, Status) else val
-        container.meta = meta
-        return container
+
+        cmd: str
+        ctl: int
+        transport: Any = None
+        codec: Any = None
+        shape: str = "table"
+        empty_msg: str = ""
+        as_of: Any = None
+        as_of_note: str = ""
+        judge: Any = None
+        extra: Any = None
+        notes: Any = None
+        table_cmd: str = ""
+
+    def _fetch(self, spec: "Client._FetchSpec") -> Any:
+        """**统一取数管道**（ARCH-003）：
+
+        `cache → transport（内含 pace/retry/switch）→ codec → 建容器 →
+        判时效 → 盖 Provenance → log（_record_call）`。
+
+        为什么 retry/换机不在这一层：DC-JSON 通路的重试循环（同机重连 1 次 +
+        换机 + `_peer_reset` 判限流 + `EMPTY` 退避）就在 `call()` 里，PB 通路在
+        `datacenter._send` —— 把它再包一层会变成两层退避叠加，批次 A 的
+        「断网耗时 <6s / 异常全 typed」判据就守不住了。`_fetch` 只收口
+        **样板**（t0/判定/盖戳/记账），不动传输语义。
+
+        `spec.transport()` 的返回形态按 `spec.shape`：
+          · `table*` —— transport() 回 `(cols, rows)`（或 codec 中间态），
+            `_fetch` 组 `Table` 并盖戳；
+          · `series` —— transport() 直接回容器（Bars/Quotes/…），0 行抛
+            `EmptyResult`（`empty_msg` 给文案）。
+        """
+        t0 = time.monotonic()
+        # judge 接收 NowInfo（DEF-019 类型锁的调用面）；默认快照口径无参判定
+        if spec.judge is not None:
+            info = self._now()
+            status = spec.judge(info)
+        else:
+            info = None
+            status = self._snapshot_status()
+
+        if spec.shape in ("table", "table_empty_ok"):
+            got = spec.transport()
+            rec = self._record_call(spec.cmd, spec.ctl,
+                                    host=self._pb_host(), t0=t0)
+            shaped = spec.codec(got) if spec.codec is not None else got
+            if isinstance(shaped, dict):
+                # codec 高级形态：{"cols":…, "rows":…, "notes":…, "extra":…}
+                cols, rows = shaped["cols"], shaped["rows"]
+                extra = shaped.get("extra")
+                notes = shaped.get("notes")
+            else:
+                cols, rows = shaped
+                extra = (spec.extra(got) if callable(spec.extra) else spec.extra)
+                notes = (spec.notes(got) if callable(spec.notes) else spec.notes)
+            table = Table(cols=list(cols), rows=rows,
+                          cmd=spec.table_cmd or spec.cmd)
+            if not table.rows and spec.shape == "table":
+                raise errors.EmptyResult(spec.empty_msg or spec.cmd)
+            self._finish_table(table, rec, status=status,
+                               as_of=spec.as_of,
+                               as_of_note=spec.as_of_note or None,
+                               notes=notes, extra=extra)
+            return table
+
+        # series 形状：transport 直接给容器（或 codec 再给 (容器, as_of)）
+        got = spec.transport()
+        rec = self._record_call(spec.cmd, spec.ctl, host=self._pb_host(), t0=t0)
+        out, as_of = (spec.codec(got) if spec.codec is not None
+                      else (got, spec.as_of))
+        # empty_msg=None 的 series 通道允许"空也原样回"（如 get_quotes on_missing=skip）
+        if not out and spec.empty_msg is not None:
+            raise errors.EmptyResult(spec.empty_msg or spec.cmd)
+        self._finish_series(
+            out, rec, as_of=as_of, status=status,
+            as_of_note=spec.as_of_note or None,
+            **(spec.extra or {}))
+        return out
+
+    def _finish_table(self, table: Table, rec: dict, *, status,
+                      as_of=None, as_of_note: str | None = None,
+                      notes=None, extra=None) -> Table:
+        """`_stamp_table` 的声明式入口（ARCH-003）：盖 status/as_of/notes/extra。
+
+        `_fetch` 的 table 分支用它；与 `_stamp_table` 的差别：出处记录 `rec`
+        由 `_fetch` 统一取好传进来（不再各自 `time.monotonic()`）。
+        """
+        base = table.provenance or self._prov_from(rec)
+        all_notes: list[str] = []
+        if rec.get("clock_note") and base.clock is not ClockSource.SERVER:
+            if rec["clock_note"] not in base.notes:
+                all_notes.append(rec["clock_note"])
+        if rec.get("status_conflict"):
+            all_notes.append(rec["status_conflict"])
+        if as_of_note:
+            all_notes.append(as_of_note)
+        if isinstance(notes, str):
+            if notes:
+                all_notes.append(notes)
+        else:
+            all_notes.extend(notes or [])
+        kw: dict[str, Any] = {"as_of": as_of}
+        # status=None = 「判定延后」：保留 base 上已有的 status（如 call() 的
+        # judge_unregistered），不许被管道覆盖成 None。
+        if status is not None:
+            kw["status"] = (status.value if isinstance(status, Status) else status)
+        table.provenance = base._replace_for(
+            **kw).with_notes(*all_notes).with_extra(**(extra or {}))
+        return table
 
     @staticmethod
     def _make_table(cmd: str, cols, rows, primary) -> Table:
@@ -833,18 +791,18 @@ class Client:
         而并集通常比主表宽（`ph_agf10_cw_zcfzb` 是 82 vs 81）。
         拿并集去 `zip` 行值会把整行错一位 —— 静默错列，比抛错更坏。
         所以：`Table.cols` 用**主表自己的列名**（`primary`），
-        并集原样留在 `meta["cols_union"]`，信息一点不丢。
+        并集原样留在 `provenance.extra["cols_union"]`，信息一点不丢。
 
         另一个坑：主表列名**可能重名**（同一 ResultSet 里两个 `N001`）。
         直接 `dict(zip(...))` 会把它们合成一列、**静默丢值**。
         这里给重名的第 2、3… 次出现加 `_2`/`_3` 后缀，原样清单记进
-        `meta["cols_dedup"]` —— 宁可变个名字，也不丢数据。
+        `provenance.extra["cols_dedup"]` —— 宁可变个名字，也不丢数据。
         """
         names = list(primary or cols or [])
-        meta = {}
+        extra: dict[str, Any] = {}
         if list(cols or []) and list(cols) != names:
-            meta["cols_union"] = list(cols)
-            meta["cols_source"] = "primary"      # 并集比主表宽时，列名以主表为准
+            extra["cols_union"] = list(cols)
+            extra["cols_source"] = "primary"      # 并集比主表宽时，列名以主表为准
 
         if len(set(names)) != len(names):
             seen: dict[str, int] = {}
@@ -852,10 +810,14 @@ class Client:
             for n in names:
                 seen[n] = seen.get(n, 0) + 1
                 fixed.append(n if seen[n] == 1 else "%s_%d" % (n, seen[n]))
-            meta["cols_dedup"] = names
+            extra["cols_dedup"] = names
             names = fixed
 
-        return Table(cols=names, rows=rows, cmd=cmd, meta=meta)
+        return Table(cols=names, rows=rows, cmd=cmd,
+                     provenance=Provenance(
+                         fetched_at=datetime.now(),
+                         clock=ClockSource.LOCAL, cmd=cmd,
+                         extra=extra) if extra else None)
 
     def call(self, cmd: str, ctl: int, params: Any = None,
              *, retry: int = 3, idle: float = 4.0,
@@ -877,10 +839,10 @@ class Client:
 
         语义层（阶段 1）
         ----------------
-        返回的 `Table.meta` 会**补**上 `as_of` / `status` / `fetched_at` / `source` /
+        返回的 `Table.provenance` 会**补**上 `as_of` / `status` / `fetched_at` / 来源（host/cmd/ctl）/
         `elapsed`（原有键一个不删）。⚠️ 这条通道（数据中心）**回包不带数据日期**，
         所以 `as_of` 是 `None`：要知道数据日请用 `Client.get(...).data_date`
-        （从首行 `N001` 推）或 `get()` 补的 `table.meta["data_date"]`。
+        （从首行 `N001` 推）或 `get()` 补的 `table.provenance.data_date`。
         没有登记过时效口径的命令一律标 `PROVISIONAL`（`judge_unregistered`），
         **绝不默认 FINAL**。
         """
@@ -899,9 +861,9 @@ class Client:
                                   t0=t0, cached=True,
                                   status=timeliness.judge_unregistered(
                                       server_now=self._now()),
-                                  as_of=hit.meta.get("as_of"),
+                                  as_of=hit.as_of,
                                   status_note="命中缓存：数据本体是上次取的那份，"
-                                              "`elapsed` 接近 0、`source.cached` 为 true",
+                                              "`elapsed` 接近 0、`cached` 为 true",
                                   as_of_note=_NO_AS_OF_DC)
                 return hit
 
@@ -913,17 +875,23 @@ class Client:
             self._pace()                       # 全局匀速闸门（含 sleep）
             try:
                 raw = self._ensure().ask(ctl, cmd, args, idle=idle)
-            except (OSError, ConnectionError) as e:        # 断连
+            except (OSError, ConnectionError, errors.ConnectionFailed) as e:  # 断连
                 last_err = e
                 # 第 1 次：同机重连（多为空闲超时/半死连接，换机反而丢好节点）
-                # 第 2 次起：才认定为限流，退避 + 换机
+                # 第 2 次起：换机；**只有"被服务端踢"才计作限流**
                 if attempt == 0:
                     try:
                         self._live_session().reconnect()
                     except Exception:                      # noqa: BLE001
                         self._drop_session()
                 else:
-                    self._note_limited()                   # 间隔翻倍
+                    # ★ 只有连接被**重置/中止**才是限流的实证信号。
+                    # 历史 bug：这里无条件 `_note_limited()`，于是一次纯"连不上"
+                    # （ECONNREFUSED / 离线 / 防火墙）就把进程级间隔从 2.2s 顶到
+                    # 上限 12.0s，需要 48 次成功调用（≈9.6 分钟）才回落，
+                    # 同进程其它 Client 一起遭殃（DEF-033，实测）。
+                    if _peer_reset(e):
+                        self._note_limited()               # 间隔翻倍
                     try:
                         self._live_session().switch_host()
                     except Exception:                      # noqa: BLE001
@@ -947,8 +915,7 @@ class Client:
             if verdict == "EMPTY_RS":                      # 有列无行 = 当期无数据
                 self._pacer.note_ok()                      # 通道是通的，不算限流
                 if allow_empty:
-                    table = Table(cols=list(primary or cols), rows=[], cmd=cmd,
-                                  meta={"empty": "EMPTY_RS"})
+                    table = Table(cols=list(primary or cols), rows=[], cmd=cmd)
                     if ck is not None:
                         self._cache.set(ck, table)
                     self._stamp_table(table, cmd, ctl, host=self._session_host(),
@@ -984,6 +951,16 @@ class Client:
                 raise errors.ProtocolError(
                     "%s 回包不是 JSON（可能是 protobuf 通道，改用 pb 接口）" % cmd)
 
+            if verdict == "BADJSON":
+                # 是合法 JSON，但结构不是 ResultSets 协议形态。历史行为是
+                # 裸 `AttributeError` 穿透（`'list' object has no attribute 'get'`），
+                # 既不在 errors 体系内，也误导归因。
+                raise errors.ProtocolError(
+                    "%s 回包是合法 JSON，但不是 ResultSets 协议形态"
+                    "（顶层应为对象、且 ResultSets 必须是列表）—— "
+                    "通常意味着命令名/参数拼错了，或该命令走的是别的通道"
+                    % cmd)
+
             if verdict.startswith("ERR_"):
                 code = verdict[4:]
                 if code == "-1002":
@@ -1001,7 +978,8 @@ class Client:
                 % (retry, self._pacer.gap, self._pacer.limited_events))
         raise errors.ConnectionFailed("重试 %d 次仍失败：%s" % (retry, last_err))
 
-    def get(self, name: str, allow_empty: bool = False, **kwargs) -> Dataset:
+    def get(self, name: str, allow_empty: bool = False, *,
+            mapped: bool = False, **kwargs) -> Dataset:
         """按产品名取数（421 个产品之一）。
 
         ```python
@@ -1012,17 +990,29 @@ class Client:
 
         语义层（阶段 1）
         ----------------
-        返回的 `Dataset.table.meta` 除 `call()` 那几项外，还会补上**按产品登记的时效口径**：
+        返回的 `Dataset.table.provenance` 除 `call()` 那几项外，还会补上**按产品登记的时效口径**：
         `status`（`enums.Status`）、`data_date`（从首行 `N001` 推，推不出就是 `None`）。
         已登记：`lrmx`/`north` 是 T+1（`delayed`）、`ztqd` 盘中是 `pending`。
         没登记的产品标 `provisional` —— **不默认 FINAL**（unknown ≠ 0），
         且 `status_note` 会直说"台账里没有时效声明、无法判定"，不会让人误以为
         库"判定过"它是盘中值。
+
+        `mapped=True`（选开，阶段 B）
+        ----------------------------
+        产品若在 `sections/mapping.py::FIELD_MAP` 登记过列义，则返回**标准字段**：
+        `cols` 是标准字段名，原值仍逐行在 `row["raw"]` 里（一个都不丢）；`meta`
+        的语义 5 键与 `data_date` 推断不受影响。未登记列义的产品传 `mapped=True`
+        抛 `ValueError`（**不静默给原始列** —— 那会让人以为映射生效了）。
+        **默认 False**：`get()` 的"原始列"契约一个字节都不变。
         """
         spec = self._products.get(name)
         if spec is None:
             raise KeyError("没有这个产品：%s（用 products() 查看全部）" % name)
         params = _fill(spec["params"], kwargs, name)
+        # ARCH-003：DC-JSON 通路的取数管道**就是** `call()`（cache → pace →
+        # transport+retry/switch → codec → 建容器 → 盖 Provenance → log 全在里面），
+        # `get()` 是它的语义层加厚（时效判定需要 data_date/prev_trade_date，
+        # `_fetch` 的 judge(info) 形态表达不了，故留在 `_describe_product`）。
         table = self.call(spec["cmd"], spec["ctl"], params, allow_empty=allow_empty)
         table.domain = spec.get("domain", "")
         # 整列为 None 的列**保留**、只记账：数据中心产品（尤其 ztqd 涨停清单的
@@ -1032,12 +1022,23 @@ class Client:
         _flag_all_null_cols(table, product=name)
         ds = Dataset(name=name, table=table, params=params)
         self._describe_product(ds)
+        if mapped:
+            from .sections import mapping as _mapping
+            if name not in _mapping.FIELD_MAP:
+                raise ValueError(
+                    "产品 %r 没有登记列名映射（sections/mapping.py::FIELD_MAP），"
+                    "不能 mapped=True；要么去掉 mapped 拿原始列，要么先把列义登记进去"
+                    % (name,))
+            # ⚠️ 次序：先 `_describe_product`（它要从首行 `N001` 推 `data_date`），
+            # 再 apply —— `mapping.apply` 会把 `N001` 改成标准字段名。
+            # meta（已落 `data_date`/`as_of`/`status`）由 apply 原样继承。
+            ds.table = _mapping.apply(ds.table, name)
         return ds
 
     def _describe_product(self, ds: Dataset) -> Dataset:
-        """给产品的 `Table.meta` 补上时效/数据日（**只加不删**，自身不抛错）。"""
+        """给产品的 `Table.provenance` 补上时效/数据日（**只加不删**，自身不抛错）。"""
         info = self._now()
-        data_date = ds.data_date                    # 先按 N001 推，再落进 meta
+        data_date = ds.data_date                    # 先按 N001 推，再落进出处
         prev = self._prev_trade_date()
         try:
             status = timeliness.judge_product(
@@ -1060,21 +1061,23 @@ class Client:
             notes.append("无法确定上一交易日（日线探针没取到），时效判定已降级")
         if info.note:
             notes.append(info.note)
-        extra = {}
-        if notes:
-            extra["status_note"] = "；".join(notes)
-        missing = {}
-        if "fetch_clock" not in ds.table.meta:
-            # 这张表没走过 `call()`（单测里直接造的表、或 `allow_empty` 之外的路径）：
-            # 把时钟来源补上，否则下游分不出 `fetched_at` 可不可信。
-            missing["fetch_clock"] = info.clock
-            if info.clock != "server":
-                missing["clock_note"] = "local-clock-fallback"
-        self._set_meta(ds.table,
-                       status=status,
-                       data_date=data_date.isoformat() if data_date else None,
-                       as_of=data_date.isoformat() if data_date else None,
-                       **extra, **missing)
+        # 这张表没走过 `call()`（单测里直接造的表、或 `allow_empty` 之外的路径）：
+        # 把时钟来源补上，否则下游分不出 `fetched_at` 可不可信。
+        base = ds.table.provenance
+        if base is None or base.clock is None:
+            clock_raw = str(info.clock or "local")
+            clock = (ClockSource.SERVER if clock_raw == "server"
+                     else ClockSource.HYBRID if clock_raw == "hybrid"
+                     else ClockSource.LOCAL)
+            base = Provenance(fetched_at=info.at, clock=clock, cmd=ds.name)
+            if clock is not ClockSource.SERVER:
+                notes.append("local-clock-fallback")
+        base = base._replace_for(
+            status=(status.value if isinstance(status, Status) else status),
+            data_date=data_date.isoformat() if data_date else None,
+            as_of=data_date.isoformat() if data_date else None,
+        ).with_notes(*notes)
+        ds.table.provenance = base
         return ds
 
     # ── 行情 ──────────────────────────────────────────────────────────────
@@ -1163,7 +1166,6 @@ class Client:
         """
         from ._engine import hq_pb
 
-        t0 = time.monotonic()
         per = self._period_str(period)
         # 这里用**纯函数** `symbols.parse`，不再 `_check_symbol`：
         # 两个调用方（`get_bars` / `get_breadth`）都已经在入口处做过策略性提醒/拒绝，
@@ -1177,56 +1179,94 @@ class Client:
             raise ValueError("count 必须 ≥ 1（收到 %r）" % (count,))
         page = hq_pb.MAX_ROWS
 
-        if want <= page:
-            cols, rows = hq_pb.get_bars(code, period=per, count=want,
-                                        adjust=adj_code, market=market)
-        else:
-            # 多页：offset 往回翻更早的数据，每页按时间升序 → 前插保持整体升序
-            rows, off = [], 0
-            while len(rows) < want:
-                _c, part = hq_pb.get_bars(code, period=per, count=page,
-                                          offset=off, adjust=adj_code,
-                                          market=market)
-                if not part:
-                    break
-                rows = part + rows
-                off += len(part)
-                if len(part) < page:
-                    break
-            rows = rows[-want:]
+        def transport():
+            if want <= page:
+                _c, rows = hq_pb.get_bars(code, period=per, count=want,
+                                          adjust=adj_code, market=market)
+            else:
+                # 多页：offset 往回翻更早的数据，每页按时间升序 → 前插保持整体升序
+                rows, off = [], 0
+                while len(rows) < want:
+                    _c, part = hq_pb.get_bars(code, period=per, count=page,
+                                              offset=off, adjust=adj_code,
+                                              market=market)
+                    if not part:
+                        break
+                    rows = part + rows
+                    off += len(part)
+                    if len(part) < page:
+                        break
+                rows = rows[-want:]
 
-        if not rows:
-            raise errors.EmptyResult("%s %s K线无数据" % (symbol, per))
+            info = self._now()
+            out = Bars()
+            # DEF-011 终局（2026-10-28 用户拍板）：「服务端没给这列 / 解析不出」= `None`
+            # （unknown ≠ 0 红线）；服务端明确给 0 → 0.0。判别**按原始行 dict 的键存在性**
+            # （`key in r`），不是只看值 —— 这样"列不在"与"列在但值 0"才分得开。
+            missing_cols: set[str] = set()
+            for r in rows:
+                vol_raw = _num_or_none(r, "Volume")
+                amount_raw = _num_or_none(r, "Amount")
+                for col, v in (("Volume", vol_raw), ("Amount", amount_raw)):
+                    if col not in r:
+                        missing_cols.add(col)
+                    elif v is None:
+                        # 列在但解析不出（""/None）：unknown 也归 None，`raw` 里留原样可查
+                        missing_cols.add(col)
+                bar = Bar(
+                    market=market, code=code,
+                    date=str(r.get("Data", "")),
+                    open=_f(r.get("Open")), high=_f(r.get("High")),
+                    low=_f(r.get("Low")), close=_f(r.get("Close")),
+                    # 出口统一成"手"（2026-10-27 口径变更，实测表见 _vol_to_hand）
+                    vol=_vol_to_hand(vol_raw, code, per),
+                    amount=amount_raw,                    # 元，各品类各周期一致（实测）
+                    period=per,
+                    time=_hhmm(r.get("Second")) if per in _INTRADAY else "",
+                    raw=dict(r),
+                    adjust=adj_name,
+                )
+                # 列在但值是 ""/None 的情况已在前置循环处理（解析不出 → None）
+                # 逐根判（不是只判末根）：历史根恒 FINAL，当根按 CLOSE_CUTOFF/周期结束时刻
+                bar.provisional = (timeliness.judge_bar(bar, server_now=info)
+                                   is Status.PROVISIONAL)
+                out.append(bar)
 
-        info = self._now()
-        out = Bars()
-        for r in rows:
-            bar = Bar(
-                market=market, code=code,
-                date=str(r.get("Data", "")),
-                open=_f(r.get("Open")), high=_f(r.get("High")),
-                low=_f(r.get("Low")), close=_f(r.get("Close")),
-                # 出口统一成"手"（2026-10-27 口径变更，实测表见 _vol_to_hand）
-                vol=_vol_to_hand(_f(r.get("Volume")), code, per),
-                amount=_f(r.get("Amount")),          # 元，各品类各周期一致（实测）
-                period=per,
-                time=_hhmm(r.get("Second")) if per in _INTRADAY else "",
-                raw=dict(r),
-                adjust=adj_name,
-            )
-            # 逐根判（不是只判末根）：历史根恒 FINAL，当根按 CLOSE_CUTOFF/周期结束时刻
-            bar.provisional = (timeliness.judge_bar(bar, server_now=info)
-                               is Status.PROVISIONAL)
-            out.append(bar)
+            last = out[-1] if out else None
+            status = (timeliness.judge_bar(last, server_now=info)
+                      if last is not None else None)
+            extra = {"provisional": status is Status.PROVISIONAL}
+            if missing_cols:
+                # DEF-011：缺列是**事实**，记进 extra（键名非空时才写，
+                # 省得每份样本平白多一个键）
+                extra["missing_cols"] = sorted(missing_cols)
+            as_of = _bar_as_of(last) if last is not None else None
+            return out, as_of, status, extra
 
-        last = out[-1]
-        status = timeliness.judge_bar(last, server_now=info)
-        rec = self._record_call("HQServ.PBFXT", 0x0E, host=self._pb_host(), t0=t0)
-        out.meta = dict(self._meta_from(rec))
-        self._finish_series(out, rec, as_of=_bar_as_of(last), status=status,
-                            as_of_note="as_of 取末根 bar 的日期/时间（服务端数据自带），"
-                                       "不是取数时刻；取数时刻见 fetched_at")
-        out.meta["provisional"] = status is Status.PROVISIONAL
+        def codec(got):
+            return got[0], got[1]
+
+        verdict_box: list = []                    # transport 回填 (status, extra)
+
+        def spy(got):
+            verdict_box.append((got[2], got[3]))
+            return got[0], got[1]
+
+        out = self._fetch(self._FetchSpec(
+            cmd="HQServ.PBFXT", ctl=0x0E, shape="series",
+            transport=transport, codec=spy,
+            empty_msg="%s %s K线无数据" % (symbol, per),
+            judge=lambda _info: None,   # judge_bar 在 transport 内逐根判（需 bar 对象）
+            as_of_note="as_of 取末根 bar 的日期/时间（服务端数据自带），"
+                       "不是取数时刻；取数时刻见 fetched_at",
+        ))
+        # codec 已盖 as_of；真 status/extra 在这里补盖（judge_bar 需要 bar 对象，
+        # `_fetch` 的 judge(info) 形态表达不了"逐根判"，所以走 transport 内判）。
+        status, extra = verdict_box[0]
+        if status is not None:
+            out.provenance = out.provenance._replace_for(
+                status=(status.value if isinstance(status, Status) else status))
+        out.provenance = out.provenance.with_extra(**extra)
         return out
 
     def get_breadth(self, code, count: int = 120,
@@ -1262,7 +1302,7 @@ class Client:
 
         行里另带一个**非列**辅助键 `raw`（服务端原始字段一个不丢，单位仍是服务端原单位）。
 
-        `Table.meta` 含 `series` / `series_name` / `field_map` / `note` / `unavailable`
+        `Table.provenance` 含 `series` / `series_name` / `field_map`（extra）与口径 note（notes）/ `unavailable`
         （该序列**没有定义**的 `Bar` 字段）/ `period`，以及阶段 1 的
         `as_of` / `status` / `fetched_at` / `source` / `elapsed` / `fetch_clock`。
         行数不另给键：`len(t.rows)` 直接可得，多一个 `count` 只是多一处将来漂移的地方。
@@ -1297,16 +1337,22 @@ class Client:
             row["raw"] = dict(bar.raw)
             rows.append(row)
 
-        meta = dict(bars.meta)          # 阶段 1 的 as_of/status/fetched_at/source/elapsed…
-        meta.update({
-            "series": spec.code,
-            "series_name": spec.name,
-            "field_map": dict(spec.fields),        # {"close": "up_count", ...} 原样
-            "note": spec.note,
-            "unavailable": series_kinds.unavailable_fields(spec),
-            "period": "day",            # 数据来自哪个周期的凭据（与 get_indicators 同词表）
-        })
-        return Table(cols=cols, rows=rows, cmd="HQServ.PBFXT", meta=meta)
+        prov = bars.provenance          # 阶段 1 的 as_of/status/fetched_at/来源…
+        if prov is not None:
+            prov = prov.with_extra(
+                series=spec.code,
+                series_name=spec.name,
+                field_map=dict(spec.fields),   # {"close": "up_count", ...} 原样
+                period="day",                  # 数据来自哪个周期的凭据
+            ).with_extra(                       # 值为 None 的键不收
+                unavailable=series_kinds.unavailable_fields(spec) or [],
+            ).with_notes(spec.note)
+        else:
+            prov = Provenance(fetched_at=datetime.now(), clock=ClockSource.LOCAL,
+                              cmd="HQServ.PBFXT").with_extra(
+                series=spec.code, series_name=spec.name,
+                field_map=dict(spec.fields), period="day")
+        return Table(cols=cols, rows=rows, cmd="HQServ.PBFXT", provenance=prov)
 
     @staticmethod
     def _period_str(period) -> str:
@@ -1330,39 +1376,43 @@ class Client:
     def get_minutes(self, symbol) -> list[MinutePoint]:
         """当日分时（240 点）。7615 固定取当日，不接受日期参数。
 
-        语义层（阶段 1）：返回 `Minutes`（`list` 子类），`meta` 带
-        `as_of`（服务器日期 + 末点 `HH:MM`）、`status`、`fetched_at`、`source`、`elapsed`。
+        语义层（阶段 1）：返回 `Minutes`（`list` 子类），`provenance` 带
+        `as_of`（服务器日期 + 末点 `HH:MM`）、`status`、`fetched_at`、来源、`elapsed`。
         ⚠️ 分时通道**回包不带日期**（只有 `HH:MM`），`as_of` 的日期部分来自服务器时刻
-        —— `meta["source"]["clock"]` 会写 `"server"` 还是 `"local"`，`"local"` 表示
-        服务器时刻没取到（那时 `source["note"]` 里有原因）。
+        —— `Provenance.clock` 会是 `SERVER` 还是 `LOCAL`，`LOCAL` 表示
+        服务器时刻没取到（那时 notes 里有原因）。
         """
         from ._engine import hq_pb
 
-        t0 = time.monotonic()
         market, code = self._check_symbol(symbol)
-        cols, rows = hq_pb.get_minutes(code, market=market)
-        if not rows:
-            raise errors.EmptyResult("%s 当日无分时数据" % symbol)
 
-        info = self._now()
-        out = Minutes()
-        for r in rows:
-            m = int(_f(r.get("Minute"), 0))
-            out.append(MinutePoint(
-                code=code, market=market,
-                time="%02d:%02d" % (m // 60, m % 60),
-                price=_f(r.get("Now")), avg_price=_f(r.get("Average")),
-                vol=_f(r.get("NowVol")), raw=r,
-            ))
+        def transport():
+            _c, rows = hq_pb.get_minutes(code, market=market)
+            info = self._now()
+            out = Minutes()
+            for r in rows:
+                m = int(_f(r.get("Minute"), 0))
+                out.append(MinutePoint(
+                    code=code, market=market,
+                    time="%02d:%02d" % (m // 60, m % 60),
+                    price=_f(r.get("Now")), avg_price=_f(r.get("Average")),
+                    vol=_f(r.get("NowVol")), raw=r,
+                ))
+            return out, info
 
-        status = timeliness.judge_intraday(info.at, cutoff=timeliness.MIN_BAR_CUTOFF)
-        rec = self._record_call("HQServ.PBZST", 0x0E, host=self._pb_host(), t0=t0)
-        self._finish_series(out, rec,
-                            as_of="%s %s" % (info.at.date().isoformat(), out[-1].time),
-                            status=status,
-                            as_of_note="分时通道只有 HH:MM，日期部分取自服务器时刻"
-                                       "（分时固定取当日）")
-        return out
+        def codec(got):
+            out, info = got
+            return out, "%s %s" % (info.at.date().isoformat(), out[-1].time)
+
+        return self._fetch(self._FetchSpec(
+            cmd="HQServ.PBZST", ctl=0x0E, shape="series",
+            transport=transport, codec=codec,
+            empty_msg="%s 当日无分时数据" % symbols.text_of(symbol),
+            judge=lambda info: timeliness.judge_intraday(
+                info, cutoff=timeliness.MIN_BAR_CUTOFF),
+            as_of_note="分时通道只有 HH:MM，日期部分取自服务器时刻"
+                       "（分时固定取当日）",
+        ))
 
     def get_quotes(self, symbols_, batch: int = 20, on_missing: str = "raise",
                    **kwargs) -> list[Quote]:
@@ -1412,13 +1462,13 @@ class Client:
         | 取值 | 行为 |
         |---|---|
         | `"raise"`（**默认，行为与旧版一字不差**） | 缺码 → `EmptyResult` 点名 |
-        | `"skip"` | 丢缺失、**不抛**；`meta["missing"]` 精确列出，`meta["requested"]`/`meta["returned"]` 给基数 |
+        | `"skip"` | 丢缺失、**不抛**；`provenance.extra["missing"]` 精确列出，`requested`/`returned` 给基数 |
         | `"report"` | 同 `skip`，但额外 `warnings.warn` 一次（"我允许缺，但我要看见"） |
 
         ```python
         qs = c.get_quotes(["600519", "881999"], on_missing="skip")
         len(qs)                    # 1
-        qs.meta["missing"]         # [{'symbol': 'sh881999', 'market': 1, 'code': '881999',
+        qs.provenance.extra["missing"]         # [{'symbol': 'sh881999', 'market': 1, 'code': '881999',
                                    #   'reason': '服务端未返回'}]   ← 键集固定，就这四个
         ```
         ⚠️ `"skip"` **不等于"静默"**：缺失清单一定在 `meta` 里，绝不是悄悄少几行。
@@ -1431,37 +1481,50 @@ class Client:
         for one in symbols.iter_symbols(symbols_):
             self._check_symbol(one)              # 位数/期货/两义：进网络之前就拦
         pairs = _x._pairs(symbols_)
+        verdict_box: list = []                  # transport 闭包回填 (status, got)
 
-        t0 = time.monotonic()
-        if mode == "raise":
-            # 默认路径的调用形态与旧版**一字不差**（老的单测/桩只认 batch，
-            # 多塞一个 kwarg 会把它们全打红 —— 而它们的桩是对的，不该改）
-            cols, rows = _x.get_quotes(symbols_, batch=batch)
-        else:
-            cols, rows = _x.get_quotes(symbols_, batch=batch, on_missing=mode)
-        out = Quotes()
-        got: set[str] = set()
-        for r in rows:
-            out.append(_quote_from_row(dict(zip(cols, r))))
-            got.add(r[0])
+        def transport():
+            if mode == "raise":
+                # 默认路径的调用形态与旧版**一字不差**（老的单测/桩只认 batch，
+                # 多塞一个 kwarg 会把它们全打红 —— 而它们的桩是对的，不该改）
+                cols, rows = _x.get_quotes(symbols_, batch=batch)
+            else:
+                cols, rows = _x.get_quotes(symbols_, batch=batch, on_missing=mode)
+            out = Quotes()
+            got: set[str] = set()
+            for r in rows:
+                out.append(_quote_from_row(dict(zip(cols, r))))
+                got.add(r[0])
+            info = self._now()
+            stamp = getattr(out[0], "server_time", "") if out else ""
+            data_at = _parse_stamp(stamp)
+            status = timeliness.judge_quote(info, data_at)
+            verdict_box.append((status, got))
+            return out, stamp or None
 
-        info = self._now()
-        stamp = getattr(out[0], "server_time", "") if out else ""
-        data_at = _parse_stamp(stamp)
-        status = timeliness.judge_quote(info.at, data_at)
-        rec = self._record_call("HQServ:PBCombHQ", 0x11, host=self._pb_host(), t0=t0)
-        self._finish_series(out, rec, as_of=stamp or None, status=status,
-                            as_of_note=None if stamp else
-                            "回包里没有 HqDate/HqTime，as_of 无法确定")
+        out = self._fetch(self._FetchSpec(
+            cmd="HQServ:PBCombHQ", ctl=0x11, shape="series",
+            transport=transport, codec=lambda got: got,
+            # raise 模式全缺才抛 EmptyResult；skip/report 全缺也原样回空容器
+            empty_msg=("get_quotes 全部 %d 个代码服务端都未返回" % len(pairs))
+                      if mode == "raise" else None,
+            judge=lambda _info: None,   # judge_quote 在 transport 内判（需 data_at）
+            as_of_note="回包里没有 HqDate/HqTime，as_of 无法确定",
+        ))
+        # codec 给回的是 (out, as_of)；status 由 _fetch 经 judge(_info)=None 置 None ——
+        # 但 provenance 已在 _finish_series 盖过。这里把**真** status 补盖回去。
+        status, got = verdict_box[0]
+        if status is not None:
+            out.provenance = out.provenance._replace_for(
+                status=(status.value if isinstance(status, Status) else status))
         if mode != "raise":
-            # 只在非默认模式下动 meta：`raise` 路径的 meta 必须与旧版逐字节相同
+            # 只在非默认模式下动出处：`raise` 路径的 provenance 必须与旧版同构
             # （黄金样本钉着它），不允许因为"顺手多写两个键"就抖一下。
             missing = resolve_missing(pairs, got, on_missing=mode,
                                       warn_msg=None if out else
                                       "get_quotes 全部 %d 个代码服务端都未返回" % len(pairs))
-            out.meta["requested"] = len(pairs)
-            out.meta["returned"] = len(out)
-            out.meta["missing"] = missing
+            out.provenance = out.provenance.with_extra(
+                requested=len(pairs), returned=len(out), missing=missing)
         return out
 
     def get_name(self, symbol, market: int | None = None, **kwargs) -> str:
@@ -1508,20 +1571,28 @@ class Client:
         """
         from ._engine import hq_extra as _x
 
-        t0 = time.monotonic()
-        blk, blk_status, rows = _x.block_data(block, spec, field2)
-        n = max((len(r) for r in rows), default=0)
-        cols = ["market", "code", "name"] + ["c%d" % i for i in range(3, n)]
+        def codec(got):
+            _blk, _blk_status, rows = got
+            n = max((len(r) for r in rows), default=0)
+            cols = ["market", "code", "name"] + ["c%d" % i for i in range(3, n)]
+            return cols, rows
+
         # ⚠️ 服务端回包里的 `status` 是**块状态**（协议字段），语义层的 `status`
         # 是**时效四态** —— 两个同名不同义的东西绝不能共用一个键，所以改叫 `block_status`。
-        table = Table(cols=cols, rows=rows, cmd="HQServ.PBXmlBlock",
-                      meta={"block": blk, "block_status": blk_status, "spec": spec,
-                            "field2": field2,
-                            "note": "c3 起的列含义未定：服务端未给列名，这里只按位置命名"})
-        return self._stamp_table(
-            table, "HQServ.PBXmlBlock", 0x0E, host=self._pb_host(), t0=t0,
-            status=self._snapshot_status(), as_of=None,
-            as_of_note="PBXmlBlock 回包没有时间列，as_of 无法确定（快照口径，按取数时刻看 fetched_at）")
+        return self._fetch(self._FetchSpec(
+            cmd="HQServ.PBXmlBlock", ctl=0x0E,
+            transport=lambda: _x.block_data(block, spec, field2),
+            codec=codec,
+            empty_msg="",                      # 有列无行也原样回（历史行为）
+            shape="table_empty_ok",
+            as_of=None,
+            as_of_note="PBXmlBlock 回包没有时间列，as_of 无法确定"
+                       "（快照口径，按取数时刻看 fetched_at）",
+            extra=lambda got: {
+                "block": got[0], "block_status": got[1], "spec": spec,
+                "field2": field2},
+            notes="c3 起的列含义未定：服务端未给列名，这里只按位置命名",
+        ))
 
     def get_block_rows(self, block: str, kind: str = "HY", level: int = 1,
                        max_rows: int = 200, field2: int = 0) -> Table:
@@ -1532,22 +1603,25 @@ class Client:
         """
         from ._engine import hq_extra as _x
 
-        t0 = time.monotonic()
-        rows = _x.block_rows(block, kind=kind, level=level,
-                             max_rows=max_rows, field2=field2)
-        if not rows:
-            raise errors.EmptyResult(
-                "块 %s 一页都没取到（kind=%s level=%d field2=%s）" % (block, kind, level, field2))
-        n = max((len(r) for r in rows), default=0)
-        cols = ["market", "code", "name"] + ["c%d" % i for i in range(3, n)]
-        table = Table(cols=cols, rows=rows, cmd="HQServ.PBXmlBlock",
-                      meta={"block": block, "kind": kind, "level": level, "field2": field2,
-                            "note": "c3 起的列含义未定：服务端未给列名，这里只按位置命名"})
-        return self._stamp_table(
-            table, "HQServ.PBXmlBlock", 0x0E, host=self._pb_host(), t0=t0,
-            status=self._snapshot_status(), as_of=None,
+        def codec(rows):
+            n = max((len(r) for r in rows), default=0)
+            cols = ["market", "code", "name"] + ["c%d" % i for i in range(3, n)]
+            return cols, rows
+
+        return self._fetch(self._FetchSpec(
+            cmd="HQServ.PBXmlBlock", ctl=0x0E,
+            transport=lambda: _x.block_rows(block, kind=kind, level=level,
+                                            max_rows=max_rows, field2=field2),
+            codec=codec,
+            empty_msg="块 %s 一页都没取到（kind=%s level=%d field2=%s）"
+                      % (block, kind, level, field2),
+            as_of=None,
             as_of_note="PBXmlBlock 回包没有时间列，as_of 无法确定"
-                       "（多页拼接，各页取数时刻不同；按取数时刻看 fetched_at）")
+                       "（多页拼接，各页取数时刻不同；按取数时刻看 fetched_at）",
+            extra={"block": block, "kind": kind, "level": level,
+                   "field2": field2},
+            notes="c3 起的列含义未定：服务端未给列名，这里只按位置命名",
+        ))
 
     def get_samples(self, symbols_, batch: int = 15) -> Table:
         """**批量抽样行情**（`PBSampleMore`）：一次几十个代码的紧凑快照。
@@ -1564,24 +1638,137 @@ class Client:
 
         for one in symbols.iter_symbols(symbols_):
             self._check_symbol(one)          # 位数/期货/两义：进网络之前就拦
-        t0 = time.monotonic()
-        items = _x.samples(symbols_, batch=batch)
-        n = max((len(d["floats"]) for d in items), default=0)
-        cols = ["code", "pre_close"] + ["f%d" % i for i in range(n)]
-        rows = []
-        for d in items:
-            # ⚠️ 拿不到就是 `None`，**不许** `or 0.0`：0.0 是"昨收 0 元"这个**假事实**，
-            # 会让下游算涨跌幅时正好除零/得出 ±100%。红线：unknown ≠ 0。
-            row = {"code": d["code"], "pre_close": d["pre_close"]}
-            for i, v in enumerate(d["floats"]):
-                row["f%d" % i] = v
-            rows.append(row)
-        table = Table(cols=cols, rows=rows, cmd="HQServ.PBSampleMore",
-                      meta={"note": "f0.. 的列序未锚定，别当 high/low 用：服务端未给列名"})
-        return self._stamp_table(
-            table, "HQServ.PBSampleMore", 0x0E, host=self._pb_host(), t0=t0,
-            status=self._snapshot_status(), as_of=None,
-            as_of_note="PBSampleMore 回包没有时间列，as_of 无法确定（快照口径）")
+
+        def codec(items):
+            n = max((len(d["floats"]) for d in items), default=0)
+            cols = ["code", "pre_close"] + ["f%d" % i for i in range(n)]
+            rows = []
+            for d in items:
+                # ⚠️ 拿不到就是 `None`，**不许** `or 0.0`：0.0 是"昨收 0 元"这个**假事实**，
+                # 会让下游算涨跌幅时正好除零/得出 ±100%。红线：unknown ≠ 0。
+                row = {"code": d["code"], "pre_close": d["pre_close"]}
+                for i, v in enumerate(d["floats"]):
+                    row["f%d" % i] = v
+                rows.append(row)
+            return cols, rows
+
+        return self._fetch(self._FetchSpec(
+            cmd="HQServ.PBSampleMore", ctl=0x0E,
+            transport=lambda: _x.samples(symbols_, batch=batch),
+            codec=codec,
+            as_of=None,
+            as_of_note="PBSampleMore 回包没有时间列，as_of 无法确定（快照口径）",
+            notes="f0.. 的列序未锚定，别当 high/low 用：服务端未给列名",
+        ))
+
+    def get_intraday_samples(self, symbols_, count: int | None = None) -> Table:
+        """**分时点位抽样**（`HQServ.PBSample`，ctl `0x11`）—— 逐分钟点位数组。
+
+        与 `get_samples()` 的区别（名字像，命令完全不同）
+        ------------------------------------------------
+        | | 本方法 `PBSample` | `get_samples()` `PBSampleMore` |
+        |---|---|---|
+        | 回什么 | **一只一条**，`field8` = 当日**点位数组** | 一批，`field8` = 稀疏抽样数组 |
+        | 点位上限 `field5` | **240**（逐分钟） | 60 |
+        | 列义 | ✅ 已锚定（见下） | ❌ 未锚定（`f0..fN`） |
+
+        ```python
+        t = c.get_intraday_samples(["999999"])
+        t.cols
+        # ['code', 'market', 'total_points', 'pre_close', 'n_points', 'points']
+        r = t.rows[0]
+        len(r["points"]), r["points"][-1]     # 139, 3646.048
+        ```
+
+        `points` 的语义**已锚定**（2026-10-23 抓包，三条独立证据）
+        ------------------------------------------------------
+        1. **逐点，不是等距抽样**：`n_points`（`field7`）**恒等于** `len(points)`
+           （25/25 帧，无一例外）。若是抽样，服务端不会声明"我给你 N 个点"再恰好给 N 个。
+        2. **值对得上**：`pre_close`（`field6`）`= 3658.0256`，与同抓包
+           `PBCombHQ(999999)` 的 `CLOSE = 3658.03` 一致；`points[-1] = 3646.048`
+           落在同刻 `PBCombHQ(999999).NOW` 的两条读数之间（`#165=3645.42` /
+           `#398=3646.30`），`points` 的 `max = 3649.834` 与稍后一条 `NOW = 3649.84`
+           完全吻合。
+        3. **时刻轴对得上**：`n_points = 139` 与同一抓包里 `PBSdstat(minute)` 的行数
+           **139** 完全相同，而 13:18 已走过的分钟数正是 121（上午）+ 18（下午）= 139。
+           同刻 `PBZST(880005)` 有 140 行（`Minute` 570…799）= 139 + 1 分钟。
+
+        ⚠️ **为什么没用 `PBZST` 做值锚**（Lead 原本的设想）：抓包里 `PBZST` 全是
+        `880005`（板块涨跌家数），**没有一条是 `999999`**，两者标的都不同，数值不可比。
+        所以 `PBZST` 只用来校**时刻轴**（140 vs 139），值锚改由 `PBCombHQ` 承担。
+
+        ⚠️ **实证范围只有指数（`999999`，market=1）**：抓包里 25 帧全是它。
+        个股上的点数含义（是否也是"每分钟一点"、`field5` 是否仍是 240）**没有证据**，
+        所以本方法对个股属于**实验性**：结构可信，语义待个股样本复核。
+
+        ⚠️ `field7` 的语义**未定**：抓包发 `1` 却回 139 点，说明它**不是**行数上限。
+        `count` 只是原样透传（`None` → 发 1，与抓包一致）；若你给了 `count`，
+        **本地截尾**（保留最近 `count` 个点，与 `get_bars` 的 `count` 同口径），
+        此时 `len(points) < n_points` 是正常的 —— `n_points` 永远是服务端声明值。
+
+        参数：
+            symbols_: `"999999"` / `["999999", "399001"]` / `(1, "999999")`；
+                一律先过 `_check_symbol`（位数/期货/两义在发请求前就拒），逐只发一条请求。
+            count: 本地保留最近多少个点；`None` = 全要（**不发额外参数**）。
+
+        ⚠️ 成本：**一只一次调用**（没有批量参数 —— `PBSample` 的参数里只有一个代码位）。
+        无数据 / 一只都没取到 → `raise errors.EmptyResult`（绝不返回空表冒充"没有数据"）。
+        """
+        from ._engine import hq_pb as _pb
+
+        wanted = []
+        for one in symbols.iter_symbols(symbols_):
+            wanted.append(self._check_symbol(one))   # ← 必须在建连之前
+        if not wanted:
+            raise ValueError("get_intraday_samples 至少要一个标的")
+
+        def transport():
+            rows, missing = [], []
+            for mkt, code in wanted:
+                got = _pb.intraday_samples(code, market=mkt, count=count)
+                if not got:
+                    missing.append(code)
+                    continue
+                for d in got:
+                    pts = d["points"] if d["points"] is not None else None
+                    if pts is not None and count is not None and len(pts) > count:
+                        pts = pts[-count:]              # 本地截尾：保留最近 count 点
+                    rows.append({
+                        "code": d["code"] or code,
+                        # 市场取**服务端回的**（`field4`）；回包没给才用请求时的
+                        "market": d["market"] if d["market"] is not None else mkt,
+                        "total_points": d["total_points"],
+                        "pre_close": d["pre_close"],
+                        "n_points": d["n_points"],
+                        "points": pts,
+                    })
+            return rows, missing
+
+        def codec(got):
+            return ["code", "market", "total_points", "pre_close",
+                    "n_points", "points"], got[0]
+
+        def notes(got):
+            missing = got[1]
+            note = ("逐分钟点位数组：n_points(field7) == len(points) 已实证"
+                    "（逐点非抽样）；pre_close(field6) 与 PBCombHQ 的 CLOSE 一致；"
+                    "field5=全天点数上限(240)。实证标的只有指数 999999，个股未复核")
+            if missing:
+                note += "；本次未返回的代码：%s" % ",".join(missing)
+            return note
+
+        return self._fetch(self._FetchSpec(
+            cmd="HQServ.PBSample", ctl=0x11,
+            transport=transport, codec=codec,
+            empty_msg="PBSample 一只都没回数据（%s）：回包为空或不是预期结构。"
+                      "该命令只对指数做过实证（999999），个股请先按 M6 报告的方法自验。"
+                      % ",".join(c for _m, c in wanted),
+            as_of=None,
+            as_of_note="PBSample 回包没有日期/时间字段（只有 代码/市场/点数/昨收/数组），"
+                       "as_of 无法确定（快照口径）；要日期请配 get_quotes 的 HqDate",
+            extra=lambda got: {"count": count, "missing": list(got[1])},
+            notes=notes,
+        ))
 
     def get_board_stat(self, f3: int = -1, f5: int = 14, f2: int = 6) -> Table:
         """**板块成分统计**（`PBHYStat`）：七列 `Setcode/Code/Name/Now/Other/Close/XSFlag`。
@@ -1605,20 +1792,17 @@ class Client:
         """
         from ._engine import hq_extra as _x
 
-        t0 = time.monotonic()
-        cols, rows = _x.board_stat(f2=f2, f3=f3, f5=f5)
-        if not rows:
-            raise errors.EmptyResult(
-                "PBHYStat 没返回数据（f3=%s f5=%s）" % (f3, f5))
-        table = Table(cols=cols, rows=rows, cmd="HQServ.PBHYStat",
-                      meta={"f3": f3, "f5": f5,
-                            "note": "f5=视图(0=纯板块列表/14=板块+成分交替)；f3=类别"
-                                    "(f5=14 时只影响第 9 行起的尾部)；Other 量纲未定，"
-                                    "f3 取值含义见 docs/VERIFICATION.md"})
-        return self._stamp_table(
-            table, "HQServ.PBHYStat", 0x0E, host=self._pb_host(), t0=t0,
-            status=self._snapshot_status(), as_of=None,
-            as_of_note="PBHYStat 回包没有时间列，as_of 无法确定（快照口径）")
+        return self._fetch(self._FetchSpec(
+            cmd="HQServ.PBHYStat", ctl=0x0E,
+            transport=lambda: _x.board_stat(f2=f2, f3=f3, f5=f5),
+            empty_msg="PBHYStat 没返回数据（f3=%s f5=%s）" % (f3, f5),
+            as_of=None,
+            as_of_note="PBHYStat 回包没有时间列，as_of 无法确定（快照口径）",
+            extra={"f3": f3, "f5": f5},
+            notes="f5=视图(0=纯板块列表/14=板块+成分交替)；f3=类别"
+                  "(f5=14 时只影响第 9 行起的尾部)；Other 量纲未定，"
+                  "f3 取值含义见 docs/VERIFICATION.md",
+        ))
 
     def get_ticks(self, symbol, count: int = 200, max_pages: int = 50) -> list[Tick]:
         """逐笔成交（`HQServ:PBTickEx`，2026-10-27 打通）。返回 `list[Tick]`，**按时间升序**（旧→新）。
@@ -1660,34 +1844,36 @@ class Client:
             count:  要多少笔（默认 200；每页 100，自动翻页）
             max_pages: 最多翻多少页（防死循环，默认 50）
 
-        语义层（阶段 1）：返回 `Ticks`（`list` 子类），`meta` 带 `as_of`
-        （服务器日期 + 末笔 `HH:MM:SS`）、`status`、`fetched_at`、`source`、`elapsed`。
+        语义层（阶段 1）：返回 `Ticks`（`list` 子类），`provenance` 带 `as_of`
+        （服务器日期 + 末笔 `HH:MM:SS`）、`status`、`fetched_at`、来源、`elapsed`。
         逐笔用 `CLOSE_CUTOFF` 判（盘后固定价格成交到 15:29 还在进来，别提前宣布定稿）。
         """
         from ._engine import hq_extra
 
-        t0 = time.monotonic()
         market, code = self._check_symbol(symbol)
         want = int(count)
         if want <= 0:
             raise ValueError("count 必须 > 0（收到 %r）" % (count,))
-        got = _collect_ticks(lambda a: hq_extra.ticks(code, market, anchor=a, count=100),
-                             market, code, want, max_pages)
-        if not got:
-            raise errors.EmptyResult("%s 当日无逐笔数据" % symbol)
 
-        info = self._now()
-        out = Ticks(got)
-        status = timeliness.judge_intraday(info.at, cutoff=timeliness.CLOSE_CUTOFF)
-        rec = self._record_call("HQServ:PBTickEx", 0x11, host=self._pb_host(), t0=t0)
-        last_time = getattr(out[-1], "time", None) or ""
-        self._finish_series(
-            out, rec,
-            as_of=(("%s %s" % (info.at.date().isoformat(), last_time)).strip()
-                   if last_time else None),
-            status=status,
-            as_of_note="逐笔通道只有 HH:MM:SS（当日秒数），日期部分取自服务器时刻")
-        return out
+        def transport():
+            got = _collect_ticks(
+                lambda a: hq_extra.ticks(code, market, anchor=a, count=100),
+                market, code, want, max_pages)
+            info = self._now()
+            last_time = getattr(got[-1], "time", None) if got else None
+            as_of = (("%s %s" % (info.at.date().isoformat(),
+                                 last_time or "")).strip()
+                     if last_time else None)
+            return Ticks(got), as_of
+
+        return self._fetch(self._FetchSpec(
+            cmd="HQServ:PBTickEx", ctl=0x11, shape="series",
+            transport=transport, codec=lambda got: got,
+            empty_msg="%s 当日无逐笔数据" % symbols.text_of(symbol),
+            judge=lambda info: timeliness.judge_intraday(
+                info, cutoff=timeliness.CLOSE_CUTOFF),
+            as_of_note="逐笔通道只有 HH:MM:SS（当日秒数），日期部分取自服务器时刻",
+        ))
 
     def get_market_page(self, market: int = 6, offset: int = 0,
                         page_size: int = 50, cols: list[str] | None = None) -> list[Quote]:
@@ -1735,34 +1921,36 @@ class Client:
         每个请求都过进程级闸门 `pacer`（`PB*` 走 `datacenter._send`，不经过 `Session`，
         不主动开口就等于绕过限流）。翻倍重试时**每次尝试都单独过闸门**。
 
-        语义层（阶段 1）：返回 `Quotes`（`list` 子类），`meta` 带 `status` /
-        `fetched_at` / `source` / `elapsed` / `fetch_clock`。⚠️ `PBMultiHQ` 的列里
+        语义层（阶段 1）：返回 `Quotes`（`list` 子类），`provenance` 带 `status` /
+        `fetched_at` / 来源 / `elapsed` / `fetch_clock`。⚠️ `PBMultiHQ` 的列里
         **没有时间字段**，所以 `as_of` 是 `None`（不拿 `fetched_at` 冒充数据时刻），
         原因写在 `as_of_note`；`status` 本身已经是保守值，删掉 `as_of_note`
         也不影响"能不能拿这批数下结论"。
         """
         from ._engine import hq_pb
 
-        t0 = time.monotonic()
-        cols_, rows = hq_pb.get_market_page(market=market, offset=offset,
-                                            page_size=page_size, cols=cols)
-        if not rows:
-            raise errors.EmptyResult(
-                "PBMultiHQ market=%s offset=%s 返回 0 行（起始页大小 %s，已翻倍重试到 %d 仍空）。"
-                "常见原因：列数太少导致「列数×page_size」低于服务端下限，或该市场码无数据。"
-                "可加大 cols 或 page_size 再试。"
-                % (market, offset, page_size, hq_pb.MAX_PAGE_ROWS))
-        out = Quotes()
-        for r in rows:
-            out.append(_quote_from_page_row(r, market))
+        def transport():
+            cols_, rows = hq_pb.get_market_page(market=market, offset=offset,
+                                                page_size=page_size, cols=cols)
+            out = Quotes()
+            for r in rows:
+                out.append(_quote_from_page_row(r, market))
+            return out
 
-        info = self._now()
-        status = timeliness.judge_intraday(info.at, cutoff=timeliness.CLOSE_CUTOFF)
-        rec = self._record_call("HQServ.PBMultiHQ", 0x12, host=self._pb_host(), t0=t0)
-        self._finish_series(out, rec, as_of=None, status=status,
-                            as_of_note="PBMultiHQ 回包无时间列（NOW/CLOSE/NAME/AMOUNT/VOL…），"
-                                       "as_of 无法确定；要看取数时刻请用 fetched_at")
-        return out
+        return self._fetch(self._FetchSpec(
+            cmd="HQServ.PBMultiHQ", ctl=0x12, shape="series",
+            transport=transport,
+            empty_msg="PBMultiHQ market=%s offset=%s 返回 0 行（起始页大小 %s，"
+                      "已翻倍重试到 %d 仍空）。"
+                      "常见原因：列数太少导致「列数×page_size」低于服务端下限，"
+                      "或该市场码无数据。可加大 cols 或 page_size 再试。"
+                      % (market, offset, page_size, hq_pb.MAX_PAGE_ROWS),
+            judge=lambda info: timeliness.judge_intraday(
+                info, cutoff=timeliness.CLOSE_CUTOFF),
+            as_of=None,
+            as_of_note="PBMultiHQ 回包无时间列（NOW/CLOSE/NAME/AMOUNT/VOL…），"
+                       "as_of 无法确定；要看取数时刻请用 fetched_at",
+        ))
 
     def get_universe(self, market: int = 6, max_pages: int = 20,
                      page_size: int = 50) -> list[Quote]:
@@ -1798,41 +1986,48 @@ class Client:
         `fetched_at` / `source` / `elapsed` / `pages`。
         ⚠️ 多页之间本来就有时间差，`as_of` 记 `None` 并附说明（见 `get_market_page`）。
         """
-        t0 = time.monotonic()
-        pairs, stats = _core.paginate(
-            lambda off: self.get_market_page(market=market, offset=off,
-                                             page_size=page_size),
-            page_size=int(page_size), max_pages=int(max_pages),
-            key=lambda q: (q.market, q.code))
-        out: Quotes = Quotes(pairs)
+        stats_box: list = []          # transport 闭包里回填翻页统计
 
-        info = self._now()
-        status = timeliness.judge_intraday(info.at, cutoff=timeliness.CLOSE_CUTOFF)
-        rec = self._record_call("HQServ.PBMultiHQ", 0x12, host=self._pb_host(), t0=t0)
-        self._finish_series(
-            out, rec, as_of=None, status=status,
-            as_of_note="按 offset 翻页拼接：各页取数时刻不同，as_of 无法用一个时刻表示")
-        out.meta["pages"] = stats["pages"]
+        def transport():
+            pairs, stats = _core.paginate(
+                lambda off: self.get_market_page(market=market, offset=off,
+                                                 page_size=page_size),
+                page_size=int(page_size), max_pages=int(max_pages),
+                key=lambda q: (q.market, q.code))
+            stats_box.append(stats)
+            return Quotes(pairs)
+
+        out = self._fetch(self._FetchSpec(
+            cmd="HQServ.PBMultiHQ", ctl=0x12, shape="series",
+            transport=transport,
+            judge=lambda info: timeliness.judge_intraday(
+                info, cutoff=timeliness.CLOSE_CUTOFF),
+            as_of=None,
+            as_of_note="按 offset 翻页拼接：各页取数时刻不同，as_of 无法用一个时刻表示",
+        ))
         # ── 封顶必须**显式**（阶段 3）────────────────────────────────────
         # 历史缺陷：默认 max_pages=20 × page_size=50 = 最多 1000 只，而 market=6
         # 全量约 5577 只 —— 于是 1000 只被当成"全量"交给了调用方。方向是"少给还
-        # 不报错"，正是本库红线。现在封顶写进 meta，并给成本与出路。
-        out.meta["truncated"] = bool(stats["truncated"])
-        out.meta["rows"] = stats["rows"]
-        out.meta["estimated_cost_seconds"] = _core.estimate_cost(
-            stats["pages"], gap=getattr(getattr(self, "_pacer", None), "gap", 2.2))
+        # 不报错"，正是本库红线。现在封顶写进 provenance，并给成本与出路。
+        stats = stats_box[0]
+        out.provenance = out.provenance.with_extra(
+            pages=stats["pages"], truncated=bool(stats["truncated"]),
+            rows=stats["rows"],
+            estimated_cost_seconds=_core.estimate_cost(
+                stats["pages"], gap=getattr(getattr(self, "_pacer", None), "gap", 2.2)))
         if stats["truncated"]:
-            out.meta["note"] = (
+            note = (
                 "⚠️ 已达 max_pages=%d 上限（本次 %d 页 / %d 条），**后面还有没取的**："
                 "服务端**没有**封顶，封顶是本方法的参数。`market=6` 全量约 5577 只，"
                 "`page_size=80` 需 `max_pages>=70`、实测约 158.6 秒。"
                 "要全量请用 `iter_universe()`（可边取边停），或显式调大 max_pages。"
                 % (int(max_pages), stats["pages"], stats["rows"]))
         else:
-            out.meta["note"] = (
+            note = (
                 "已翻到末页（本次 %d 页 / %d 条），没有再被截断。"
                 "⚠️ 仍需注意：`PBMultiHQ` 是按涨幅排序的列表，盘中排序会漂移，"
                 "翻页接缝可能漏票 —— 本方法**不保证不遗漏**。" % (stats["pages"], stats["rows"]))
+        out.provenance = out.provenance.with_notes(note)
         return out
 
     def iter_universe(self, market: int = 6, page_size: int = 80,
@@ -1857,7 +2052,7 @@ class Client:
         先攒成一个 5577 元素的列表再返回，等于强迫调用方为"随时可以不要"的部分付满等待。
 
         ⚠️ 取到的每一条都在**取它的那一刻**才拿到 —— 所以这里**不提供**
-        `Quotes.meta` 快照（生成器无法在"结束时"再回头改已 yield 出去的东西）。
+        `Quotes.provenance` 快照（生成器无法在"结束时"再回头改已 yield 出去的东西）。
         要 `status`/`as_of`/`truncated` 这类整体口径请用 `get_universe`，或每页自行
         `get_market_page`。两个通道的 `as_of` 都是 `None`（多页时刻不同）。
         """
@@ -1898,9 +2093,8 @@ class Client:
         # 派生表：语义层信息**整份继承自那批 K 线**（它就是由这批 K 线算出来的，
         # 独立性零 —— 末根是不定稿的，指标也一定不是定稿的）。`period`/`count` 是
         # 派生表自己的口径凭据，与 `get_breadth` 同一套词表。
-        table = Table(cols=cols, rows=rows, cmd="local:indicator",
-                      meta={"period": period, "count": len(bars)})
-        table.inherit_meta(bars, **{"period": period, "count": len(bars)})
+        table = Table(cols=cols, rows=rows, cmd="local:indicator")
+        table.inherit_provenance(bars, **{"period": period, "count": len(bars)})
         return table
 
     def get_price_limits(self, symbol, prev_close: float | None = None,
@@ -1962,21 +2156,29 @@ class Client:
         手机端「板块」页就是按 `offset` 步进 44 这么翻的（2026-10-26 抓包实测）。
 
         语义层（阶段 1）：返回值仍是 **`(cols, rows)` 二元组**（签名不变），
-        但 `rows` 换成 `Quotes`（`list` 子类），`meta` 里带 `status` / `fetched_at` /
-        `source` / `elapsed`；`as_of` 记 `None`（这条通道无时间列）。
+        但 `rows` 换成 `Quotes`（`list` 子类），`provenance` 里带 `status` / `fetched_at` /
+        来源 / `elapsed`；`as_of` 记 `None`（这条通道无时间列）。
         """
         from ._engine import hq_pb
 
-        t0 = time.monotonic()
-        cols, rows = hq_pb.get_market_page(
-            market=market, offset=offset, page_size=page_size,
-            cols=["Code", "Setcode", "Name", "CLOSE", "NOW", "AMOUNT"])
-        info = self._now()
-        status = timeliness.judge_intraday(info.at, cutoff=timeliness.CLOSE_CUTOFF)
-        rec = self._record_call("HQServ.PBMultiHQ", 0x12, host=self._pb_host(), t0=t0)
-        box = Quotes(rows or [])
-        self._finish_series(box, rec, as_of=None, status=status,
-                            as_of_note="板块行情（PBMultiHQ）回包无时间列，as_of 无法确定")
+        cols = ["Code", "Setcode", "Name", "CLOSE", "NOW", "AMOUNT"]
+
+        def transport():
+            _c, rows = hq_pb.get_market_page(
+                market=market, offset=offset, page_size=page_size, cols=cols)
+            return Quotes(rows or [])
+
+        box = self._fetch(self._FetchSpec(
+            cmd="HQServ.PBMultiHQ", ctl=0x12, shape="series",
+            transport=transport,
+            # ⚠️ 空**不是**错误：`_fetch_multihq_boards` 靠"某页 0 行"判翻页到底
+            # （`empty < 2` 计数器）。这里的旧语义从不为空抛异常。
+            empty_msg=None,
+            judge=lambda info: timeliness.judge_intraday(
+                info, cutoff=timeliness.CLOSE_CUTOFF),
+            as_of=None,
+            as_of_note="板块行情（PBMultiHQ）回包无时间列，as_of 无法确定",
+        ))
         return cols, box
 
     def get_board_members(self, board) -> Table:
@@ -1990,6 +2192,113 @@ class Client:
         from .sections import flow as _flow
 
         return _flow.get_capital_flow(self, symbols)
+
+    def get_market_breadth(self, view: str = "summary") -> Table:
+        """**实时涨跌家数**（`HQServ.PBSdstat`，ctl `0x11`）—— 全市场口径的当下截面。
+
+        ```python
+        t = c.get_market_breadth()                    # view="summary"（默认）
+        t.cols
+        # ['up_count', 'down_count', 'flat_count', 'limit_up_count', 'limit_down_count']
+        r = t.rows[0]
+        r["up_count"], r["down_count"], r["flat_count"], r["limit_up_count"]
+        # 1637, 3775, 160, 35        （2026-10-23 13:18 抓包实测）
+        ```
+
+        与库内另外两条"家数"接口的区别（**三者不可互相替代**）
+        --------------------------------------------------
+        | 方法 | 通道 | 内容 | 频率 |
+        |---|---|---|---|
+        | **本方法** | `HQServ.PBSdstat` | **此刻的**涨/跌/平/涨停/跌停家数 | **实时快照**（一次一帧） |
+        | `get_market_stat("updown")` | `CWServ.ph_datacenter_zdt_zdfx` | **最近 30 个交易日的涨停/跌停家数** | 历史序列（按日） |
+        | `get_breadth("880005")` | `HQServ.PBFXT` | `880005` 的**日 K 线**四价即四个家数 | 历史序列（按日） |
+
+        一句话：**要"现在多少家在涨"用本方法；要"涨跌家数的历史曲线"用那两条。**
+        `PBSdstat` 的请求里连代码位都没有（只有视图码），所以它天生是全市场口径，
+        不能按代码取；`PBZST(880005)` 才是"带时刻轴的家数序列"。
+
+        `view` 两档（`field2` 视图码）
+        ---------------------------
+        * `"summary"`（默认，`field2=4`）→ **1 行**，5 个标准列。语义已定：
+          `up_count/down_count/flat_count` = `field1/2/3`，
+          `limit_up_count/limit_down_count` = `field4/5`。
+          定标依据（三命令同刻互证）：`up+down+flat ≡ 5572`（27 帧无一例外，5572 =
+          当日有价证券总数），且同一分钟里 `PBHQInfo` 的 `f8/f5/f7/f28/f29` 与
+          `PBZST(880005)` 的 `Now/Average` 给出**同一组数**（1637/3775/160/35/15）。
+        * `"minute"`（`field2=3`）→ **N 行**逐分钟序列，列 `minute_index` + `f2`。
+          `minute_index` 是**行序（0 基）**，实测每行 = 当日走过的一分钟
+          （行数 121@11:30 / 139@13:18 / 242@15:00，午休不占行），所以可当时刻轴用；
+          本库**不**把它换算成 `HH:MM`（跳空/半日市的换算没有证据）。
+          ⚠️ `f2`（服务端每行一个 float32 标量）与每行那 10 个 `uint32` 的
+          **语义未定**：`f2` 照协议字段名保留，10 个整数**不进标准列**、原样放
+          `row["raw"]["u32"]`。已排除的解释记在 M6 报告 §1.3（不是六大主指数、
+          不是家数、不是累计成交额）。**别把 `f2` 当点位或家数用。**
+
+        ⚠️ `provenance.as_of` 恒 `None`：`PBSdstat` 回包里**没有任何日期/时间字段**
+        （只有 `field2`=条数和记录体），所以拿不到数据时刻 —— 这不是"忘了填"，
+        是通道不给。要日期请配 `get_quotes(["999999"])` 的 `HqDate`。
+        ⚠️ 缺字段 → 该列是 `None`（**不是 0**）。protobuf 里"没发"与"发了 0"在线上
+        等价，本库无法区分，所以按"不知道"处理（红线：unknown ≠ 0）。
+        ⚠️ 无数据 → `raise errors.EmptyResult`。
+        """
+        from ._engine import hq_pb as _pb
+
+        v = str(view or "").strip().lower()
+        if v not in ("summary", "minute"):
+            raise ValueError("view 只支持 'summary' / 'minute'（收到 %r）；"
+                             "'all' 没有通道 —— 两个视图的列结构互斥，拼一张表只能造列名"
+                             % (view,))
+
+        def transport():
+            got = _pb.market_breadth(v)
+            if not got:
+                raise errors.EmptyResult(
+                    "PBSdstat 没回包（view=%s）。该命令的请求只有视图码，"
+                    "回包为空通常意味着服务端当前不给这条统计" % v)
+            if got["shape"] == "summary":
+                fields = got.get("fields") or {}
+                if not fields:
+                    raise errors.EmptyResult(
+                        "PBSdstat(view=%s) 回包里没有家数字段"
+                        "（脚本判为 summary 形状但字段全空）" % v)
+                cols = ["up_count", "down_count", "flat_count",
+                        "limit_up_count", "limit_down_count"]
+                row = {}
+                for fno, name in zip((1, 2, 3, 4, 5), cols):
+                    row[name] = fields.get(fno)         # 缺就是 None，不补 0
+                note = ("实时涨跌家数（全市场口径，请求里没有代码位）。"
+                        "与 get_market_stat('updown') 的区别：后者是最近 30 个交易日的"
+                        "涨跌停历史；与 get_breadth('880005') 的区别：后者是日 K 线序列。"
+                        "本方法只给'此刻'的截面，没有时刻字段 → as_of=None")
+                return (cols, [row]), note, {"view": v, "off": got.get("off")}
+            rows_raw = got.get("rows") or []
+            if not rows_raw:
+                raise errors.EmptyResult(
+                    "PBSdstat(view=%s) 回了 0 行逐分钟数据" % v)
+            cols = ["minute_index", "f2"]
+            rows_ = []
+            for i, r in enumerate(rows_raw):
+                rows_.append({
+                    "minute_index": i,              # 行序 = 当日走过的第 i 分钟
+                    "f2": r.get("f2"),              # 语义未定，照协议字段名
+                    "raw": {"u32": r.get("u32")},   # 未定的 10 个 uint32：只进 raw
+                })
+            note = ("逐分钟序列：minute_index 是行序（实测 1 行 = 1 分钟，午休不占行），"
+                    "未换算 HH:MM。f2 与 raw.u32 的语义未定（已排除：六大主指数点位、"
+                    "涨跌家数、累计成交额），别当点位/家数用")
+            return (cols, rows_), note, {"view": v}
+
+        def codec(got):
+            cols_rows, note, extra = got
+            return {"cols": cols_rows[0], "rows": cols_rows[1],
+                    "notes": note, "extra": extra}
+
+        return self._fetch(self._FetchSpec(
+            cmd="HQServ.PBSdstat", ctl=0x11,
+            transport=transport, codec=codec,
+            as_of=None,
+            as_of_note="PBSdstat 回包不含日期/时间字段（只有条数+记录体），as_of 无法确定",
+        ))
 
     def get_market_stat(self, kind: str = "updown") -> Table:
         """市场概览。`kind`：updown（涨跌停家数）/ industry（行业涨跌）/ sentiment（情绪）。
@@ -2010,9 +2319,9 @@ class Client:
 
         * **一个请求都不发**（静态注册表，见 `tdxdata/capabilities.py`）——
           也**不会**覆盖 `Client.last_call`，因为它不是一次取数；
-        * `meta["as_of"]` 恒为 `None` 且**必带** `as_of_note` 说明"这是代码里的注册表，
+        * `provenance.as_of` 恒为 `None` 且**必带**说明 note："这是代码里的注册表，
           不来自行情，所以没有数据日期这个概念"（不是"取不到数据日期"）；
-        * `meta["status"]` 是 `provisional`：它是一份**会被实证推翻**的声明，
+        * `provenance.status` 是 `provisional`：它是一份**会被实证推翻**的声明，
           不享受 `final` 那种"定稿"待遇。
 
         参数
@@ -2056,47 +2365,38 @@ class Client:
                 for cap in picked]
         table = Table(cols=list(_capmod.CAPABILITY_COLS), rows=rows,
                       cmd="tdxdata.capabilities", domain="能力边界")
-        # 手工拼 meta 而**不走 `_stamp_table`**：后者会调 `_record_call` → `_now()`，
+        # 手工拼 provenance 而**不走 `_stamp_table`**：后者会调 `_record_call` → `_now()`，
         # 对一张静态表那就是白发一个请求（`_now()` 首次会做时钟探针）。
-        # `fetch_clock="local"` 是**如实标注**（这份时间戳确实是本机时钟），不是冒充服务器时刻。
-        meta = self._meta_from({
-            "source": (None, "tdxdata.capabilities", None),
-            "elapsed": round(max(0.0, time.monotonic() - t0), 4),
-            "fetched_at": datetime.now().isoformat(sep=" ", timespec="seconds"),
-            "fetch_clock": "local",
-            "cached": False,
-        })
-        meta["as_of"] = None
-        meta["status"] = Status.PROVISIONAL.value
-        meta["status_note"] = (
+        # `clock=LOCAL` 是**如实标注**（这份时间戳确实是本机时钟），不是冒充服务器时刻。
+        table.provenance = Provenance(
+            fetched_at=datetime.now(), clock=ClockSource.LOCAL,
+            cmd="tdxdata.capabilities",
+            elapsed=round(max(0.0, time.monotonic() - t0), 4),
+        )._replace_for(status=Status.PROVISIONAL.value).with_notes(
             "能力声明是**代码里的注册表**，随实证更新（例如「服务端有、本库未实现」"
-            "可能变成「已实现」），所以按非定稿处理；想复核请顺着 evidence 列去看原始记录")
-        meta["as_of_note"] = (
+            "可能变成「已实现」），所以按非定稿处理；想复核请顺着 evidence 列去看原始记录",
             "这是库内**静态注册表**，不来自任何行情通道，所以没有数据日期/时刻可言 —— "
             "as_of 恒为 None 是「没有这个概念」，不是「取不到」")
-        table.meta = meta
         return table
 
     # ── 生命周期 ──────────────────────────────────────────────────────────
     def rate_stats(self) -> dict:
         """当前限流状态（排查用）：基准/当前间隔、累计被限流次数、冷却中的服务器数。
 
-        阶段 5 起另加三个**并发**相关的键（`pacer.stats()` 的旧键一个没动）：
+        ⚠️ 兼容键（**恒为固定值**）：`concurrency` / `concurrency_effective` /
+        `lanes`。并发特性已于 2026-10 删除（按来源 IP 配额，多开连接换不来
+        多份配额，且带永久死锁 —— 见模块 docstring 的实测表），但这三个键
+        继续保留在快照里，只为不破坏已有的监控/日志解析。它们的值恒为
+        `1` / `1` / `[]`。
 
-        | 键 | 含义 |
-        |---|---|
-        | `concurrency` | 用户**请求**的并发度（原样） |
-        | `concurrency_effective` | **实际建了几条 lane**（= `len(lanes)`）。当前规则下它恒等于 `concurrency`（超上限是 `ValueError`，**不截断**），留着是为了让这份快照自解释：读的人不必先去翻构造规则，就看得出"到底真的并了几条" |
-        | `lanes` | 每条 lane 钉的主机名列表（默认 `concurrency=1` 时是 `[]`） |
-
-        `pacer.stats()` 里的 `hosts_tracked` 是"已经有独立槽位的主机数"：
-        默认路径恒为 `0`，`concurrency>1` 后才可能 >0 —— 一眼看出有没有人
-        真的在按主机分摊。
+        `pacer.stats()` 的键原样透传（`base` / `current` / `max` /
+        `limited_events` / `cooling_hosts` / `hosts_tracked`）。
+        `hosts_tracked` 现在**恒为 0**（不再有按主机的独立槽位）。
         """
         out = dict(self._pacer.stats())
-        out["concurrency"] = getattr(self, "_concurrency", 1)
-        out["concurrency_effective"] = getattr(self, "_concurrency_eff", 1)
-        out["lanes"] = [lane.host for lane in getattr(self, "_lanes", None) or []]
+        out["concurrency"] = 1
+        out["concurrency_effective"] = 1
+        out["lanes"] = []
         return out
 
     # ── 语义层：先问再取 ──────────────────────────────────────────────────
@@ -2153,16 +2453,16 @@ class Client:
                 notes.append("无法确定上一交易日，时效判定已降级（不会给出 final）")
 
         if key == "bar_day":
-            status = timeliness.judge_intraday(info.at, cutoff=timeliness.CLOSE_CUTOFF)
+            status = timeliness.judge_intraday(info, cutoff=timeliness.CLOSE_CUTOFF)
             notes.append("口径同 judge_bar 的「当日日线」分支：%s 前算 provisional"
                          % FINAL_CUTOFF_HHMM)
         elif key == "bar_min":
-            status = timeliness.judge_intraday(info.at, cutoff=timeliness.MIN_BAR_CUTOFF)
+            status = timeliness.judge_intraday(info, cutoff=timeliness.MIN_BAR_CUTOFF)
             notes.append("分钟当根的最终口径是「该根周期结束时刻」，见 timeliness.bar_period_end")
         elif key in ("minutes",):
-            status = timeliness.judge_intraday(info.at, cutoff=timeliness.MIN_BAR_CUTOFF)
+            status = timeliness.judge_intraday(info, cutoff=timeliness.MIN_BAR_CUTOFF)
         elif key in ("ticks", "quotes", "boards"):
-            status = timeliness.judge_intraday(info.at, cutoff=timeliness.CLOSE_CUTOFF)
+            status = timeliness.judge_intraday(info, cutoff=timeliness.CLOSE_CUTOFF)
         elif key in ("ztqd", "lrmx", "north"):
             status = timeliness.judge_product(key, data_date, server_now=info,
                                               prev_trade_date=prev)
@@ -2193,23 +2493,13 @@ class Client:
         }
 
     def close(self) -> None:
-        """关闭长连接（数据中心那条 + PB 路径的持久连接）。
+        """关闭长连接（本实例那条 + PB 路径的持久连接）。
 
-        阶段 5：`concurrency>1` 时先把 lane 线程池 `shutdown(wait=True)` 收干净
-        （**不留悬挂线程**、不吞掉正在跑的任务），再关每条 lane 的长连接。
-        `concurrency=1`（默认）时 `_pool` / `_lanes` 都是空的，
-        这里只是两次空循环 —— 默认路径的行为一点没变。
+        ⚠️ PB 路径用的是**模块级**持久连接（进程内共享），所以
+        `close()` 会把这个进程的 PB 连接一并关掉 —— 同进程里别的 `Client`
+        下次取数会重新握手（多付约 1.3 s）。这是已知的进程级状态耦合
+        （见 `datacenter._CONN`），根治要靠 `ARCH-001` 把它变成实例。
         """
-        pool, self._pool = getattr(self, "_pool", None), None
-        if pool is not None:
-            pool.shutdown(wait=True)               # 等正在跑的任务跑完再退出
-        for lane in getattr(self, "_lanes", None) or []:
-            sess, lane.sess = lane.sess, None
-            if sess is not None:
-                try:
-                    sess.close()
-                except Exception:                              # noqa: BLE001
-                    pass
         if self._sess is not None:
             self._sess.close()
             self._sess = None
@@ -2245,7 +2535,41 @@ _IND_DEFAULTS = (
     ("boll", {}),
 )
 _IND_DEFAULT_PARAMS = {k: v for k, v in _IND_DEFAULTS}
-_IND_NAMES = tuple(k for k, _ in _IND_DEFAULTS)
+# 阶段 C 新增的确定性数学指标：可点名使用（indicators=["hv"]），但**不进默认全集**，
+# 默认输出与修复前逐列一致（只许扩展的底线）。
+_IND_DEFAULT_PARAMS.update({
+    "hv": {"n": (20,)},
+    "momentum": {"n": (20,)},
+    "sharpe": {"n": (20,)},
+    "max_drawdown": {"n": (20,)},
+})
+_IND_NAMES = tuple(_IND_DEFAULT_PARAMS)
+
+
+#: "服务端把连接掐了"的错误码：Winsock(10053/10054) + POSIX(104/103/54/32)。
+#: 两边都要认 —— 同一份代码在不同包装层下，有时只填 `winerror`、有时只填 `errno`。
+_RESET_CODES = frozenset({10053, 10054, 104, 103, 54, 32})
+
+
+def _peer_reset(exc: BaseException) -> bool:
+    """这个传输异常是不是"**服务端主动踢人**"（限流的实证信号）。
+
+    只有连接被**重置/中止**才算限流信号：
+    `WinError 10053/10054`、`ECONNRESET`、`ECONNABORTED`、`EPIPE`
+    （诊断实测被限流时就是 10053）。
+
+    `ConnectionRefusedError`（端口没开 / 防火墙 / 完全离线）和超时**都不是** ——
+    把它们当限流会把进程级间隔从 2.2s 顶到 12.0s 上限，而回落需要
+    48 次成功调用（≈9.6 分钟），且**同进程其它 Client 一起变慢**。
+    """
+    if isinstance(exc, errors.RateLimited):
+        return True
+    if isinstance(exc, (ConnectionRefusedError, TimeoutError)):
+        return False
+    for attr in ("winerror", "errno"):
+        if getattr(exc, attr, None) in _RESET_CODES:
+            return True
+    return False
 
 
 def _indicator_columns(ind, bars, spec):
@@ -2298,6 +2622,13 @@ def _indicator_columns(ind, bars, spec):
             up, mid, low = ind.boll(bars, n=int(params.get("n", 20)),
                                     k=int(params.get("k", 2)))
             out += [("boll_upper", up), ("boll_mid", mid), ("boll_lower", low)]
+        elif name in ("hv", "momentum", "sharpe", "max_drawdown"):
+            ns = params.get("n", dflt["n"])
+            if isinstance(ns, int):
+                ns = (ns,)
+            for n in ns:
+                out.append(("%s%d" % (name, int(n)),
+                            getattr(ind, name)(bars, int(n))))
     return out
 
 
@@ -2313,7 +2644,7 @@ def _hhmm(seconds) -> str:
 
 
 def _bar_as_of(bar) -> str | None:
-    """一根 `Bar` 的「数据时刻」字符串（容器 `meta["as_of"]` 用它）。
+    """一根 `Bar` 的「数据时刻」字符串（容器 `provenance.as_of` 用它）。
 
     日线及以上 → `"YYYY-MM-DD"`；分钟线 → `"YYYY-MM-DD HH:MM"`（服务端本来就给
     周期**结束**时刻）。`date` 解析不出来 → `None`（**不拿今天顶替**）。
@@ -2375,6 +2706,12 @@ def _quote_from_page_row(raw: dict, market: int = 6) -> Quote:
     行里**没有**该列 → `None`（不是 `0.0`）。⚠️ 默认 `cols` 只有 `NOW/CLOSE/NAME` 三列，
     所以默认调用两个字段都是 `None`；要量额得显式把 `"AMOUNT"`/`"VOL"` 加进
     `get_market_page(cols=...)`（不改默认，免得动既有请求）。
+
+    ⚠️ `open/high/low` 同理（DEF-010，2026-10-28）：`PBMultiHQ` 回的 `OPEN`/`MAX`/`MIN`
+    三列也一直躺在 `raw` 里、构造 `Quote` 时没传 —— 与当年 `VOL`/`AMOUNT` 是同一个病
+    （"数据在手里却报 0.0"）。修法与 `vol`/`amount` 同口径：列在就照实转、列不在就是
+    `None`。⚠️ 只动本函数：:1077 附近的 `open=_f(r.get("Open"))` 是 `PBCombHQ`
+    （`get_quotes`）通道，不在本缺陷范围。
     """
     raw = dict(raw)
     return Quote(
@@ -2383,6 +2720,9 @@ def _quote_from_page_row(raw: dict, market: int = 6) -> Quote:
         price=_f(raw.get("NOW")),
         pre_close=_f(raw.get("CLOSE")),
         # 列在就照实转（含真值 0）；列不在 → None
+        open=_num_or_none(raw, "OPEN"),        # DEF-010：OPEN/MAX/MIN 真值进字段
+        high=_num_or_none(raw, "MAX"),
+        low=_num_or_none(raw, "MIN"),
         vol=_num_or_none(raw, "VOL"),
         amount=_num_or_none(raw, "AMOUNT"),
         name=str(raw.get("Name", "")).strip(),

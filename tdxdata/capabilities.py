@@ -123,6 +123,22 @@ CAPABILITIES: tuple[Capability, ...] = (
         workaround="只支持日线；分钟级家数序列未实证",
     ),
     Capability(
+        name="实时涨跌家数（涨/跌/平 + 涨停/跌停，含逐分钟序列）",
+        instrument="a_share",
+        interface="get_market_breadth",
+        available=True,
+        reason="HQServ.PBSdstat（ctl=0x11）：summary 回 5 个家数（up_count/down_count/"
+               "flat_count/limit_up_count/limit_down_count），抓包回放实测 1637/3775/160/35/15，"
+               "且 up+down+flat ≡ 5572（= 当日有价证券总数，27 帧恒等）；view='minute' 回逐分钟序列。"
+               "⚠️ 与 get_market_stat('updown') **不是一回事**：后者走 "
+               "CWServ.ph_datacenter_zdt_zdfx，是**历史近 30 个交易日**，本条是**实时快照**",
+        evidence="eval3/M6-pb-undecoded.md §PBSdstat / tests/test_pb_breadth.py / "
+                 "pcap: PBSdstat 27 帧 f1+f2+f3≡5572",
+        workaround="回包不含日期/时间字段 → provenance.as_of 恒 None 并带说明 note；"
+                   "要历史逐日请用 get_market_stat('updown')。view='minute' 的标的列与 "
+                   "10 个 uint32 语义未定，只进 row['raw']",
+    ),
+    Capability(
         name="创业板（30xxxx）板块域枚举",
         instrument="a_share",
         interface="get_universe",
@@ -203,6 +219,21 @@ CAPABILITIES: tuple[Capability, ...] = (
         evidence="§12.3 E 组 / golden: quotes_indices",
         workaround="要家数序列用 get_breadth(\"880005\")",
     ),
+    Capability(
+        name="当日分时点位（多代码一次取，轻量抽样通道）",
+        instrument="index",
+        interface="get_intraday_samples",
+        available=True,
+        reason="HQServ.PBSample（ctl=0x11）：回「代码/市场/全天点数/昨收/本帧点数/float32[]」。"
+               "语义已锚定 n_points(field7) ≡ len(points)（**逐点非抽样**，25/25 帧），"
+               "points[0] 是 09:30 首点，pre_close ↔ PBCombHQ.CLOSE（**昨收**）；"
+               "实测 999999 一帧回 139 点 = 09:30–11:30 的 121 + 13:00–13:18 的 18",
+        evidence="eval3/M6-pb-undecoded.md §PBSample / tests/test_pb_sample.py（27 例）/ "
+                 "离线回放：tools/m6_replay.py",
+        workaround="⚠️ 实证标的只有指数 999999，**个股未复核**（个股 field5 是否仍 240、是否仍"
+                   "每分钟一点没有证据）→ docstring 与 meta 标实验性；只要单只股票当日分时请用"
+                   "get_minutes；count 只是本地截尾（field7 发 1 仍回 139 点，不是服务端上限）",
+    ),
     # ── 板块 ──────────────────────────────────────────────────────────────
     Capability(
         name="板块清单（concept/style/area/industry1-3）",
@@ -281,11 +312,22 @@ CAPABILITIES: tuple[Capability, ...] = (
         instrument="futures",
         interface="",
         available=False,
-        reason="**不在数据源证券表内**：PBFXT/PBZST/PBCombHQ/PBMultiHQ × 6 个 market 码"
-               "（7/8/28/29/30/31）× 30 个合约代码 = 全部为空，且 ERR_-1000 出现 0 次；"
-               "另外 IF00 这类合约码在 symbols.parse 层就 ValueError（一个字节都没发出）",
-        evidence="§12.1 / probe/Q1Q2",
-        workaround="无通道。⚠️ 别归因成「市场码被拒」—— field3 对已知码是宽松的"
+        reason="**分两层：合约行情拿不到，期货专题数据拿得到**。(a) 行情拿不到：PBFXT/PBZST/"
+               "PBCombHQ/PBMultiHQ × 6 个 market 码（7/8/28/29/30/31）× 30 个合约代码 = 全部为空，"
+               "且 ERR_-1000 出现 0 次，合约码不在数据源证券表内；IF00 这类码在 symbols.parse 层就 "
+               "ValueError（一个字节都没发出）。(b) 拿得到（7615 数据中心侧抓包实测）：tdxrb_qh "
+               "期货合约榜（12 列×100 行，含 MA2701/V2701/FU2701 与市场码 28/29/30）、qhlhb_sy 001 "
+               "全市场合约清单（5 列×318 行）与 002 会员成交量/多空持仓/增减（10 列×21 行，"
+               "p3=0..4 五种榜单）、qhlhb_jcgc 002 机构持仓（8 列×336 行）、qh_hqpd_qhhy 品种主力"
+               "连续合约快照（5 列×10 行，now=最新价 721.3~9378.0，**是合约级价格但没有 OHLC**）。"
+               "⚠️ qh_cdzl 名不副实：只回交易日列表（20×4 + 1×1），002/003 在 31 份抓包里连请求都没有，"
+               "不能叫「持仓增量」",
+        evidence="§12.1 / probe/Q1Q2（行情侧）；reports/eval3/findings/M4-fx-futures.md §2.3-2.5（专题侧，"
+                 "31 份 pcap 真实回包）",
+        workaround="合约 K 线/分时/五档无通道（7727 仅笔记证据）。要专题数据走数据中心通道："
+                   "qhlhb_sy（001 合约清单 / 002 持仓与增减）/ qhlhb_jcgc（002 机构持仓）/ "
+                   "tdxrb_qh（合约榜）/ qh_hqpd_qhhy（主力连续最新价）—— 本库均未封装成公开方法。"
+                   "⚠️ 别归因成「市场码被拒」—— field3 对已知码是宽松的"
                    "（600519 塞进 field3=99 照样回同一根 K 线，逐位相同）",
     ),
     Capability(
@@ -313,9 +355,23 @@ CAPABILITIES: tuple[Capability, ...] = (
         instrument="forex",
         interface="",
         available=False,
-        reason="同期货：4×6×30 组合全空，代码不在数据源证券表内（不是市场码被拒）",
-        evidence="§12.1 / probe/Q1Q2",
-        workaround="无通道",
+        reason="**7615 无外汇报价；`fx` 是「分析」不是「外汇」**：`ph_cfg_fx_sczb`（产品 `sczb`）"
+               "实测 15 项全是 A 股市场/流动性指标（央行净投放 -650 亿、LPR 1Y/5Y 3.00/3.50、"
+               "M2 359.63 万亿、两融 24533.74 亿、道指/纳指/标普点位…），`ph_cfg_fx_jjhqpd`"
+               "（产品 `jjhqpd`）是 10 只境内 ETF 行情盘点（510300/511880…），**两者零汇率字段**；"
+               "行情类 4 命令 × 6 市场码 × 30 代码全空、代码不在数据源证券表内（不是市场码被拒，"
+               "同期货）。7727 侧 USDCNY 6.6746 / USDCNH 6.67267 / CNHHKD 1.17471 / CNYHKD 1.17377 "
+               "只是《汇率抓包新增接口.md》§十二:286-307（2026-10-22，4 台 EX 服务器当时 2 台可用 —— "
+               "快照不是承诺）的**笔记/在线探针证据**，"
+               "**不是抓包实测** —— 全部 31 份 pcap 里 7709/7727/7708 各 0 帧、`USDCNY` 字符串 0 次命中。"
+               "本库未接入 7727、未实测",
+        evidence="7615 侧：§12.1 / probe/Q1Q2；7727 侧仅笔记："
+                 "notes/archive/接口文档/《汇率抓包新增接口.md》§十二:286-307（2026-10-22 在线探针）；"
+                 "抓包侧：31 份 pcap 端口直方图 7709/7727/7708 = 0 帧（reports/eval3/findings/"
+                 "M4-fx-futures.md §3-4）",
+        workaround="本库暂无公开接口。⚠️ 别把 `ph_cfg_fx_*`（`sczb`/`jjhqpd`）当外汇：那是 A 股指标"
+                   "面板与境内 ETF 盘点。是否接入 EX 7727 属通道攻关决策（期货/期权行情出路同此通道），"
+                   "不默认施工",
     ),
     # ── 与品种无关 ────────────────────────────────────────────────────────
     Capability(
@@ -344,11 +400,12 @@ CAPABILITIES: tuple[Capability, ...] = (
         instrument="all",
         interface="",
         available=False,
-        reason="**机制有、实测不可行**：concurrency=4（4 条 lane 各钉一台主机）头 5 秒就被重置 "
+        reason="**实测不可行，特性已删除**：concurrency=4（4 条 lane 各钉一台主机）头 5 秒就被重置 "
                "3 条连接，limited_events 0→3、current 2.2→12.0、175 s 内 0 次成功取数 —— "
-               "配额按**来源 IP**，换服务器不换配额",
+               "配额按**来源 IP**，换服务器不换配额。2026-10 起 `Client` 不再接受 "
+               "`concurrency` 参数（传了直接 `TypeError`）",
         evidence="probe/phase5/CONCLUSION.md（原始输出 probe_phase5.out.txt）",
-        workaround="默认 concurrency=1；要更快只能减少调用次数，或跨进程/跨机分摊",
+        workaround="要更快只能减少调用次数，或跨进程/跨机分摊（后者需自行验证配额口径）",
     ),
 )
 

@@ -199,6 +199,77 @@ def test_futures_blames_the_security_table_not_the_market_code():
     assert "field3" in joined, "必须带上 field3 宽松这一反证，否则读者没法自己复核"
 
 
+def test_forex_carries_both_channel_facts():
+    """外汇归因必须两层并列：7615 主通道在证券表外 + EX 7727 服务端有、本库未接入。
+
+    为什么单独立一条：这条曾被写成一句「无通道」，把「服务端没有」和「本库没接」
+    混在一起（评审 SUMMARY §3.1 的文档归因缺陷）；两种「拿不到」的处置完全不同。
+    """
+    fx = caps.describe("forex")
+    assert fx, "forex 一条都没登记"
+    joined = " ".join(c.reason + " " + c.workaround + " " + c.evidence for c in fx)
+    assert "7727" in joined, "必须写明 EX 7727 扩展通道（服务端有）"
+    assert "证券表" in joined, "7615 侧必须保留「不在数据源证券表内」的归因"
+    assert "USDCNY" in joined or "6.6746" in joined, "必须带实测报价锚点，否则无法复核"
+    assert "2026-10-22" in joined, "必须带快照日期警示"
+    for cap in fx:
+        assert cap.available is False, "外汇尚无公开接口，不许标 available=True"
+
+
+def test_forex_7727_quote_is_labelled_as_note_evidence_not_capture():
+    """7727 那四个汇率报价只能标「笔记/在线探针」，**不许**标成「抓包实测」。
+
+    为什么单独立一条：7709/7727 这类扩展端口在 31 份 pcap 里**一帧都没有**（端口直方图
+    7709/7727/7708 各 0 帧、`USDCNY` 字符串 0 次命中）。把在线探针拿到的快照写成
+    "抓包实测"，就是把「别人某次连上了」包装成「我们能从抓包复现」—— 后者根本做不到，
+    复核的人按抓包去查会一无所获。证据性质必须写在文本里，不能靠读者猜。
+    """
+    fx = caps.describe("forex")
+    joined = " ".join(c.reason + " " + c.workaround + " " + c.evidence for c in fx)
+    assert "7727" in joined, "必须点名 7727 扩展通道"
+    assert ("笔记" in joined) or ("在线探针" in joined), \
+        "7727 侧必须标明证据性质是「笔记 / 在线探针」，否则会被读成抓包实测"
+    assert "不是抓包实测" in joined, "必须显式否定「抓包实测」这个读法"
+    assert "0 帧" in joined, "必须写明抓包侧的阴性证据：7709/7727/7708 各 0 帧"
+    assert "抓包快照" not in joined, \
+        "不许再把笔记证据写成「抓包快照」（该批 pcap 不含 7727 流量）"
+    for token in ("USDCNY", "6.6746", "USDCNH", "CNHHKD", "CNYHKD"):
+        assert token in joined, "四个报价锚点必须保留（可复核）：%s" % token
+    # `fx` 字样最容易被误读成外汇 —— 必须点名这两个产品是「分析/ETF 盘点」
+    assert "sczb" in joined and "jjhqpd" in joined, \
+        "必须点名 ph_cfg_fx_sczb / ph_cfg_fx_jjhqpd，免得下次又被 `fx` 字样误导"
+    assert "零汇率字段" in joined, "必须写清这两个产品零汇率字段"
+    for cap in fx:
+        assert cap.available is False, "外汇仍未接入，不许标 available=True"
+
+
+def test_futures_has_two_layers_quote_gap_and_datacenter_gain():
+    """期货必须拆成两层：**合约行情拿不到** + **专题数据拿得到**（数据中心侧实测）。
+
+    为什么单独立一条：以前只写「不在证券表内 + 无通道」，读者会得出"期货什么都没有"。
+    抓包证明 7615 数据中心侧有真数据（`qhlhb_sy` 合约清单/会员持仓增减、`tdxrb_qh`
+    合约榜、`qh_hqpd_qhhy` 主力连续最新价）。同时必须点明 `qh_cdzl` **名不副实**
+    （只回交易日列表）—— 否则又有人拿它当"持仓增量"用。
+    """
+    rows = caps.describe("futures")
+    assert rows, "futures 一条都没登记"
+    joined = " ".join(c.reason + " " + c.workaround + " " + c.evidence for c in rows)
+
+    assert "拿不到" in joined and "拿得到" in joined, "必须同时写「拿不到」与「拿得到」两层"
+    assert "证券表" in joined, "行情侧仍须保留「不在数据源证券表内」的归因"
+    assert "数据中心" in joined, "拿得到那层必须落在「数据中心侧」这条通道上"
+
+    for needle in ("qhlhb_sy", "qhlhb_jcgc", "tdxrb_qh", "qh_hqpd_qhhy"):
+        assert needle in joined, "可用的期货专题命令必须点名（否则等于没说）：%s" % needle
+
+    assert "qh_cdzl" in joined, "必须点明 qh_cdzl 名不副实，别让它继续冒充「持仓增量」"
+    assert "交易日列表" in joined, "qh_cdzl 的真实形状要写出来（交易日列表）"
+
+    for cap in rows:
+        assert cap.available is False, \
+            "本库仍未把期货专题数据封装成公开方法，不许标 available=True"
+
+
 def test_empty_selection_raises_empty_result_not_an_empty_table():
     """空筛选 → `EmptyResult`。返回空表会被读成"这个品种确实没有能力"，那是撒谎。"""
     c = _client()
@@ -245,23 +316,23 @@ def test_capabilities_returns_the_contracted_table():
         c.close()
 
 
-def test_capabilities_carries_the_five_semantic_meta_keys():
-    """阶段 1 的 5 键一个不能少，且 `as_of is None` 必须配 `as_of_note`。"""
+def test_capabilities_carries_the_semantic_provenance_fields():
+    """阶段 1 的语义字段一个不能少，且 `as_of is None` 必须配说明 note。"""
     c = _client()
     try:
-        meta = c.capabilities().meta
-        for key in ("as_of", "status", "fetched_at", "elapsed", "source"):
-            assert key in meta, "capabilities() 的 meta 缺 %s" % key
-        assert meta["as_of"] is None, "静态注册表不该有数据时刻"
-        assert meta["as_of_note"], "as_of 是 None 就必须说明为什么"
-        assert "静态" in meta["as_of_note"] and "没有这个概念" in meta["as_of_note"]
-        assert meta["status"] in {"final", "provisional", "pending", "delayed"}
-        assert meta["status"] == "provisional", "会随实证更新的声明不许自称定稿"
-        assert len(str(meta["fetched_at"])) == 19
-        src = meta["source"]
-        assert tuple(src) == ("host", "cmd", "ctl", "clock", "cached")
-        assert src["cmd"] == "tdxdata.capabilities"
-        assert src["cached"] is False
+        prov = c.capabilities().provenance
+        for f in ("as_of", "status", "fetched_at", "elapsed", "cmd"):
+            assert hasattr(prov, f), "capabilities() 的 provenance 缺 %s" % f
+        assert prov.as_of is None, "静态注册表不该有数据时刻"
+        joined = "；".join(prov.notes)
+        assert joined, "as_of 是 None 就必须说明为什么"
+        assert "静态" in joined and "没有这个概念" in joined
+        assert prov.status in {"final", "provisional", "pending", "delayed"}
+        assert prov.status == "provisional", "会随实证更新的声明不许自称定稿"
+        assert len(prov.fetched_at.replace(microsecond=0, tzinfo=None)
+                  .isoformat(sep=" ")) == 19
+        assert prov.cmd == "tdxdata.capabilities"
+        assert prov.cached is False
     finally:
         c.close()
 

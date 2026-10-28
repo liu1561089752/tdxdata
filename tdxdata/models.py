@@ -8,15 +8,19 @@
 """
 from __future__ import annotations
 
+import datetime as _dt
+from dataclasses import asdict, is_dataclass
 from dataclasses import dataclass, field
 from typing import Any
 
+from ._provenance import Provenance, ClockSource
 from .timeliness import parse_yyyymmdd
 
 __all__ = [
     "Bar", "MinutePoint", "Table", "Row", "Dataset", "ProductInfo",
     "Quote", "Tick", "SecurityInfo",
     "Series", "Bars", "Quotes", "Ticks", "Minutes",
+    "Provenance", "ClockSource",
 ]
 
 
@@ -54,8 +58,11 @@ class Bar:
     high: float
     low: float
     close: float
-    vol: float | None = 0.0   # 手（归一化后；原值见 raw["Volume"]；指数/板块分钟线为 None）
-    amount: float = 0.0       # 元
+    vol: float | None = None  # 手（归一化后；原值见 raw["Volume"]；指数/板块分钟线为 None）
+    amount: float | None = None  # 元
+    # DEF-011 终局（2026-10-28 用户拍板）：`vol`/`amount` 为 `None` = **服务端没给/解析不出**
+    # （unknown ≠ 0 红线）；服务端明确给 0 → 0.0。缺列事实另记在容器 `provenance.extra["missing_cols"]`，
+    # `raw` 保留服务端原貌（缺键即缺列）。
     period: str = "day"
     time: str = ""            # HH:MM，仅分钟线
     raw: dict[str, Any] = field(default_factory=dict)
@@ -276,102 +283,160 @@ class SecurityInfo:
 
 
 class Series(list):
-    """带 `meta` 的 **list 子类**：`for` / `len` / 切片 / 索引 / `== [...]` 全兼容。
+    """带 `provenance` 的 **list 子类**：`for` / `len` / 切片 / 索引 / `== [...]` 全兼容。
+
+    ARCH-002（破坏性，无兼容期）：旧 `meta` dict 公开面已移除，出处凭据改为
+    **一等字段** `provenance`（`Provenance` frozen dataclass，见
+    `tdxdata/_provenance.py`）。语义访问走一等属性：
+    `bars.status` / `bars.as_of` / `bars.fetched_at` / `bars.source` /
+    `bars.elapsed` / `bars.clock`。
 
     为什么是 list 子类，而不是"新的信封类型"
     ----------------------------------------
-    语义层要给每次取数挂上「这是什么时刻的、是不是最终值」（`as_of` / `status` /
-    `fetched_at` / `source` / `elapsed`）。做成 `{"data": [...], "meta": {...}}`
-    这种信封会**破坏**所有既有用法：`len(x)`、`x[0]`、`for bar in x`、
-    `x[-1].close`、`json.dumps(x)` 全得改。而本次改造的底线是"只许扩展"。
-
-    于是把 meta 挂在**实例属性**上：`isinstance(bars, list)` 仍为真，
-    老代码一行不用改，新代码 `bars.status` 就能问到。代价是 `json.dumps(bars)`
-    看不见 meta（那是 JSON 序列化器的语义，不是本类的缺陷）。
+    语义层要给每次取数挂上「这是什么时刻的、是不是最终值」。做成
+    `{"data": [...], "provenance": {...}}` 这种信封会**破坏**所有既有用法：
+    `len(x)`、`x[0]`、`for bar in x`、`x[-1].close`、`json.dumps(x)` 全得改。
+    所以出处挂在**实例属性**上：`isinstance(bars, list)` 仍为真。
 
     ⚠️ **不要**给它加 `@dataclass(slots=True)`：list 子类要能挂实例属性，
     `slots` 会把这个能力拿掉。
 
-    ⚠️ `meta` 里出现 `status=FINAL` **只表示"这个口径定稿了"**，
+    ⚠️ `provenance.status == FINAL` **只表示"这个口径定稿了"**，
     不表示"今天全市场成交都在里面"（日线口径不含盘后固定价格交易，
     详见 `tdxdata/timeliness.py` 模块头）。
     """
 
-    def __init__(self, iterable=(), meta=None):
+    def __init__(self, iterable=(), provenance: Provenance | None = None):
         super().__init__(iterable)
-        self.meta = dict(meta or {})
+        self.provenance = provenance if isinstance(provenance, Provenance) else None
 
-    # -- 切片/复制要**保住类型与 meta** ------------------------------------
+    # -- 切片/复制要**保住类型与 provenance** ------------------------------
     def __getitem__(self, key):
-        """`bars[10:]` 仍返回 `Bars`（而不是退化成 `list`），并**带着同一份 meta**。
+        """`bars[10:]` 仍返回 `Bars`（而不是退化成 `list`），并**带着同一份出处**。
 
         为什么必须管：切片是最常用的取子集方式（`bars[-60:]` 算 60 日均线之类）。
         若切片退化成 `list`，用户拿到的子集就**悄悄丢了 `status`/`as_of`** ——
         而"这批数是不是定稿的"恰恰是切完片之后才要判的事。
-        语义层的信息不能因为一次切片而蒸发。
+        出处是 frozen dataclass，多个容器共享同一份实例是安全的（不可变）。
         """
         got = super().__getitem__(key)
         if isinstance(key, slice):
-            return type(self)(got, meta=dict(self.meta))
+            return type(self)(got, provenance=self.provenance)
         return got
 
     def copy(self):
-        """`copy()` 也保住类型与 meta（`list.copy()` 会退回普通 `list`）。"""
-        return type(self)(self, meta=dict(self.meta))
+        """`copy()` 也保住类型与 provenance（`list.copy()` 会退回普通 `list`）。"""
+        return type(self)(self, provenance=self.provenance)
 
-    # -- 便捷只读属性（读不到就是 None，**不编默认值**）--------------------
+    # -- 运算也要保住类型与 provenance（DEF-023，2026-10-28）-----------------
+    # 缺陷形态：`bars + [...]` / `bars * 2` / `sorted(bars)` 走的是 `list.__add__`
+    # / `list.__mul__` / `list(iterable)`，全部退化成**裸 list** —— 与切片是同一个病：
+    # 语义层信息（status/as_of/source）在一步运算后悄悄蒸发。
+    def _carry_prov(self, items, *, extra_note: str | None = None):
+        """把运算结果重新装回**本类型**，provenance 继承操作数。
+
+        出处不可变，直接共享即可（零拷贝且无串号风险）。附加说明走
+        `with_notes()` 造**新** Provenance（仅当需要说明时）。
+        """
+        prov = self.provenance
+        if extra_note:
+            prov = prov.with_notes(extra_note) if prov is not None else None
+        return type(self)(items, provenance=prov)
+
+    def __add__(self, other):
+        """`bars + [x, y]` 仍是 `Bars` 且带出处；右侧同型 Series 时出处取左操作数。"""
+        return self._carry_prov(super().__add__(other))
+
+    def __radd__(self, other):
+        """`[x] + bars`：左侧普通 list 优先，落到这里时保住本类型与出处。"""
+        return self._carry_prov(list(other) + list(self))
+
+    def __mul__(self, n):
+        """`bars * 2` 仍是 `Bars` 且带出处（重复运算不改变语义凭据）。"""
+        return self._carry_prov(super().__mul__(n))
+
+    def __rmul__(self, n):
+        return self.__mul__(n)
+
+    def __iter__(self):
+        """照旧逐元素迭代 —— 但要小心：`sorted(self)` 走的是 `list(self)` 收集元素，
+        然后 `list.sort()` **就地排序**并返回同一个普通 list，provenance 就丢了。
+        所以在这里没法救 `sorted()`；真正的修法是给 Series 加 `__sorted__` 协议
+        并覆盖 `sorted` 的行为不可行（内建不可覆写），改为在本类上提供同名方法：
+        `sorted()` 内建仍会退化 —— **契约上**以 `bars.sorted()` 为准（见下）。"""
+        return super().__iter__()
+
+    def sorted(self, *, key=None, reverse: bool = False):
+        """`bars.sorted()`：与内建 `sorted()` 同义，但**保住类型与出处**。
+
+        为什么不给内建 `sorted()` 打补丁：内建函数的收值路径是 `list(iterable)`
+        + `list.sort()`，返回的永远是裸 `list`，且 `sorted` 不可被实例级覆写 ——
+        这是 Python 语言边界，不是本类的缺陷。所以 Series 家族提供**同义方法**：
+        用户的 `sorted(bars)` 语义照旧（裸 list，不丢数据只丢出处），
+        要带出处请用 `bars.sorted()`。`__iter__` 保持普通逐元素迭代不受影响。
+        """
+        return self._carry_prov(sorted(self, key=key, reverse=reverse))
+
+    # -- 便捷只读属性（出处没记就是 None，**不编默认值**）------------------
     @property
     def as_of(self):
         """这批数据"是什么时候的"（末根的日期/时间，或报价的 `server_time`）。"""
-        return self.meta.get("as_of")
+        return self.provenance.as_of if self.provenance is not None else None
 
     @property
     def fetched_at(self):
-        """这批数据"是什么时候取的"。"""
-        return self.meta.get("fetched_at")
+        """这批数据"是什么时候取的"（aware datetime，UTC+8）。"""
+        return self.provenance.fetched_at if self.provenance is not None else None
 
     @property
     def status(self):
         """时效四态（`enums.Status` 的取值字符串，没判出就是 `None`）。"""
-        return self.meta.get("status")
+        return self.provenance.status if self.provenance is not None else None
 
     @property
     def source(self):
-        """来源：**固定 5 键**的 dict —— `{host, cmd, ctl, clock, cached}`。
-
-        · `host` —— 哪台服务器（取不到就是 `None`，**键一定在**，不编主机名）；
-        · `cmd` / `ctl` —— 走的哪条命令及其 ctl（如 `cmd="HQServ.PBFXT"`, `ctl=14`）；
-        · `clock` —— `"server"` / `"local"`，同 `fetch_clock`；
-        · `cached` —— 是否命中了 `Client(cache=...)` 的缓存（那 `elapsed` 会≈0）。
-
-        ⚠️ 这个**键集是契约**（`client.META_SOURCE_KEYS`），不许再长 ——
-        它跟黄金样本"允许新增键"白名单是同一套工程约束，多一个键要动三处契约文件。
-        ⚠️ `Client.last_call["source"]` 刻意是精简三元组 `(host, cmd, ctl)`：
-        那是一行日志，这里是可序列化的结构。
-        """
-        return self.meta.get("source")
+        """来源三元组 `(host, cmd, ctl)`（精简形态；时钟在 `.clock`，缓存在 `.cached`）。"""
+        if self.provenance is None:
+            return None
+        return (self.provenance.host, self.provenance.cmd, self.provenance.ctl)
 
     @property
     def elapsed(self):
         """这次调用实际花了多少秒（缓存命中≈0）。"""
-        return self.meta.get("elapsed")
+        return self.provenance.elapsed if self.provenance is not None else None
 
     @property
-    def fetch_clock(self):
-        """这批数据的**时刻来源**：`"server"`（服务端时刻）/ `"local"`（本机兜底）。
+    def clock(self):
+        """这批数据的**时刻来源**：`ClockSource` 枚举（SERVER / HYBRID / LOCAL）。
 
-        ⚠️ 这是**一等字段**，不是自由文本：`"local"` 就意味着 `fetched_at` 不可全信，
-        此时时效判定会自动降级成更保守的一档（见 `tdxdata/timeliness.py`）。
+        ⚠️ 这是**类型锁的一等字段**，不是自由文本：LOCAL 就意味着 `fetched_at`
+        不可全信，时效判定会自动降级成更保守的一档（见 `tdxdata/timeliness.py`）。
         """
-        return self.meta.get("fetch_clock")
+        return self.provenance.clock if self.provenance is not None else None
 
     @property
-    def clock_note(self):
-        """时钟降级说明（没问题时是 `None`）。"""
-        return self.meta.get("clock_note")
+    def notes(self):
+        """说明性文本元组（时钟降级原因、缺列、口径说明……都在这里）。"""
+        return self.provenance.notes if self.provenance is not None else ()
+
+    def to_dict(self) -> dict[str, Any]:
+        """转**可 JSON 序列化**的 dict：`{"data": [...], "provenance": {...}}`（DEF-024）。
+
+        与直接 `json.dumps(bars)` 的区别就在 provenance：`Series` 是 list 子类，
+        JSON 序列化器看不见实例属性，直接 dumps 会丢；
+        走这里出处凭据（status/as_of/fetched_at/…）一并带出。
+        """
+        return {"data": [_jsonable(v) for v in self],
+                "provenance": _jsonable(self.provenance.to_dict())
+                if self.provenance is not None else None}
+
+    def to_json(self, *, indent=None, **kw) -> str:
+        """`json.dumps` 可直接吃；datetime/date ISO 化，provenance 一并带出。"""
+        return _dumps(self.to_dict(), indent=indent, **kw)
 
     def __repr__(self) -> str:
-        return "%s(%d 条, meta=%r)" % (type(self).__name__, len(self), self.meta)
+        return "%s(%d 条, provenance=%r)" % (type(self).__name__, len(self),
+                                             self.provenance)
 
 
 class Bars(Series):
@@ -496,18 +561,27 @@ class Table:
 
     重要：**`cols` 与每一行的取值严格对齐**。服务端回多个 ResultSet 时，
     `spec/06 §2.5.7` 的"列数"口径是并集，而并集通常比主表宽 ——
-    并集放在 `meta["cols_union"]`，`cols` 只放**主表自己的列名**，
+    并集放在 `provenance.extra["cols_union"]`，`cols` 只放**主表自己的列名**，
     否则 `zip(cols, row)` 会把整行错一位（静默错列）。
+
+    ARCH-002：旧 `meta` dict 公开面已移除，出处凭据是一等字段 `provenance`
+    （`Provenance` frozen dataclass）。语义访问走 `table.as_of` / `table.status` /
+    `table.provenance.notes` / `table.provenance.extra[...]`。
     """
     cols: list[str]
     rows: list[dict[str, Any]]
     cmd: str = ""
     domain: str = ""
-    meta: dict[str, Any] = field(default_factory=dict)
+    provenance: Provenance | None = None
 
     def __post_init__(self):
         self.cols = list(self.cols)
         self.rows = [_make_row(self.cols, r) for r in (self.rows or [])]
+        if self.provenance is not None and not isinstance(self.provenance, Provenance):
+            raise TypeError(
+                "provenance 必须是 Provenance 实例，收到 %r —— "
+                "旧 meta dict 公开面已按 ARCH-002 移除，出处一律走 Provenance"
+                % (type(self.provenance).__name__,))
 
     def __len__(self) -> int:
         return len(self.rows)
@@ -523,20 +597,37 @@ class Table:
         """(行数, 列数)。"""
         return len(self.rows), len(self.cols)
 
-    # -- 语义层便捷属性（只读，读 `meta`；**结构不变**）--------------------
+    # -- 语义层便捷属性（只读，读 `provenance`）---------------------------
     @property
     def as_of(self):
-        """这张表的数据时刻（`meta["as_of"]`；判不出来就是 `None`，不编）。"""
-        return self.meta.get("as_of")
+        """这张表的数据时刻（判不出来就是 `None`，不编）。"""
+        return self.provenance.as_of if self.provenance is not None else None
 
     @property
     def status(self):
-        """时效四态（`meta["status"]`；没登记过时效口径的表不会是 `final`）。"""
-        return self.meta.get("status")
+        """时效四态（没登记过时效口径的表不会是 `final`）。"""
+        return self.provenance.status if self.provenance is not None else None
 
     def to_dicts(self) -> list[dict[str, Any]]:
         """转普通 dict 列表（可直接 `json.dumps`）。"""
         return [dict(r) for r in self.rows]
+
+    def to_json(self, *, indent=None, **kw) -> str:
+        """整表转 JSON 字符串：`{cols, rows, cmd, domain, provenance}`（DEF-024）。
+
+        `to_dicts()` 是行数据出口，但**丢出处**；走这里
+        语义层（as_of/status/fetched_at/…）一并带出，datetime/date ISO 化。
+        """
+        return _dumps(self.to_dict(), indent=indent, **kw)
+
+    def to_dict(self) -> dict[str, Any]:
+        """整表转 dict（`to_json` 的数据形态，provenance 一并带出）。"""
+        return {"cols": list(self.cols),
+                "rows": self.to_dicts(),
+                "cmd": self.cmd,
+                "domain": self.domain,
+                "provenance": (_jsonable(self.provenance.to_dict())
+                               if self.provenance is not None else None)}
 
     def column(self, name: str) -> list[Any]:
         """取一整列。`name` 也可以是列下标（`int`）。"""
@@ -560,35 +651,44 @@ class Table:
         self.rows = [_make_row(self.cols, r) for r in self.rows]
         return self
 
-    def inherit_meta(self, *sources, **extra) -> "Table":
-        """**继承上游 meta**，再叠本次的键（`extra` 优先）。就地改，返回 `self`。
+    def inherit_provenance(self, *sources, **extra) -> "Table":
+        """**继承上游 provenance**，再叠本次的说明/旁证（就地改，返回 `self`）。
 
-        为什么要有它（而不是在每个调用点手工 `dict(src.meta)`）
+        为什么要有它（而不是在每个调用点手工搬出处）
         ------------------------------------------------------
         `sections/*` 里的 `_shape()` 会**重建**一张 `Table`（换标准列名、补 `raw`）。
-        重建时若从空 meta 开始，上游 `client.call()` 刚盖上去的
-        `as_of` / `status` / `fetched_at` / `elapsed` / `source` 就**全丢了** ——
+        重建时若不带出处，上游 `client.call()` 刚盖上去的
+        `as_of` / `status` / `fetched_at` / `elapsed` / 来源就**全丢了** ——
         这正是复核者判的那条阻断（`sections/boards.py` 的收尾重建点）。
-        逐点手工 copy 是**必然**会漏的（本项目已有 5 处直造点漏过），
         所以做成一个**单点**工具：所有"由 `Table` 派生出 `Table`"的地方都调它。
+
+        出处是 frozen dataclass：继承 = 共享同一份实例（零拷贝、不可串号）；
+        `**extra` 是本次的结构化旁证（如 `cols_union` / `template_check` /
+        `product`），合进 `provenance.extra` —— `extra` 里值为 `None` 的键**不收**
+        （缺席 = 没记）。字符串键也会进 `notes`。
+        `sources` 里可以有 `Table`、任何带 `.provenance` 的对象（如 `Series`/`Bars`）、
+        也可以直接给 `Provenance`；靠前的先铺、靠后的覆盖，最后 `extra` 覆盖旁证。
 
         用法::
 
-            return Table(cols=…, rows=…).inherit_meta(src, unavailable=["change_pct"])
-
-        `sources` 里可以有 `Table`、任何带 `.meta` 的对象（如 `Series`/`Bars`）、
-        也可以直接给 `dict`；靠前的先铺、靠后的覆盖，最后 `extra` 覆盖一切。
+            return Table(cols=…, rows=…).inherit_provenance(src, product="gsjj")
         """
-        base: dict[str, Any] = {}
+        base: Provenance | None = None
         for src in sources:
-            if isinstance(src, dict):
-                base.update(src)
+            if isinstance(src, Provenance):
+                base = src
                 continue
-            meta = getattr(src, "meta", None)      # Table / Series / Bars …
-            if isinstance(meta, dict):
-                base.update(meta)
-        base.update(extra)          # ⚠️ 不过滤 None：「知道它是 None」也是有信息量的
-        self.meta = base
+            p = getattr(src, "provenance", None)     # Table / Series / Bars …
+            if isinstance(p, Provenance):
+                base = p
+        if base is not None:
+            base = base.with_extra(**extra) if extra else base
+        elif extra:
+            # 没有上游出处也允许先记旁证：fetched_at 用"现在"（UTC+8）、LOCAL 钟如实标注
+            from datetime import datetime as _now_dt
+            base = Provenance(fetched_at=_now_dt.now().astimezone(),
+                              clock=ClockSource.LOCAL).with_extra(**extra)
+        self.provenance = base
         return self
 
 
@@ -605,6 +705,19 @@ class Dataset:
     def __iter__(self):
         return iter(self.table.rows)
 
+    def to_dict(self) -> dict[str, Any]:
+        """`{name, params, table: {...}}`（DEF-024；meta 在 table 里一并带出）。"""
+        return {"name": self.name, "params": _jsonable(self.params),
+                "table": self.table.to_dict()}
+
+    def to_json(self, *, indent=None, **kw) -> str:
+        """整个数据产品转 JSON 字符串（datetime/date ISO 化，meta 完整）。"""
+        return _dumps(self.to_dict(), indent=indent, **kw)
+
+    def to_dicts(self) -> list[dict[str, Any]]:
+        """行数据出口（代理 `table.to_dicts()`，注意它**不含 meta**）。"""
+        return self.table.to_dicts()
+
     @property
     def cols(self) -> list[str]:
         return self.table.cols
@@ -616,9 +729,8 @@ class Dataset:
     @property
     def data_date(self):
         """这张表的**数据日**（`datetime.date`）；判不出来就是 `None`。
-
         取值顺序：
-          1. `table.meta["data_date"]`（谁知道的谁写，最可靠）；
+          1. `table.provenance.data_date`（谁知道的谁写，最可靠）；
           2. 从首行 `N001` 推 —— 7615 数据中心产品的第一列惯例就是日期
              （`"20261027"` / `"2026-10-27"` 两种形态都认）。
 
@@ -626,7 +738,8 @@ class Dataset:
         本项目红线是 **unknown ≠ 0** —— "不知道是哪天的"和"今天的"是两件事，
         混成一个会让下游把过期数据当今日数据用（那正是本项目出过事故的形态）。
         """
-        meta_date = parse_yyyymmdd(self.table.meta.get("data_date"))
+        prov = self.table.provenance
+        meta_date = parse_yyyymmdd(prov.data_date) if prov is not None else None
         if meta_date is not None:
             return meta_date
         rows = self.table.rows
@@ -652,6 +765,72 @@ class ProductInfo:
     @property
     def ctl_hex(self) -> str:
         return "0x%02X" % self.ctl
+
+
+# ══════════════════════════════════════════════════════════════════════════
+# 序列化出口（DEF-024，2026-11）
+#
+# 缺陷形态：`json.dumps(Bars/Table/Dataset)` 直接 `TypeError`
+# （`Bar` 是 slots dataclass、`Series` 是带实例属性的 list 子类），
+# 唯一出口 `Table.to_dicts()` 又**不带 meta** —— 语义层（status/as_of/source）
+# 一序列化就蒸发。
+#
+# 方案：每个容器统一提供 `to_dict()`（dataclass→dict，meta 一并带出）与
+# `to_json()`（`json.dumps` 可直接吃，datetime/date → ISO 8601）。
+# 纯标准库，零第三方依赖。
+# ══════════════════════════════════════════════════════════════════════════
+
+def _jsonable(value: Any) -> Any:
+    """递归把值变成 `json.dumps` 能吃的东西。
+
+    · `datetime` / `date` → ISO 8601 字符串（带 `T` 分隔）；
+    · `set` / `frozenset` / `tuple` → `list`（保持顺序；set 先 sorted 保稳定）；
+    · slots dataclass → `asdict()` 再递归；
+    · bytes → `latin-1` 损失最小化的字符串？不 —— 直接 `utf-8, replace`，
+      解不出就给 hex，绝不编；
+    · 其它（str/int/float/bool/None）原样。
+    """
+    if value is None or isinstance(value, (str, int, float, bool)):
+        return value
+    if isinstance(value, (_dt.datetime, _dt.date)):
+        return value.isoformat()
+    if isinstance(value, bytes):
+        try:
+            return value.decode("utf-8")
+        except UnicodeDecodeError:
+            return value.hex()
+    if isinstance(value, dict):
+        return {str(k): _jsonable(v) for k, v in value.items()}
+    if isinstance(value, (set, frozenset)):
+        return [_jsonable(v) for v in sorted(value, key=repr)]
+    if isinstance(value, (list, tuple)):
+        return [_jsonable(v) for v in value]
+    if is_dataclass(value) and not isinstance(value, type):
+        out = {k: _jsonable(v) for k, v in asdict(value).items()}
+        # 只读 `@property`（如 `symbol`）不在 `asdict()` 里 —— 但它们是
+        # 派生事实（symbol_of），序列化时一并带出，消费方不用重算。
+        for name in dir(type(value)):
+            if name.startswith("_") or name in out:
+                continue
+            attr = getattr(type(value), name, None)
+            if isinstance(attr, property):
+                try:
+                    out[name] = _jsonable(getattr(value, name))
+                except Exception:                          # noqa: BLE001
+                    pass                                    # 派生失败的属性不带
+        return out
+    if hasattr(value, "provenance"):
+        # Series 家族（list 子类，非 dataclass）：data + provenance（ARCH-002）
+        prov = value.provenance
+        return {"data": [_jsonable(v) for v in value],
+                "provenance": _jsonable(prov.to_dict()) if prov is not None else None}
+    return repr(value)            # 兜底：绝不抛 TypeError，但也不冒充原值
+
+
+def _dumps(obj: Any, *, indent=None, ensure_ascii=False, **kw) -> str:
+    import json as _json
+    return _json.dumps(_jsonable(obj), indent=indent,
+                       ensure_ascii=ensure_ascii, **kw)
 
 
 def symbol_of(market: int, code: str) -> str:

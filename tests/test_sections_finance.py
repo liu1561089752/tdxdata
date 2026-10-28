@@ -32,15 +32,27 @@ def _row_of(cols, **named):
     return [named.get(c) for c in cols]
 
 
-def fin_table(with_union_meta=False):
+from datetime import datetime as _dt
+from tdxdata._provenance import ClockSource as _CS, Provenance
+
+_T = _dt(2026, 10, 28, 9, 30)
+
+
+def _prov_of(meta, cmd=""):
+    """旧 meta dict 夹具 → Provenance（extra 收结构化旁证）。"""
+    return (Provenance(fetched_at=_T, clock=_CS.SERVER, cmd=cmd,
+                       extra=dict(meta)) if meta else None)
+
+
+def fin_table(with_union_provenance=False):
     """一份真实味道的资产负债表（600303 / 2026 中报）。
 
     值来源: F10与个股资料.md §三 cw_zcfzb 样本首行 + 恒等式验算值
             （N038=N067+N077=3104851614.01 等，23/23 实测全对的那几个数）。
 
-    `with_union_meta=True` 模拟**真实 `client.call()` 的形态**：
+    `with_union_provenance=True` 模拟**真实 `client.call()` 的形态**：
     `cols` 是主表自己的 81 列（与行值严格对齐），各 RS 的「列名并集」放在
-    `meta["cols_union"]`（协议层 `client._make_table` 就是这么给的）。
+    `provenance.extra["cols_union"]`（协议层 `client._make_table` 就是这么给的）。
     """
     vals = {
         "N001": "2026中报",
@@ -65,11 +77,11 @@ def fin_table(with_union_meta=False):
     }
     cols = _fin_cols()
     row = _row_of(cols, **vals)
-    if not with_union_meta:
+    if not with_union_provenance:
         return Table(cols=cols, rows=[row], cmd="CWServ.ph_agf10_cw_zcfzb")
     return Table(cols=cols, rows=[row], cmd="CWServ.ph_agf10_cw_zcfzb",
-                 meta={"cols_source": "primary",
-                       "cols_union": ["isjr"] + cols})
+                 provenance=_prov_of({"cols_source": "primary",
+                                      "cols_union": ["isjr"] + cols}))
 
 
 def lyb_table():
@@ -217,15 +229,15 @@ def test_apply_trusts_table_cols_and_keeps_union_meta():
 
     同时验证「顺手交叉校验」：运行时主表列 == 文档清单 → `template_check="match"`。
     """
-    src = fin_table(with_union_meta=True)
+    src = fin_table(with_union_provenance=True)
     assert len(src.cols) == len(src.rows[0]) == 81        # 新契约：列名与行值等长
     t = mapping.apply(src, "fin")
-    assert t.meta["cols_align"] == "server", t.meta
-    assert t.meta["template_check"] == "match", t.meta
-    assert "template_mismatch" not in t.meta
+    assert t.provenance.extra["cols_align"] == "server", t.provenance
+    assert t.provenance.extra["template_check"] == "match", t.provenance
+    assert "template_mismatch" not in t.provenance.extra
     # 并集信息一点没丢（协议层放在 meta 里，apply 原样带出去）
-    assert t.meta["cols_union"][0] == "isjr"
-    assert "unused_cols" not in t.meta
+    assert t.provenance.extra["cols_union"][0] == "isjr"
+    assert "unused_cols" not in t.provenance.extra
     r = t.rows[0]
     assert r["report_period"] == "2026中报"
     assert r["report_date"] == "2026-06-30"
@@ -240,26 +252,36 @@ def test_apply_reports_template_mismatch():
     swapped[1], swapped[2] = swapped[2], swapped[1]      # 把 N002/N003 换个位置
     src = Table(cols=swapped, rows=[[None] * 81], cmd="CWServ.ph_agf10_cw_zcfzb")
     t = mapping.apply(src, "fin")
-    assert t.meta["template_check"] == "mismatch", t.meta
-    mm = t.meta["template_mismatch"]
+    assert t.provenance.extra["template_check"] == "mismatch", t.provenance
+    mm = t.provenance.extra["template_mismatch"]
     assert mm["docs_cols"][:3] == ["N001", "N002", "N003"]
     assert mm["runtime_cols"][:3] == ["N001", "N003", "N002"]
     # fin 在 COL_GUARD 里 → 列清单不一致就不许套映射（宁可只给 raw，不许错映射）
-    assert t.meta["mapping_skipped"] == "cols-guard", t.meta
+    assert t.provenance.extra["mapping_skipped"] == "cols-guard", t.provenance
     assert t.cols == [], t.cols                     # 一列都没映射 → 0 个数据列
     assert len(t.rows[0]["raw"]) == 81
 
 
 def test_apply_mismatch_without_guard_still_maps_by_name():
-    """没进 COL_GUARD 的产品：列序变了也**按列名**映射，只把差异记进 meta。"""
-    cols = ["N004", "N003", "sc", "lx"]        # 顺序与文档清单 [N003, N004, sc, lx] 不同
-    src = Table(cols=cols, rows=[["003025", "思进智能", "0", "0"]],
-                cmd="CWServ.ph_agf10_hypm")
-    t = mapping.apply(src, "hypm")
-    assert t.meta["template_check"] == "mismatch", t.meta
-    assert "mapping_skipped" not in t.meta
-    assert t.rows[0]["name"] == "思进智能"
-    assert t.rows[0]["code"] == "003025"
+    """没进 COL_GUARD 的产品：列序变了也**按列名**映射，只把差异记进 meta。
+
+    2026-10-27 换品：原用例拿 `hypm` 当「无守卫」样本，但抓包语料显示 hypm 有 5 套真实
+    列形状，已给它加了 `COL_GUARD` —— 前提失效。改用同样「有模板、无守卫、≥2 个映射列」
+    的 `zgyq`（zg_yq 舆情表，真实只有 1 套形状，不需要守卫），用例意图原样保留。
+    """
+    # 顺序与模板 [N002…N011, T001] 不同：把 N002/N003 对调
+    cols = ["N003", "N002"] + ["N%03d" % i for i in range(4, 12)] + ["T001"]
+    assert "zgyq" not in mapping.COL_GUARD
+    src = Table(cols=cols,
+                rows=[["20260105", "长安汽车概念", "", "因为…", "详细…", "其它研究",
+                       None, None, None, None, 2979]],
+                cmd="CWServ.ph_agf10_zg_yq")
+    t = mapping.apply(src, "zgyq")
+    assert t.provenance.extra["template_check"] == "mismatch", t.provenance
+    assert "mapping_skipped" not in t.provenance.extra
+    assert t.rows[0]["include_date"] == "20260105"      # N003（已换到第 1 位）
+    assert t.rows[0]["concept_name"] == "长安汽车概念"   # N002（已换到第 2 位）
+    assert t.rows[0]["rank"] == 2979                     # T001
 
 
 def test_apply_does_not_mutate_input():
@@ -302,8 +324,8 @@ def test_col_guard_blocks_industry_variant():
     src = Table(cols=bank_cols, rows=[[None] * 57], cmd="CWServ.ph_agf10_cw_lyb")
     t = mapping.apply(src, "lyb")
     assert t.cols == [], t.cols
-    assert t.meta["mapping_skipped"] == "cols-guard", t.meta
-    assert t.meta["template_check"] == "mismatch"
+    assert t.provenance.extra["mapping_skipped"] == "cols-guard", t.provenance
+    assert t.provenance.extra["template_check"] == "mismatch"
     assert len(t.rows[0]["raw"]) == 57
 
 
@@ -314,7 +336,7 @@ def test_cwfxxq_maps_only_when_rs3_shape():
     t7 = Table(cols=["N%03d" % i for i in range(1, 8)], rows=[row],
                cmd="CWServ.ph_agf10_cw_cwfxxq")
     out = mapping.apply(t7, "cwfxxq")
-    assert out.meta["template_check"] == "match", out.meta
+    assert out.provenance.extra["template_check"] == "match", out.provenance
     r = out.rows[0]
     assert r["report_date"] == "2026/06/30"
     assert r["item_seq"] == 1 and isinstance(r["item_seq"], int)
@@ -333,7 +355,7 @@ def test_cwfxxq_maps_only_when_rs3_shape():
                 cmd="CWServ.ph_agf10_cw_cwfxxq")
     out29 = mapping.apply(t29, "cwfxxq")
     assert out29.cols == [], out29.cols
-    assert out29.meta["mapping_skipped"] == "cols-guard", out29.meta
+    assert out29.provenance.extra["mapping_skipped"] == "cols-guard", out29.provenance
 
 
 # ══════════════════════════════════════════════════════════════════════════
@@ -576,7 +598,7 @@ def real_fin_table():
     if src.get("cols_union"):
         meta["cols_union"] = list(src["cols_union"])
     return Table(cols=list(src["cols"]), rows=[list(r) for r in src["rows"]],
-                 cmd='CWServ.ph_agf10_cw_zcfzb', meta=meta)
+                 cmd='CWServ.ph_agf10_cw_zcfzb', provenance=_prov_of(meta))
 
 REAL_LYB_600519 = {
     "cmd": 'CWServ.ph_agf10_cw_lyb',
@@ -622,7 +644,7 @@ def real_lyb_table():
     if src.get("cols_union"):
         meta["cols_union"] = list(src["cols_union"])
     return Table(cols=list(src["cols"]), rows=[list(r) for r in src["rows"]],
-                 cmd='CWServ.ph_agf10_cw_lyb', meta=meta)
+                 cmd='CWServ.ph_agf10_cw_lyb', provenance=_prov_of(meta))
 
 REAL_ZYBZ_600519 = {
     "cmd": 'CWServ.ph_agf10_cw_zyzb',
@@ -675,7 +697,7 @@ def real_zyzb_table():
     if src.get("cols_union"):
         meta["cols_union"] = list(src["cols_union"])
     return Table(cols=list(src["cols"]), rows=[list(r) for r in src["rows"]],
-                 cmd='CWServ.ph_agf10_cw_zyzb', meta=meta)
+                 cmd='CWServ.ph_agf10_cw_zyzb', provenance=_prov_of(meta))
 
 REAL_ZYBZXQ_600519 = {
     "cmd": 'CWServ.ph_agf10_cw_zyzbxqy_sy',
@@ -703,7 +725,7 @@ def real_zyzbxq_table():
     if src.get("cols_union"):
         meta["cols_union"] = list(src["cols_union"])
     return Table(cols=list(src["cols"]), rows=[list(r) for r in src["rows"]],
-                 cmd='CWServ.ph_agf10_cw_zyzbxqy_sy', meta=meta)
+                 cmd='CWServ.ph_agf10_cw_zyzbxqy_sy', provenance=_prov_of(meta))
 
 REAL_CWFXXQ_600519 = {
     "cmd": 'CWServ.ph_agf10_cw_cwfxxq',
@@ -729,7 +751,7 @@ def real_cwfxxq_table():
     if src.get("cols_union"):
         meta["cols_union"] = list(src["cols_union"])
     return Table(cols=list(src["cols"]), rows=[list(r) for r in src["rows"]],
-                 cmd='CWServ.ph_agf10_cw_cwfxxq', meta=meta)
+                 cmd='CWServ.ph_agf10_cw_cwfxxq', provenance=_prov_of(meta))
 
 
 # ── 实网断言 ─────────────────────────────────────────────────────────────
@@ -740,8 +762,8 @@ def test_real_fin_600519_shapes_and_mapping():
     assert all(len(r) == 81 for r in src.rows)
     assert REAL_FIN_600519["n_rows"] == 23
     t = mapping.apply(src, "fin")
-    assert t.meta["template_check"] == "match", t.meta
-    assert t.meta.get("mapping_skipped") is None
+    assert t.provenance.extra["template_check"] == "match", t.provenance
+    assert t.provenance.extra.get("mapping_skipped") is None
     r0 = t.rows[0]
     assert r0["report_period"] == "2026中报"
     assert r0["report_date"] == "2026-06-30"
@@ -765,7 +787,7 @@ def test_real_fin_600519_identity_holds():
 def test_real_lyb_600519_identity_holds():
     """实网：净利润 = 归母净利润 + 少数股东损益（两期都 0 差额）。"""
     t = mapping.apply(real_lyb_table(), "lyb")
-    assert t.meta["template_check"] == "match", t.meta
+    assert t.provenance.extra["template_check"] == "match", t.provenance
     for r in t.rows:
         n, p, m = (r["net_profit_yuan"], r["net_profit_parent_yuan"],
                    r["minority_profit_yuan"])
@@ -779,8 +801,8 @@ def test_real_cwfxxq_is_the_7col_variant_table():
     assert src.shape == (2, 7)
     assert REAL_CWFXXQ_600519["n_rows"] == 105
     t = mapping.apply(src, "cwfxxq")
-    assert t.meta["template_check"] == "match", t.meta
-    assert t.meta.get("mapping_skipped") is None
+    assert t.provenance.extra["template_check"] == "match", t.provenance
+    assert t.provenance.extra.get("mapping_skipped") is None
     r0, r1 = t.rows
     assert r0["item_name"] == "货币资金" and r0["item_seq"] == 1
     # 空值必须是 None 而不是 "" / 0.0（"货币资金"这一行公司没给变动原因）

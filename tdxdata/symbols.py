@@ -25,7 +25,7 @@ import re as _re
 from . import errors
 
 __all__ = [
-    "parse", "symbol_of", "market_of", "market_by_code", "clean",
+    "parse", "symbol_of", "market_of", "market_by_code", "clean", "text_of",
     "iter_symbols", "is_explicit", "AMBIGUOUS", "is_futures_like",
 ]
 
@@ -237,11 +237,37 @@ def parse(symbol) -> tuple[int, str]:
     """
     if isinstance(symbol, (tuple, list)) and len(symbol) >= 2:
         m, c = symbol[0], symbol[1]
-        market = int(m) if not isinstance(m, str) else _PREFIX.get(m.lower(), 0)
+        if isinstance(m, str):
+            key = m.strip().lower()
+            if key not in _PREFIX:
+                raise ValueError(
+                    "无法识别的市场写法：%r（二元组的第一位只能是 sh / sz / bj "
+                    "或 1 / 0 / 2；收到 %r）" % (symbol, m))
+            market = _PREFIX[key]
+        else:
+            try:
+                market = int(m)
+            except (TypeError, ValueError):
+                raise ValueError(
+                    "无法识别的市场写法：%r（二元组的第一位只能是 sh / sz / bj "
+                    "或 1 / 0 / 2；收到 %r）" % (symbol, m)) from None
         digits = _digits_of(c)
-        if digits.isdigit() and len(digits) != 6:
+        # ⚠️ 与下面的字符串写法**共用同一段校验**。历史 bug：这里曾写成
+        # `if digits.isdigit() and len(digits) != 6`，`and` 短路把"非数字"
+        # 整个放过去了 —— `("sh", "abcdef")` / `("sh", "")` 都被当成合法标的
+        # 一路发进 PBFXT 帧，最后以「K线无数据」收场（归因错到"这票没数据"）。
+        if not digits:
+            raise ValueError(
+                "无法识别的标的：%r（代码部分是空的，需要 6 位数字代码）" % (symbol,))
+        if not digits.isdigit():
+            if is_futures_like(digits):
+                _raise_out_of_scope_futures(symbol)
+            raise ValueError(
+                "无法识别的标的：%r（代码部分 %r 含非数字字符，需要 6 位数字代码）"
+                % (symbol, digits))
+        if len(digits) != 6:
             _raise_out_of_scope_bad_length(c, digits)
-        return market, clean(c)
+        return market, digits
 
     s = str(symbol).strip().lower()
     digits = _digits_of(s)
@@ -266,3 +292,29 @@ def market_of(symbol) -> int:
 
 def symbol_of(market: int, code: str) -> str:
     return _SUFFIX.get(int(market), "") + clean(code)
+
+
+def text_of(symbol) -> str:
+    """把**任意写法**渲染成人类可读字符串，**永不抛异常**（专供报错文案）。
+
+    `"%s" % symbol` 对二元组会自爆（`("%s …" % ("sh",""))` →
+    `TypeError: not all arguments converted during string formatting`），
+    而报错文案恰恰是最不能抛异常的地方。用本函数代替：
+
+    >>> text_of("600519"), text_of(("sh", "600519")), text_of(1)
+    ('600519', 'sh600519', '1')
+
+    对**字符串输入原样返回**，所以历史报错文案逐字节不变（黄金样本里
+    `reject_*` 把异常文案原文冻死了，改这里不会破它们）。
+    """
+    if isinstance(symbol, (tuple, list)):
+        if len(symbol) >= 2:
+            m, c = symbol[0], symbol[1]
+            try:
+                market = int(m) if not isinstance(m, str) else _PREFIX.get(
+                    m.strip().lower(), 0)
+                return symbol_of(market, c)
+            except Exception:                                # noqa: BLE001
+                return str(symbol)
+        return str(symbol)
+    return str(symbol)

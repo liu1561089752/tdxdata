@@ -103,6 +103,8 @@ def test_domain_rules():
         ("CWServ.ph_tdxdatacenter_dzjy_v2", "大宗交易"),
         ("HQServ.PBFXT", "行情"),
         ("CWServ.ph_datacenter_mghg_gy", "宏观"),
+        ("CWServ.ph_tdxdatacenter_tfp_v2_kzz", "其他"),
+        ("CWServ.ph_zt_tlsq_wxjg", "新股与再融资"),
     ]
     for cmd, want in cases:
         got = domains.domain_of(cmd)
@@ -116,6 +118,26 @@ def test_every_product_has_known_domain():
     bad = [n for n, s in pj["products"].items()
            if s.get("domain") not in domains.DOMAINS]
     assert not bad, "域不在 DOMAINS 里: %s" % bad[:5]
+
+
+def test_registered_domains_agree_with_domain_of():
+    """products.json 的 `domain` 与 `domains.domain_of(cmd)` 必须逐条一致。
+
+    事实源是 products.json 的 `_meta.域分类`：「由 tdxdata/domains.py 的
+    domain_of() 生成」。两处漂移过一次（tfp_v2_kzz 被 kzz 兜底卷进新股域、
+    xjjj 被 ph_zt 吞进涨停域，评审 SUMMARY §3.2），所以这里把它变成硬门禁：
+    421 条逐条比，任何一条不一致都点名报红。
+    """
+    pj = json.load(io.open(os.path.join(
+        os.path.dirname(os.path.dirname(os.path.abspath(__file__))),
+        "tdxdata", "data", "products.json"), encoding="utf-8"))
+    bad = []
+    for name, spec in pj["products"].items():
+        want = domains.domain_of(spec.get("cmd", ""))
+        got = spec.get("domain")
+        if got != want:
+            bad.append("%s: 注册=%r, domain_of=%r" % (name, got, want))
+    assert not bad, "products.json 域分类与 domain_of() 不一致：\n  " + "\n  ".join(bad[:20])
 
 
 # ── 产品表 / 占位符 ──────────────────────────────────────────────────────

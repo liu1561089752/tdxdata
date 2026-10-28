@@ -22,6 +22,7 @@
 from __future__ import annotations
 
 import base64
+import inspect
 import os
 import struct
 import sys
@@ -30,7 +31,7 @@ import zlib
 sys.stdout.reconfigure(encoding="utf-8")
 sys.path.insert(0, os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
 
-from tdxdata import symbols                                            # noqa: E402
+from tdxdata import errors, symbols                                    # noqa: E402
 from tdxdata._engine import hq_extra as X                             # noqa: E402
 from tdxdata.client import _collect_ticks, _tick_from_row               # noqa: E402
 
@@ -150,7 +151,7 @@ def test_num_or_none_distinguishes_missing_column_from_zero():
     assert _num_or_none({"AMOUNT": "0.00"}, "AMOUNT") == 0.0
 
 
-def test_quote_from_row_fills_vol_amount(monkeypatch):
+def test_quote_from_row_fills_vol_amount():
     """端到端（离线）：列 → `Quote` 的映射把 vol/amount 真的取出来，0 也照填。
 
     走的是 `client._quote_from_row()`（`get_quotes` 内部就调它），**不建连**：
@@ -672,11 +673,413 @@ def test_collect_ticks_returns_newest_want_in_ascending_time():
     assert [t.time for t in out] == sorted(t.time for t in out)
     assert out[-1].time == "11:06:49"                 # 40009 → 11:06:49（最新那条）
 
+
+# ══════════════════════════════════════════════════════════════════════════
+# 八、`parse_rowtable` / `_cells` 的两个已修缺陷（2026-10-28）
+#     纯合成字节，不依赖抓包/网络 —— 这两条是**真实数据丢失 bug** 的最小复现。
+# ══════════════════════════════════════════════════════════════════════════
+def _varint(n: int) -> bytes:
+    """无符号 varint（只为拼合成帧，不追求通用）。"""
+    out = bytearray()
+    while True:
+        b = n & 0x7F
+        n >>= 7
+        out.append(b | (0x80 if n else 0))
+        if not n:
+            return bytes(out)
+
+
+def _ld(fn: int, payload: bytes) -> bytes:
+    """length-delimited 字段（wiretype 2）。"""
+    return bytes([(fn << 3) | 2]) + _varint(len(payload)) + payload
+
+
+def _vk(fn: int, v: int) -> bytes:
+    """varint 字段（wiretype 0）。"""
+    return bytes([fn << 3]) + _varint(v)
+
+
+def _cells_msg(items) -> bytes:
+    """一个嵌套消息 = 若干个 `field1=<str>`（`_cells` 只看 wiretype，不看字段号）。"""
+    return b"".join(_ld(1, s.encode("utf-8")) for s in items)
+
+
+def _rowtable(col_blocks, rows, f2: int = 5) -> bytes:
+    """拼一个 rowtable 帧：`field1` 空 → `field2` 计数 → 若干 `field3` → 若干 `field4`。"""
+    out = _ld(1, b"") + _vk(2, f2)
+    for cb in col_blocks:
+        out += _ld(3, _cells_msg(cb))
+    for r in rows:
+        out += _ld(4, _cells_msg(r))
+    return out
+
+
+def _raises(exc_type, fn):
+    """断言 `fn()` 抛 `exc_type` 并返回异常对象。
+
+    本文件既有风格是不 import pytest（`__main__` 里自己跑用例），
+    所以这里不写 `pytest.raises`，两种跑法都能用。
+    """
+    try:
+        fn()
+    except exc_type as e:                                          # noqa: BLE001
+        return e
+    raise AssertionError("应当抛 %s，却没有抛" % exc_type.__name__)
+
+
+#: 真实故障帧的 8 个列名（`cap_1023_183457.pcap` msgid=150）
+_RT_COLS8 = ["Code", "Setcode", "Name", "CLOSE", "NOW", "XSFLAG", "MISCFLAG", "EXT_ZF"]
+_RT_ROWS = [
+    ["NVDA", "74", "英伟达", "212.210", "213.330", "3", "0", "0.53"],
+    ["AMD", "74", "超威半导体", "158.900", "160.120", "3", "0", "0.77"],
+    ["MU", "74", "美光科技", "102.400", "103.550", "3", "0", "1.12"],
+]
+
+
+def test_rowtable_ignores_trailing_empty_field3():
+    """★ 缺陷 1 的最小复现（`cap_1023_183457.pcap` msgid=150，曾丢 77 行）。
+
+    真实故障帧的 `field3` 出现 **2 次**：第 1 个是 8 个真列名、**第 2 个是末尾空块**。
+    旧实现 `if fn == 3: cols = _cells(val)` 取最后一个 → `cols=[]` → 整表丢。
+    修法：取**第一个非空**列名块。这里断言列数与行数都不许丢。
+    """
+    body = _rowtable([_RT_COLS8, []], _RT_ROWS)
+    cols, rows = X.parse_rowtable(body)
+    assert cols == _RT_COLS8, cols
+    assert rows == _RT_ROWS, rows
+    assert all(len(r) == len(cols) for r in rows), [len(r) for r in rows]
+
+
+def test_rowtable_raises_on_multiple_distinct_field3():
+    """★ 缺陷 1 的第二半：多个**非空且内容不同**的列名块不许静默挑一个。
+
+    （全量 1496 帧里这种情况出现 **0 次** —— 这是防御性护栏；
+    但它一旦出现，静默挑错会把整表按错列切分，比报错危险得多。）
+    """
+    other = ["Code", "Setcode", "Name", "NOW", "CLOSE"]     # 列序与 _RT_COLS8 不同
+    body = _rowtable([_RT_COLS8, other], _RT_ROWS)
+    e = _raises(errors.NotSupportedError, lambda: X.parse_rowtable(body))
+    msg = str(e)
+    assert "多个非空列名块" in msg, msg
+    assert "field3" in msg, msg
+
+
+def test_rowtable_identical_field3_is_treated_as_duplicate():
+    """两个非空但**内容相同**的列名块 = 重复，照第一个用，不许误报。"""
+    body = _rowtable([_RT_COLS8, list(_RT_COLS8)], _RT_ROWS)
+    cols, rows = X.parse_rowtable(body)
+    assert cols == _RT_COLS8, cols
+    assert rows == _RT_ROWS, rows
+
+
+def test_rowtable_single_field3_regression():
+    """回归：正常单 `field3` 帧仍解出正确 cols/rows（防改坏）。"""
+    cols, rows = X.parse_rowtable(_rowtable([_RT_COLS8], _RT_ROWS))
+    assert cols == _RT_COLS8, cols
+    assert len(rows) == 3, len(rows)
+    assert rows[2] == ["MU", "74", "美光科技", "102.400", "103.550", "3", "0", "1.12"], rows[2]
+
+
+def test_rowtable_still_accepts_field1_rows():
+    """`field1` 也当行收（兼容交接文档 §3 的说法）—— 本次改动不许把它弄丢。
+
+    行序：`field1` 的行在前、`field4` 的行在后（既有行为，原样保留）。
+    """
+    body = (_ld(1, _cells_msg(["999999", "1", "上证指数"]))
+            + _vk(2, 1)
+            + _ld(3, _cells_msg(["Code", "Setcode", "Name"]))
+            + _ld(4, _cells_msg(["600519", "1", "贵州茅台"])))
+    cols, rows = X.parse_rowtable(body)
+    assert cols == ["Code", "Setcode", "Name"], cols
+    assert rows == [["999999", "1", "上证指数"], ["600519", "1", "贵州茅台"]], rows
+
+
+def test_cells_short_fixed32_does_not_raise():
+    """★ 缺陷 2：`fields_raw` 在流被截断时会给出不足 4 字节的 wiretype-5 载荷。
+
+    旧实现直接 `struct.unpack("<f", val)` → 抛 `struct.error` 冒出解析函数，
+    把整批 1496 帧的中断在那一条上。现在长度不是 4 就回 hex（不抛、也不丢格，
+    否则后面所有列会左移错位）。
+    """
+    short = bytes([(1 << 3) | 5]) + b"\x00\x80\x3f"          # wiretype 5，只有 3 字节
+    assert X.fields_raw(short) == [(1, 5, b"\x00\x80\x3f")], X.fields_raw(short)
+    got = X._cells(short)                                     # 关键：不许抛
+    assert got == ["00803f"], got
+
+
+def test_cells_full_fixed32_still_decodes_as_float():
+    """长度 == 4 仍按 float32 解（修复不能把正常路径改坏）。"""
+    full = bytes([(1 << 3) | 5]) + struct.pack("<f", 1.5)
+    assert X._cells(full) == ["1.500"], X._cells(full)
+
+
+
+# ══════════════════════════════════════════════════════════════════════════
+# 九、堵住「静默产出垃圾」：`parse_ticks` 不许回落 / `parse_samples` 两个命令分开
+#     （2026-10-28；假阳性由 M6 用真实帧证出。合成字节，不依赖抓包）
+# ══════════════════════════════════════════════════════════════════════════
+def _fx(fn: int, value: float) -> bytes:
+    """fixed32（wiretype 5）。"""
+    return _varint((fn << 3) | 5) + struct.pack("<f", value)
+
+
+def _f64(fn: int, value: int) -> bytes:
+    """fixed64（wiretype 1）。"""
+    return _varint((fn << 3) | 1) + struct.pack("<Q", value)
+
+
+def _packed(xs) -> bytes:
+    return b"".join(struct.pack("<f", float(x)) for x in xs)
+
+
+def _tickex_frame(cols, rows, span=None, date=None) -> bytes:
+    """造一个 `PBTickEx` 响应体（**未封壳**，`peel()` 对纯 protobuf 原样返回）。
+
+    `cols=None` 表示**不带 `field7`**（列名块缺失）—— 旧实现正是在这里回落到
+    `TICKEX_COLS`，然后照样 zip 出行来。
+    """
+    out = b""
+    if span is not None:
+        out += _ld(1, _ld(4, span.encode()))
+    out += _vk(2, 1) + _ld(3, b"600519")
+    if date is not None:
+        out += _vk(4, int(date))
+    if cols is not None:
+        out += _ld(7, b"".join(_ld(1, c.encode()) for c in cols))
+    for r in rows:
+        out += _ld(8, b"".join(_ld(1, v.encode()) for v in r))
+    return out
+
+
+def _samples_more_frame(entries) -> bytes:
+    """造 `PBSampleMore`：顶层只有重复的 `field1` 包装层。"""
+    out = b""
+    for code, cnt, pre, floats in entries:
+        sub = _ld(3, code.encode()) + _vk(5, cnt)
+        if pre is not None:
+            sub += _fx(6, pre)
+        if floats is not None:
+            sub += _ld(8, _packed(floats))
+        out += _ld(1, sub)
+    return out
+
+
+def _sample_single_frame(pre=None, declared=240, actual=None, floats=(),
+                         f3=None, f12=None) -> bytes:
+    """造 `PBSample`：**顶层 `field8` 打包数组 + 无 `field1`**（324 帧实测的形状）。"""
+    packed = _packed(floats)
+    out = _vk(2, 1) + _ld(3, f3 if f3 is not None else _f64(7, 99999)) + _vk(4, 1)
+    out += _vk(5, declared)
+    if pre is not None:
+        out += _fx(6, pre)
+    out += _vk(7, actual if actual is not None else len(floats))
+    out += _ld(8, packed)
+    if f12 is not None:
+        out += _vk(12, f12)
+    return out
+
+
+def _deepwarn_frame(code="002990", cnt=14435) -> bytes:
+    """造 `PBDeepWarn`：顶层只有 `field2`（里面恰好有 `field3` 代码 + `field5` 数字）+ 空 `field3`。
+
+    ⚠️ 这正是旧 `parse_samples` 被**错配**成 `{code:'002990', count:14435,
+    pre_close:None, floats:[]}` 的那个形状 —— 它根本不是样本帧。
+    """
+    sub = _ld(3, code.encode()) + _vk(4, 20) + _vk(5, cnt) + _fx(3, 169.7)
+    return _ld(2, sub) + _ld(3, b"")
+
+
+# ── A-1. 缺 `field7`：不许回落到 `TICKEX_COLS` ──────────────────────────────
+def test_parse_ticks_without_field7_returns_empty_not_tickex_cols():
+    """`field7` 缺失 → **空结果**，绝不拿 `TICKEX_COLS` 顶包。
+
+    旧行为：`cols = list(TICKEX_COLS)`、`rows` 照样 zip → 7 个正经字段名 + 二进制垃圾值。
+    那比返回空危险得多（字段名完全正常，下游无从察觉）。
+    """
+    body = _tickex_frame(None, [["40978", "mLO@", "2"]], span="1995,2096", date=20261027)
+    got = X.parse_ticks(body)
+    assert got["cols"] == [], got["cols"]
+    assert got["rows"] == [], got["rows"]
+    # 没有 7 个假列名，也没有任何一行
+    assert set(got["cols"]) != set(X.TICKEX_COLS)
+    assert len(got["rows"]) == 0
+    # 真解出来的元信息照留（不是编的）
+    assert got["span"] == "1995,2096" and got["date"] == "20261027"
+
+
+def test_parse_ticks_with_empty_field7_returns_empty():
+    """`field7` 存在但是空块（解不出一列）→ 同样视为解不出。"""
+    got = X.parse_ticks(_tickex_frame([], [["1", "2"]], date=20261027))
+    assert got["cols"] == [] and got["rows"] == []
+
+
+# ── A-2. 列名判据：抓住 `PBZST` 那种「列与值整体互换」 ──────────────────────
+def test_parse_ticks_rejects_value_as_column_names():
+    """「列名」是一堆数值（`PBZST` 的列值互换）→ 不返回数据。
+
+    只有「≥60% 的列名含字母」这条判据能抓住它：列数对得上、宽度也对得上。
+    """
+    bogus = ["899", "535.000000", "4999.000000", "192061937", "0", "0.000000"]
+    row = ["1", "2", "3", "4", "5", "6"]
+    got = X.parse_ticks(_tickex_frame(bogus, [row], date=20261027))
+    assert got["cols"] == [] and got["rows"] == [], got
+    # 反向：把同样的行配上**真列名**就该出来了（说明判据卡的是列名、不是行）
+    ok = X.parse_ticks(_tickex_frame(list(X.TICKEX_COLS), [row], date=20261027))
+    assert ok["cols"] == list(X.TICKEX_COLS) and len(ok["rows"]) == 1
+
+
+def test_looks_like_col_names_threshold():
+    """判据本身的边界：≥60% 含字母才算列名。"""
+    assert X._looks_like_col_names(["Second", "Now"]) is True
+    assert X._looks_like_col_names([]) is False
+    assert X._looks_like_col_names(["899", "535.0", "0"]) is False
+    # 5 个里 3 个含字母 = 60% → 通过
+    assert X._looks_like_col_names(["a", "b", "c", "1", "2"]) is True
+    # 5 个里 2 个 = 40% → 不通过
+    assert X._looks_like_col_names(["a", "b", "1", "2", "3"]) is False
+
+
+# ── A-3. 零回归：正常 `PBTickEx` 结果逐字段不变 ────────────────────────────
+def test_parse_ticks_fixture_result_unchanged_after_no_fallback():
+    """真实夹具（实网 100 行）解析结果**一个字节都没变** —— 这是零回归的硬证据。
+
+    改的只是「解不出列名」那条分支；能解出列名的路径原样不动。
+    """
+    got = X.parse_ticks(_fix("tickex_600519_响应.bin"))
+    assert got["cols"] == ["Second", "Now", "NowVol", "VolInStockDiff",
+                           "InOutFlag", "HKTTFlag", "HKInOutFlag"]
+    assert len(got["rows"]) == 100
+    assert got["span"] == "1995,2095" and got["anchor"] == (1995, 2095)
+    assert got["date"] == "20261027"
+    assert got["rows"][0]["Now"] == "1349.130005"
+    # 结构键不变（调用方按这几个 key 取值）
+    assert sorted(got) == ["anchor", "cols", "date", "rows", "span"]
+
+
+def test_parse_ticks_synthetic_tickex_still_parses():
+    """合成帧（有 `field7`）也照常出 —— 证明不是「一律返回空」。"""
+    cols = ["Second", "Now", "NowVol"]
+    body = _tickex_frame(cols, [["40978", "1349.13", "2"]], span="7,8", date=20261027)
+    got = X.parse_ticks(body)
+    assert got["cols"] == cols
+    assert got["rows"] == [{"Second": "40978", "Now": "1349.13", "NowVol": "2"}]
+    assert got["anchor"] == (7, 8)
+
+
+# ── B-1. `PBDeepWarn` 必须返回 `[]`，不许编造 code ─────────────────────────
+def test_parse_samples_deepwarn_returns_empty():
+    """`PBDeepWarn` → `[]`。
+
+    旧实现遍历「任何顶层子消息」，于是把这个 `field2`（内含 `field3='002990'` +
+    `field5=14435`）当成一条样本，产出 `{code:'002990', count:14435,
+    pre_close:None, floats:[]}` —— 一个**看起来完全正常**的假记录。
+    """
+    body = _deepwarn_frame("002990", 14435)
+    assert X.parse_samples(body) == []
+    assert X.parse_samples_more(body) == []
+    assert X.parse_sample_single(body) == []
+
+
+def test_parse_samples_deepwarn_does_not_fabricate_code():
+    """把旧假记录的具体特征钉死：不许出现 `code='002990'`。"""
+    got = X.parse_samples(_deepwarn_frame("002990", 14435))
+    assert [r.get("code") for r in got] == [], got
+
+
+def test_parse_samples_rowtable_shape_returns_empty():
+    """`PBHYStat`/`PBCombHQ` 那种 rowtable 形状（`field3`+`field4`）→ `[]`。"""
+    body = _rowtable([["A", "B"]], [["1", "2"]])
+    assert X.parse_samples(body) == []
+
+
+# ── B-2. 拆分方案：两套形状各一条正例 ─────────────────────────────────────
+def test_parse_samples_more_positive():
+    """`PBSampleMore`：顶层 `field1` 包装层 → 每个标的 1 条。"""
+    body = _samples_more_frame([
+        ("999999", 60, 3658.026, [3623.567, 3610.925, 3606.588]),
+        ("000001", 60, 11.15, [11.2, 11.19]),
+    ])
+    got = X.parse_samples_more(body)
+    assert len(got) == 2, got
+    assert got[0]["code"] == "999999" and got[0]["count"] == 60
+    assert got[0]["pre_close"] == 3658.026
+    assert got[0]["floats"] == [3623.567, 3610.925, 3606.588]
+    assert got[1]["code"] == "000001" and got[1]["pre_close"] == 11.15
+    # 分发器走同一条路
+    assert X.parse_samples(body) == got
+
+
+def test_parse_sample_single_positive():
+    """`PBSample`：顶层 `field8`、无 `field1` → 1 条，`code` 如实为 `None`。
+
+    这个响应里**没有 6 位代码**（`field3` 是子消息，装的是 5 位序数），所以不编造。
+    """
+    floats = [3622.798, 3619.24, 3610.925]
+    body = _sample_single_frame(pre=3658.026, declared=240, actual=3, floats=floats)
+    got = X.parse_sample_single(body)
+    assert len(got) == 1, got
+    rec = got[0]
+    assert rec["code"] is None                     # 响应里没有代码 → 不编造
+    assert rec["count"] == 3                       # 用 field7（实际个数）
+    assert rec["declared_count"] == 240            # field5 是声明值，另存
+    assert rec["pre_close"] == 3658.026
+    assert rec["floats"] == floats
+    assert X.parse_samples(body) == got
+
+
+def test_sample_parsers_are_mutually_exclusive():
+    """两套形状互不误吃：More 的帧不会被单只解析器吃，反之亦然。"""
+    more = _samples_more_frame([("999999", 60, 3658.026, [1.0, 2.0])])
+    single = _sample_single_frame(pre=11.15, actual=2, floats=[11.2, 11.19])
+    assert X.parse_sample_single(more) == []
+    assert X.parse_samples_more(single) == []
+    # 但分发器对两者都认
+    assert len(X.parse_samples(more)) == 1
+    assert len(X.parse_samples(single)) == 1
+
+
+def test_parse_sample_single_rejects_truncated_packed_array():
+    """`field8` 长度不是 4 的倍数（截断）→ 认不出，返回 `[]`，不许硬解。"""
+    body = _vk(5, 240) + _fx(6, 11.15) + _vk(7, 2) + _ld(8, b"\x00\x00\x80")
+    assert X.parse_sample_single(body) == []
+    assert X.parse_samples(body) == []
+
+
+def test_parse_samples_does_not_peel():
+    """`parse_samples` 系列**不吃壳**（只有 `parse_ticks` 内部 peel）—— 契约写清楚。"""
+    body = _samples_more_frame([("999999", 60, 3658.026, [1.0])])
+    shell = b'{"AttachLog": ""}' + base64.b64encode(body)   # 真实外壳写法（见 test_peel_*）
+    assert X.parse_samples(shell) == []          # 传壳进去解不出东西
+    assert X.parse_samples(X.peel(shell)) != []  # 调用方负责先 peel
+
+
+def _required_fixtures(fn):
+    """这个用例**必需**哪些 pytest fixture（没有默认值的形参就是 fixture）。
+
+    独立 runner 无参调 `fn()`，所以带 fixture 的用例在这里跑不了。以前是「直接调 → TypeError
+    → 算失败」，把「环境不提供」误报成「用例坏了」；现在按签名识别出来、记 SKIP 并说明原因。
+    """
+    out = []
+    for p in inspect.signature(fn).parameters.values():
+        if p.kind in (p.VAR_POSITIONAL, p.VAR_KEYWORD):
+            continue
+        if p.default is inspect.Parameter.empty:
+            out.append(p.name)
+    return out
+
+
 if __name__ == "__main__":
     fns = [(n, f) for n, f in sorted(globals().items())
            if n.startswith("test_") and callable(f)]
     bad = 0
+    skipped = []
     for name, fn in fns:
+        need = _required_fixtures(fn)
+        if need:
+            skipped.append((name, need))
+            print("  ⏭  %s: SKIP(fixture) —— 需要 pytest fixture（%s），独立 runner 不提供"
+                  % (name, ", ".join(need)))
+            continue
         try:
             fn()
             print("  ✅ %s" % name)
@@ -686,5 +1089,10 @@ if __name__ == "__main__":
         except Exception as e:                                     # noqa: BLE001
             bad += 1
             print("  ❌ %s: %s: %s" % (name, type(e).__name__, e))
-    print("\n%d 个用例，失败 %d" % (len(fns), bad))
+    print("\n%d 个用例，失败 %d，跳过 %d" % (len(fns), bad, len(skipped)))
+    if skipped:
+        print("\n跳过明细（**原因都相同**：需要 pytest fixture，独立 runner 不提供；"
+              "在 `python -m pytest` 里照常执行，不算覆盖缺口）：")
+        for name, need in skipped:
+            print("  ⏭  %s ← 需要 fixture: %s" % (name, ", ".join(need)))
     sys.exit(1 if bad else 0)

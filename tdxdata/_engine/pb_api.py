@@ -36,6 +36,7 @@ BASE = os.path.dirname(os.path.abspath(__file__))
 
 from . import datacenter as dc                              # noqa: E402
 from . import pb as tdx_pb                               # noqa: E402
+from .. import errors                                    # noqa: E402
 
 PARSE = os.path.join(BASE, "catalog")
 
@@ -96,20 +97,35 @@ def build(ctl, cmd, args):
             + cmd.encode("ascii") + b"\x00\x00" + args)
 
 
-def _raw_send(ctl, cmd, args, tries=4):
+def _raw_send(ctl, cmd, args, tries=2, backoff=3.0):
+    """发一帧 PB 命令，返回首个 blob（**失败抛 typed 异常，不再返回 `None`**）。
+
+    失败语义（2026-10 修，`DEF-005`/`DEF-006`）
+    --------------------------------------------
+    * 原来这里是 `except Exception: pass` + `sleep(8)` × 4 轮：
+      ① 把**传输失败折叠成 `None`**，上层再翻成 `EmptyResult("K线无数据")`
+         —— 用户以为今天没行情，真相是没网；这是诊断成本最高的一类错；
+      ② 一次断网调用要白等 **24 秒**（4 轮里 3 次 `sleep(8)`）才等到那句错话。
+    * 现在：只捕**归一化后**的传输类异常（`errors.ConnectionFailed` /
+      `errors.ProtocolError`，裸 `OSError` 已在 `dc._send` 里被转掉），
+      重试 2 轮 × 3 秒（`dc._send` 自己已经换机重试 2 轮，这里叠 4 轮纯属浪费），
+      仍失败则**抛最后一个**，绝不静默返回 `None`。
+    """
+    last: Exception | None = None
     for k in range(tries):
         try:
             # idle=2.0：首包 2 秒内必到（实测 0.18s）；原来是 5.0，纯空等。
             # 限流闸门在 dc._send 里统一过，这里不再重复等。
             blobs = dc._send(build(ctl, cmd, args), wait=15, idle=2.0)
-            if blobs:
-                return blobs[0]
-        except Exception:                                  # noqa: BLE001
-            pass
+            if not blobs:
+                raise errors.ProtocolError("%s 回包解不出一帧（全为残余字节）" % cmd)
+            return blobs[0]
+        except (errors.ConnectionFailed, errors.ProtocolError) as exc:
+            last = exc
         if k < tries - 1:
-            # ★ 最后一轮不再等：原来 4 轮的最后 8 秒是纯浪费（33s 里有 8s 是它）
-            time.sleep(8)
-    return None
+            time.sleep(backoff)
+    assert last is not None
+    raise last
 
 
 def decode_any(blob):
@@ -145,18 +161,37 @@ def call_pb(cmd, ctl=None, args=None, tries=4):
 
     返回：
         表类(kind=table)  → (列名列表, [字典行])
-        其它             → decode_any 的 payload；失败返回 None
+        其它             → decode_any 的 payload
+
+    ⚠️ DEF-043（2026-11 收敛）：**「答了但解不出」不再静默返回 `None`**。
+    旧行为：所有候选 ctl 的回包都解不出（kind="raw"）或没有可用候选时
+    `return None` —— 与「服务端无响应」不可区分，上层只能把它当"没数据"。
+    新行为：抛 `errors.EmptyResult`（消息里带 cmd，且明说"回包解不出"，
+    与"当期无数据"在文本上可区分；异常类型沿用 `EmptyResult` 是为了
+    **上层零修改** —— `client.py` / `hq_pb` 现有捕 `EmptyResult` 的批量遍历
+    路径行为不变，只是错误消息更诚实）。
+    「服务端无响应」仍走传输路径抛 `ConnectionFailed` / `ProtocolError`
+    （批次 A 已保证），两态由此彻底可区分。
+
+    DEF-041（只登记不修）：有 ctl → Table / 无 ctl → dict 的双重载返回
+    类型是历史形状，签名重构归架构批。
+    DEF-022（只登记不修）：大对象的 `repr` 截断另批处理。
     """
     meta = PB.get(cmd) or {}
     cands = [ctl] if ctl is not None else (meta.get("ctl") or [None])
     if args is None:
         args = args_for(cmd)
 
+    last_err: Exception | None = None
     for c in cands:
         if c is None:
             continue
-        blob = _raw_send(c, cmd, args, tries=tries)
-        if blob is None:
+        try:
+            blob = _raw_send(c, cmd, args, tries=tries)
+        except (errors.ConnectionFailed, errors.ProtocolError) as exc:
+            # 传输层失败：换下一个候选 ctl 再试。全部候选都失败才上抛 ——
+            # 绝不能把"连不上"折叠成 `return None`（那会被上层当成"没数据"）。
+            last_err = exc
             continue
         kind, payload = decode_any(blob)
         if kind == "raw":
@@ -170,7 +205,11 @@ def call_pb(cmd, ctl=None, args=None, tries=4):
             return payload
         if kind == "pb":
             return payload
-    return None
+    if last_err is not None:
+        raise last_err
+    raise errors.EmptyResult(
+        "%s 回包解不出（所有候选 ctl 的响应都不是可识别的表/JSON/PB 结构；"
+        "不是\"当期无数据\"，请抓包核协议）" % cmd)
 
 
 def parse_pb_any(blob):
@@ -191,7 +230,13 @@ if __name__ == "__main__":
     print("PB 接口自检\n")
     stat = collections.Counter()
     for cmd in sorted(PB):
-        r = call_pb(cmd)
+        try:
+            r = call_pb(cmd)
+        except Exception as exc:                           # noqa: BLE001
+            print("  ✗ %-26s %s" % (cmd.split(".")[-1], exc))
+            stat["fail"] += 1
+            time.sleep(3)
+            continue
         if r is None:
             print("  ✗ %-26s 无响应" % cmd.split(".")[-1])
             stat["fail"] += 1

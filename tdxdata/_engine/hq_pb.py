@@ -13,6 +13,8 @@ r"""通达信行情封装（走手机版 7615 的 protobuf 命令，零第三方
 | 市场行情列表（可翻页/按市场筛） | `HQServ.PBMultiHQ` | 0x12 | 至多 PageSize 行 × N 列（**参数已解构**，见下） |
 | 五档盘口（按代码） | ❌ 无 | — | 协议返回列里**没有任何 bid/ask 字段** |
 | 逐笔成交 | **`HQServ.PBTickEx`** | 0x11 | 7 列 × 每页 100 行（**2026-10-27 打通**，实装在 `hq_extra.ticks()`） |
+| **实时涨跌家数**（全市场） | **`HQServ.PBSdstat`** | 0x11 | 5 个家数字段 + 逐分钟序列（**2026-10-28 打通**，`market_breadth()`） |
+| **分时点位抽样**（逐分钟数组） | **`HQServ.PBSample`** | 0x11 | 240 点上限 × 本帧 N 点（**2026-10-28 打通**，`intraday_samples()`） |
 
 > PC 7709 通道本轮做过自研尝试（帧构造已逐字节对齐、握手/zlib 解码均正常），
 > 但 5 台主站对 K 线/五档/分时/逐笔一律返回空体（`ret=800` 无数据），
@@ -72,18 +74,43 @@ PBZST 参数位
     field3 = 市场
     field4/5/6 = 0
 
+PBSdstat 参数位（2026-10-28 解构，ctl 0x11）
+------------------------------------------
+    field1 = 嵌套 {5:0}                固定头 → `0a022800`
+    field2 = **视图码**  4=汇总家数（回 1 条记录）/ 3=逐分钟序列（回 N 行）
+
+    ⚠️ 参数里**没有代码位** —— 这条统计天生是全市场口径，不能按代码取。
+
+PBSample 参数位（2026-10-28 解构，ctl 0x11）
+------------------------------------------
+    field1 = 嵌套 {5:0}                固定头 → `0a022800`
+    field2 = 1                         （开关位，实测恒 1）
+    field3 = 6 位代码
+    field4 = 市场
+    field7 = 1                         （**语义未定**：发 1 却回 139 点，不是行数上限）
+
+    响应位（`PBSample` 与 `PBSampleMore` 的单条布局**同构**）：
+    field3=代码 / field4=市场 / field5=**全天点数上限**(240，More 是 60) /
+    field6=**昨收**(与 PBCombHQ 的 CLOSE 一致) / field7=**本帧点数**(恒等于 len(field8)/4) /
+    field8=打包 **float32** 点位数组
+
 用法
 ----
     from tdx_hq_pb import get_bars, get_minutes, get_quotes
 
     rows = get_bars("600519", period="day", count=120)   # [{Data,Open,High,Low,Close,Volume,...}]
     mins = get_minutes("600519")                          # [{Minute,Now,Average,NowVol,...}]
+
+    breadth = market_breadth("summary")      # {"shape":"summary","fields":{1:...,2:...}}
+    pts = intraday_samples("999999", market=1)   # [{"code","points":[...]}]
 """
 from __future__ import annotations
 
 import os
+import struct
 import sys
 
+from . import pb as _pb                                        # noqa: E402
 from . import pb_api as tdx_pb_api                                       # noqa: E402
 
 # 周期名 → PBFXT field4
@@ -430,6 +457,274 @@ def get_ticks(code, market, *, anchor="0", count=100):
     from . import hq_extra
 
     return hq_extra.ticks(code, market, anchor=anchor, count=count)
+
+
+# ══════════════════════════════════════════════════════════════════════════
+# 市场涨跌家数（`PBSdstat`）/ 分时点位抽样（`PBSample`）
+#
+# 2026-10-28 由抓包逆向后实装（证据：`reports/eval3/findings/M6-pb-undecoded.md`）。
+# 两条命令**都不是**「列名 + 字符串行」的表结构，`pb.parse_table()` 认不出来，
+# 所以必须走本节的专用解码器。
+# ══════════════════════════════════════════════════════════════════════════
+
+#: `PBSdstat` 的 ctl（抓包实测：ctl 0x11，msgid 170/166/55/56）。
+SDSTAT_CTL = 0x11
+#: `PBSample` 的 ctl（抓包实测：ctl 0x11，msgid 168）。
+SAMPLE_CTL = 0x11
+
+#: `PBSdstat` 的 `field2` = **视图码**（不是行数！行数在响应的 `field2` 里）。
+#:
+#: * `summary`(4) → 回**一条**记录（`field7`），含涨/跌/平/涨停/跌停家数；
+#: * `minute`(3)  → 回**N 行**（重复 `field6`），N = 当日已走过的分钟数。
+#:
+#: 证据：`f2=4` 的 131 帧全是 421B 单记录；`f2=3` 的 125 帧全是 N 行
+#: （121@11:30 / 139@13:18 / 242@15:00），见 M6 报告 §1。
+SDSTAT_VIEWS = {"summary": 4, "minute": 3}
+
+_WIRE_VARINT, _WIRE_64, _WIRE_LEN, _WIRE_32 = 0, 1, 2, 5
+
+
+def _read_fields(buf: bytes) -> list:
+    """**严格解一层** protobuf → `[(field, wire, value, off, end)]`。
+
+    为什么不用 `pb.decode_message()`
+    --------------------------------
+    那个函数会把「看起来不像文本的 length 段」**递归**当子消息解。`PBSdstat`
+    形状 B 每行有个 40 字节的**打包 uint32 数组**（10 个 `uint32`），递归解会
+    把它解成一串假字段（尤其零填充段），于是"解出来了"其实是幻觉。
+    本函数只解一层、wire type 原样保留，解释权交给调用方 —— 这是"不猜"的地基。
+
+    `wire==2` 时 `value` 是 `bytes`；`wire==0` 是 `int`；`wire==1/5` 是原始字节。
+    """
+    out = []
+    pos, n = 0, len(buf)
+    while pos < n:
+        try:
+            key, pos = _pb.read_varint(buf, pos)
+        except ValueError:
+            break
+        field, wire = key >> 3, key & 7
+        if field == 0:                       # 0 号字段非法 → 到此为止（别硬啃零填充）
+            break
+        start = pos
+        try:
+            if wire == _WIRE_VARINT:
+                val, pos = _pb.read_varint(buf, pos)
+                out.append((field, wire, val, start, pos))
+            elif wire == _WIRE_64:
+                if pos + 8 > n:
+                    break
+                out.append((field, wire, buf[pos:pos + 8], start, pos + 8))
+                pos += 8
+            elif wire == _WIRE_LEN:
+                ln, p2 = _pb.read_varint(buf, pos)
+                if p2 + ln > n:
+                    break
+                out.append((field, wire, buf[p2:p2 + ln], start, p2 + ln))
+                pos = p2 + ln
+            elif wire == _WIRE_32:
+                if pos + 4 > n:
+                    break
+                out.append((field, wire, buf[pos:pos + 4], start, pos + 4))
+                pos += 4
+            else:                            # group 等：本协议不用，直接停
+                break
+        except ValueError:
+            break
+    return out
+
+
+def _vint(fields, no):
+    for f, w, v, _o, _e in fields:
+        if f == no and w == _WIRE_VARINT:
+            return int(v)
+    return None
+
+
+def _blob(fields, no):
+    for f, w, v, _o, _e in fields:
+        if f == no and w == _WIRE_LEN:
+            return v
+    return None
+
+
+def _text(fields, no):
+    raw = _blob(fields, no)
+    return None if raw is None else raw.decode("utf-8", "replace")
+
+
+def _f32(fields, no):
+    for f, w, v, _o, _e in fields:
+        if f == no and w == _WIRE_32:
+            # float32 转 double 会带出 551.4000244140625 这种噪声，统一 round 到 3 位
+            # （TDX 报价就是 3 位小数）
+            return round(struct.unpack("<f", v)[0], 3)
+    return None
+
+
+def _u32_list(raw: bytes) -> list:
+    """打包的 `uint32` 数组 → list[int]（**定长 4 字节**，不是 float32）。"""
+    return [struct.unpack("<I", raw[i:i + 4])[0] for i in range(0, len(raw) - 3, 4)]
+
+
+# ── PBSdstat ─────────────────────────────────────────────────────────────
+
+#: 形状 A 记录里前 5 个 varint 的**协议字段号** → 公开列名。
+#: 定标依据（三命令同刻互证，M6 报告 §1.2）：`f1+f2+f3 ≡ 5572`（27 帧无一例外）
+#: 且 `PBHQInfo.f8/f5/f7`、`PBZST(880005)` 的 `Now/Average` 在同刻给出同一组数。
+SDSTAT_COLS = {
+    1: "up_count",
+    2: "down_count",
+    3: "flat_count",
+    4: "limit_up_count",
+    5: "limit_down_count",
+}
+
+
+def decode_market_breadth(body: bytes) -> dict:
+    """`PBSdstat` 回包 → 协议级 dict（**列名映射在 client 层做**）。
+
+    返回::
+
+        {"shape": "summary", "declared_count": 1,
+         "fields": {1: 1637, 2: 3775, 3: 160, 4: 35, 5: 15}, "off": 5}
+
+        {"shape": "minute", "declared_count": 139,
+         "rows": [{"f2": 10157.5801, "u32": [10 个 int]}, ...]}
+
+    ⚠️ `summary` 的 `fields` 里**只有服务端真的发出来的字段**（缺的键不补 0）：
+    protobuf 里"没发"和"发了 0"在线上等价，本库无法区分，所以缺就是不写 ——
+    下游拿到 `None` 才知道是"不知道"，而不是"零家上涨"。
+    """
+    top = _read_fields(body)
+    declared = _vint(top, 2)
+
+    rec = _blob(top, 7)
+    if rec is not None:                                     # 形状 A：单记录
+        sub = _read_fields(rec)
+        fields = {}
+        for f, w, v, _o, _e in sub:
+            if w == _WIRE_VARINT and f in SDSTAT_COLS:
+                fields[f] = int(v)
+        off = next((o for f, w, _v, o, _e in top if f == 7), None)
+        return {"shape": "summary", "declared_count": declared,
+                "fields": fields, "off": off}
+
+    rows = []                                               # 形状 B：N 行
+    for f, w, val, off, _e in top:
+        if f != 6 or w != _WIRE_LEN:
+            continue
+        sub = _read_fields(val)
+        arr = _blob(sub, 1)
+        rows.append({
+            "f2": _f32(sub, 2),
+            "u32": _u32_list(arr) if arr is not None else None,
+            "off": off,
+        })
+    return {"shape": "minute", "declared_count": declared, "rows": rows}
+
+
+def _args_pbsdstat(view_code: int) -> bytes:
+    """`PBSdstat` 参数：`field1{5:0}` + `field2=视图码`。
+
+    实测字节（view=4）：`0a0228001004`。
+    """
+    return _bfield(1, _vfield(5, 0)) + _vfield(2, int(view_code))
+
+
+def market_breadth(view: str = "summary", *, tries: int = 4):
+    """取 `PBSdstat` 原始回包并解码；网络失败返回 `None`（不抛，由 client 决定）。"""
+    code = SDSTAT_VIEWS.get(str(view).lower())
+    if code is None:
+        raise ValueError("view 只支持 %s（收到 %r）"
+                         % ("/".join(sorted(SDSTAT_VIEWS)), view))
+    body = _call_peeled("HQServ.PBSdstat", SDSTAT_CTL, _args_pbsdstat(code),
+                        tries=tries)
+    if body is None:
+        return None
+    return decode_market_breadth(body)
+
+
+# ── PBSample ─────────────────────────────────────────────────────────────
+
+def _args_pbsample(code: str, market, count) -> bytes:
+    """`PBSample` 参数：`field1{5:0}` + `field2=1` + `field3=代码` + `field4=市场`
+    + `field7=点数`。
+
+    实测字节（999999 / market=1 / count=1）：
+    `0a022800 1001 1a06393939393939 2001 3801`。
+
+    ⚠️ `field7` 的语义**未定**：抓包里发 `1`，服务端却回了 139 点。
+    所以它**不是**"要几点"的上限 —— `count` 只是原样透传（默认发 1，与抓包一致），
+    要限制行数请在本地截尾（`client.get_intraday_samples` 就是这么做的，且写在
+    docstring 里，不假装是服务端行为）。
+    """
+    args = _bfield(1, _vfield(5, 0)) + _vfield(2, 1) + _bfield(3, code.encode("utf-8"))
+    if market is not None:
+        args += _vfield(4, int(market))
+    args += _vfield(7, 1 if count is None else int(count))
+    return args
+
+
+def _decode_one_sample(fields, off=0) -> dict:
+    """一条 `PBSample`/`PBSampleMore` 记录（两者**同构**，只是外层包法与点位上限不同）。"""
+    arr = _blob(fields, 8)
+    pts = [round(struct.unpack("<f", arr[i:i + 4])[0], 3)
+           for i in range(0, len(arr) - 3, 4)] if arr is not None else None
+    return {
+        "code": _text(fields, 3),
+        "market": _vint(fields, 4),
+        # field5 = **全天点数上限**（实测 240；`PBSampleMore` 是 60）。
+        # ⚠️ 它不是"本帧点数"，也不是"字段数" —— 别按 `parse_samples` 的旧注释理解。
+        "total_points": _vint(fields, 5),
+        # field6 = 昨收（与 `PBCombHQ` 的 CLOSE 一致，已锚定：3658.0256 vs 3658.03）
+        "pre_close": _f32(fields, 6),
+        # field7 = 本帧点数，实测**恒等于** len(points)（25/25 帧）→ 逐点，不是抽样
+        "n_points": _vint(fields, 7),
+        "points": pts,
+        "off": off,
+    }
+
+
+def decode_intraday_samples(body: bytes) -> list:
+    """`PBSample`（单条，字段在顶层）/ `PBSampleMore`（重复 `field1`）都能解。
+
+    两种形状的**单条布局完全一样**（3=代码 / 4=市场 / 5=全天点数 / 6=昨收 /
+    7=本帧点数 / 8=打包 float32），所以一个函数吃完，不按命令名分叉。
+    """
+    top = _read_fields(body)
+    if _text(top, 3):                                       # 单条：代码在顶层
+        return [_decode_one_sample(top)]
+    out = []
+    for f, w, val, off, _e in top:                          # 批量：重复 field1
+        if f == 1 and w == _WIRE_LEN:
+            sub = _read_fields(val)
+            if _text(sub, 3):
+                out.append(_decode_one_sample(sub, off))
+    return out
+
+
+def intraday_samples(code: str, market=None, count=None, *, tries: int = 4):
+    """取一只标的的分时点位；网络失败返回 `None`。"""
+    body = _call_peeled("HQServ.PBSample", SAMPLE_CTL,
+                        _args_pbsample(code, market, count), tries=tries)
+    if body is None:
+        return None
+    return decode_intraday_samples(body)
+
+
+def _call_peeled(cmd: str, ctl: int, args: bytes, *, tries: int = 4):
+    """发一条 PB 命令并**剥壳**（`{"Length"}` / zlib / base64 可套娃）。
+
+    复用 `pb_api._raw_send`（它已经有重试/超时/限流闸门），本函数只多做一步 `peel`。
+    `hq_extra` 是**函数内导入**：`hq_extra` 模块级会 import 本模块，顶层导入会成环。
+    """
+    from . import hq_extra as _x
+
+    blob = tdx_pb_api._raw_send(ctl, cmd, args, tries=tries)
+    if not blob:
+        return None
+    return _x.peel(blob)
 
 
 if __name__ == "__main__":                                   # 自检

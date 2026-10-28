@@ -27,9 +27,12 @@ import sys
 sys.stdout.reconfigure(encoding="utf-8")
 sys.path.insert(0, os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
 
+import datetime
+
 import tdxdata                                                     # noqa: E402
 from tdxdata.client import Client                                  # noqa: E402
-from tdxdata.models import Row, Table                              # noqa: E402
+from tdxdata.models import Row, Table, Provenance                  # noqa: E402
+from tdxdata._provenance import ClockSource                        # noqa: E402
 from tdxdata.sections import mapping                               # noqa: E402
 
 
@@ -138,17 +141,18 @@ def test_make_table_uses_primary_and_keeps_union_in_meta():
     t = Client._make_table("cmd", v[3], v[4], v[5])
     assert t.cols == ["N001", "N002", "N003"], "cols 必须是主表列名（不是 5 列并集）"
     assert len(t.cols) == len(t.rows[0]), "cols 必须与行宽严格相等"
-    assert t.meta["cols_union"] == ["X001", "X002", "N001", "N002", "N003"]
-    assert t.meta["cols_source"] == "primary"
+    assert t.provenance.extra["cols_union"] == ["X001", "X002", "N001", "N002", "N003"]
+    assert t.provenance.extra["cols_source"] == "primary"
     # 对齐正确性：不能整行错一位
     assert t.rows[0]["N001"] == "x" and t.rows[0]["N002"] == "y"
     assert t.rows[0][0] == "x" and t.rows[0][2] == "z"
 
 
-def test_make_table_no_union_meta_when_equal():
+def test_make_table_no_union_extra_when_equal():
     v = _srv_payload([{"ColName": ["N001", "N002"], "Content": [["1", "2"]]}])
     t = Client._make_table("cmd", v[3], v[4], v[5])
-    assert "cols_union" not in t.meta, "并集与主表相同时不该多写 meta"
+    assert t.provenance is None or \
+        "cols_union" not in t.provenance.extra, "并集与主表相同时不该多写旁证"
     assert t.cols == ["N001", "N002"]
 
 
@@ -157,7 +161,7 @@ def test_make_table_dedups_duplicate_names_without_losing_values():
                            [["v1", "v2", "v3"]], ["N001", "N001", "N002"])
     assert t.cols == ["N001", "N001_2", "N002"], t.cols
     assert list(t.rows[0].values()) == ["v1", "v2", "v3"], "重名列不许静默丢值"
-    assert t.meta["cols_dedup"] == ["N001", "N001", "N002"]
+    assert t.provenance.extra["cols_dedup"] == ["N001", "N001", "N002"]
 
 
 # ══════════════════════════════════════════════════════════════════════════
@@ -181,14 +185,26 @@ def _assert_sections_table(t, label):
 
 
 def test_mapping_apply_keeps_raw_out_of_cols():
-    """直接测 `mapping.apply()`：`gsjj` 不在 COL_GUARD 里，映射会生效。"""
-    assert "gsjj" not in mapping.COL_GUARD, "本用例依赖 gsjj 不被 COL_GUARD 拦下"
+    """直接测 `mapping.apply()`：`gsjj` 现在是**有守卫**的产品（抓包语料 19/5/40 列三种形状）。"""
+    # 2026-10-27 抓包语料轮：gsjj 从「无守卫」变成「有守卫」——旧断言把它当无守卫产品，
+    # 那是本轮要推翻的旧事实。改成**正向护栏**（柱状：真实有多形状 ⇒ 必须有守卫）。
+    assert "gsjj" in mapping.COL_GUARD, (
+        "gsjj 在真实抓包里有多套列形状（19/5/40 列），必须有 COL_GUARD 才不会静默错映射"
+    )
     src = Table(cols=["N001", "N002"],
                 rows=[["2000-12-26", "上网定价发行"]], cmd="CWServ.ph_agf10_gsjj")
     out = mapping.apply(src, "gsjj")
+    # 2 列不是登记的 19 列形状 → 守卫挡下，只给 raw（raw 仍不进 cols，本用例的核心契约不变）
+    assert out.cols == [], out.cols
+    assert out.provenance.extra["mapping_skipped"] == "cols-guard", out.meta
     _assert_sections_table(out, "mapping.apply(gsjj)")
-    assert out.meta["product"] == "gsjj"
+    assert out.provenance.extra["product"] == "gsjj"
     assert out.rows[0]["raw"] == {"N001": "2000-12-26", "N002": "上网定价发行"}
+    # 正形状（19 列）才套映射
+    ok = mapping.apply(Table(cols=list(mapping.COL_GUARD["gsjj"]),
+                             rows=[[None] * 19], cmd="CWServ.ph_agf10_gsjj"), "gsjj")
+    assert ok.cols and ok.provenance.extra["template_check"] == "absent"
+    _assert_sections_table(ok, "mapping.apply(gsjj, 19 列)")
 
 
 def test_mapping_apply_unmapped_product_is_raw_only():
@@ -264,6 +280,182 @@ def test_sections_take_client_first_and_do_not_import_client():
         for bad in ("from ..client import", "from tdxdata.client import",
                     "import ..client"):
             assert bad not in src, "%s 反向 import 了 client（会循环依赖）" % mod.__name__
+
+
+# ══════════════════════════════════════════════════════════════════════════
+# 五、语义正确性三连契约（B6，2026-10-28）：DEF-010 / DEF-011 / DEF-023
+# ══════════════════════════════════════════════════════════════════════════
+def test_quote_from_page_row_carries_open_high_low():
+    """DEF-010：`PBMultiHQ` 行的 `OPEN`/`MAX`/`MIN` 必须进 `Quote.open/high/low`。
+
+    复现判据（报告 §11 的反转）：同一行此前 `open/high/low` 恒 0.0、真值躺在 raw。
+    列不在 → `None`（不是 0.0），与 vol/amount 同口径。
+    """
+    from tdxdata.client import _quote_from_page_row
+
+    q = _quote_from_page_row({"Code": "600519", "Setcode": "1",
+                              "Name": "贵州茅台", "NOW": "1349.98",
+                              "CLOSE": "1335.00",
+                              "OPEN": "1341", "MAX": "1350", "MIN": "1330"})
+    assert (q.open, q.high, q.low) == (1341.0, 1350.0, 1330.0), \
+        (q.open, q.high, q.low)
+    assert q.raw["OPEN"] == "1341" and q.raw["MAX"] == "1350" and q.raw["MIN"] == "1330"
+
+    # 列不在 → None（不许拿 0.0 冒充"没这一列"）
+    q2 = _quote_from_page_row({"Code": "000001", "Setcode": "0", "NOW": "11.28"})
+    assert q2.open is None and q2.high is None and q2.low is None
+
+
+def test_series_ops_keep_type_and_provenance():
+    """DEF-023：Series 的 `+` / `*` 不得退化为裸 list，provenance 必须继承操作数。"""
+    prov = Provenance(fetched_at=datetime.datetime(2026, 10, 27, 10, 0),
+                      clock=ClockSource.SERVER, status="provisional",
+                      as_of="2026-10-27")
+    for cls in (getattr(tdxdata, "Bars"), getattr(tdxdata, "Quotes"),
+                getattr(tdxdata, "Ticks"), getattr(tdxdata, "Minutes")):
+        obj = cls([1, 2, 3], provenance=prov)
+        plus = obj + [9]
+        assert isinstance(plus, cls), "%s + list 退化成 %s" % (cls.__name__, type(plus).__name__)
+        assert plus == [1, 2, 3, 9]
+        assert plus.provenance is prov, "%s 的 + 丢了 provenance" % cls.__name__
+        assert isinstance(obj * 2, cls), "%s * 2 退化成 %s" % (cls.__name__, type(obj * 2).__name__)
+        assert (obj * 2) == [1, 2, 3, 1, 2, 3]
+        assert (obj * 2).provenance is prov, "%s 的 * 丢了 provenance" % cls.__name__
+        # 右加：普通 list + Series 也要保住本类型与 provenance
+        radd = [0] + obj
+        assert isinstance(radd, cls) and radd == [0, 1, 2, 3] and radd.provenance is prov
+
+
+def test_series_sorted_keeps_type_and_provenance():
+    """DEF-023：`Series.sorted()` 与内建 `sorted()` 同义但**保住类型与 provenance**。
+
+    为什么是方法而不是覆写内建：`sorted(bars)` 的收值路径是 `list(iterable)` +
+    `list.sort()`，语言层无法让它返回子类 —— 这是 Python 边界。契约定为：
+    `sorted(bars)` 照旧（裸 list，不丢数据只丢 provenance，与 list 行为一致）；
+    要带 provenance 用 `bars.sorted()`。
+    """
+    prov = Provenance(fetched_at=datetime.datetime(2026, 10, 27, 10, 0),
+                      clock=ClockSource.SERVER, status="final", as_of="2026-10-27")
+    bars = getattr(tdxdata, "Bars")([3, 1, 2], provenance=prov)
+
+    s = bars.sorted()
+    assert isinstance(s, getattr(tdxdata, "Bars"))
+    assert s == [1, 2, 3]
+    assert hasattr(s, "provenance"), "bars.sorted() 不许丢 provenance"
+    assert s.provenance is prov, "bars.sorted() 的 provenance 必须等于操作数的 provenance"
+
+    # key / reverse 透传
+    desc = bars.sorted(reverse=True)
+    assert desc == [3, 2, 1] and desc.provenance is prov
+    by_key = getattr(tdxdata, "Bars")(["bb", "a", "ccc"], provenance=prov).sorted(key=len)
+    assert by_key == ["a", "bb", "ccc"] and by_key.provenance is prov
+
+
+def test_bars_missing_cols_note_records_absent_columns():
+    """DEF-011 终局：服务端**没给** Volume/Amount 列时，
+    `Bar.vol`/`Bar.amount` 是 **None**（unknown ≠ 0），事实进 `meta["missing_cols"]`，
+    且 `raw` 里没有该键（服务端原貌）——「没给列」与「明确给 0」从此可分。
+    """
+    from tdxdata._engine import hq_pb
+
+    cls = getattr(tdxdata, "Client")
+    c = cls.__new__(cls)
+    c._dc_mod = None
+    c._clock = None
+    c._clock_probe = False
+    c._probe_allowed = False
+    c._last_call = {}
+    c._pb_products = {}
+    c._products = {}
+    c._cal = {}
+    c._in_cal = False
+
+    # 列齐全（对照）：不该多出 missing_cols
+    real = hq_pb.get_bars
+    try:
+        hq_pb.get_bars = lambda *a, **k: (
+            ["Data", "Open", "High", "Low", "Close", "Volume", "Amount"],
+            [{"Data": "20261027", "Open": "1", "High": "1", "Low": "1",
+              "Close": "1", "Volume": "100", "Amount": "100"}])
+        full = c.get_bars("600519", "day", 1)
+        assert "missing_cols" not in full.provenance.extra, full.provenance.extra
+        assert full[0].vol == 1.0 and full[0].amount == 100.0
+
+        # 缺 Volume/Amount 两列：字段是 None（DEF-011 终局：unknown ≠ 0），
+        # meta 记下事实、raw 保持原貌
+        hq_pb.get_bars = lambda *a, **k: (
+            ["Data", "Open", "High", "Low", "Close"],
+            [{"Data": "20261027", "Open": "1", "High": "1", "Low": "1",
+              "Close": "1"}])
+        partial = c.get_bars("600519", "day", 1)
+        assert partial[0].vol is None and partial[0].amount is None, \
+            "缺列必须是 None（DEF-011 终局），不许拿 0.0 冒充"
+        assert partial.provenance.extra.get("missing_cols") == ["Amount", "Volume"], \
+            partial.provenance.extra.get("missing_cols")
+        assert "Volume" not in partial[0].raw and "Amount" not in partial[0].raw, \
+            "raw 必须保留服务端原貌（缺键即缺列）"
+    finally:
+        hq_pb.get_bars = real
+
+
+def test_bars_missing_cols_none_and_zero_are_distinguishable():
+    """DEF-011 终局三条：缺列 → None；服务端明确给 0 → 0.0；
+    `meta["missing_cols"]` 与 None 一一对应（列齐时无该键）。
+    """
+    from tdxdata._engine import hq_pb
+
+    cls = getattr(tdxdata, "Client")
+    c = cls.__new__(cls)
+    c._dc_mod = None
+    c._clock = None
+    c._clock_probe = False
+    c._probe_allowed = False
+    c._last_call = {}
+    c._pb_products = {}
+    c._products = {}
+    c._cal = {}
+    c._in_cal = False
+
+    real = hq_pb.get_bars
+    try:
+        # 1) 缺列 → None，missing_cols 记录两列
+        hq_pb.get_bars = lambda *a, **k: (
+            ["Data", "Open", "High", "Low", "Close"],
+            [{"Data": "20261027", "Open": "1", "High": "1", "Low": "1",
+              "Close": "1"}])
+        miss = c.get_bars("600519", "day", 1)
+        assert miss[0].vol is None and miss[0].amount is None
+        assert sorted(miss.provenance.extra["missing_cols"]) == ["Amount", "Volume"]
+
+        # 2) 服务端明确给 0 → 0.0（不是 None），missing_cols 不出现
+        hq_pb.get_bars = lambda *a, **k: (
+            ["Data", "Open", "High", "Low", "Close", "Volume", "Amount"],
+            [{"Data": "20261027", "Open": "1", "High": "1", "Low": "1",
+              "Close": "1", "Volume": "0", "Amount": "0"}])
+        zero = c.get_bars("600519", "day", 1)
+        assert zero[0].vol == 0.0 and zero[0].vol is not None
+        assert zero[0].amount == 0.0 and zero[0].amount is not None
+        assert "missing_cols" not in zero.provenance.extra
+
+        # 3) 列在但值解析不出（""/空串）→ None（unknown），missing_cols 记录
+        hq_pb.get_bars = lambda *a, **k: (
+            ["Data", "Open", "High", "Low", "Close", "Volume", "Amount"],
+            [{"Data": "20261027", "Open": "1", "High": "1", "Low": "1",
+              "Close": "1", "Volume": "", "Amount": ""}])
+        blank = c.get_bars("600519", "day", 1)
+        assert blank[0].vol is None and blank[0].amount is None
+        assert sorted(blank.provenance.extra["missing_cols"]) == ["Amount", "Volume"]
+
+        # 4) 列齐且真值 → 照实转，raw 保留原貌
+        hq_pb.get_bars = lambda *a, **k: (
+            ["Data", "Open", "High", "Low", "Close", "Volume", "Amount"],
+            [{"Data": "20261027", "Open": "1", "High": "1", "Low": "1",
+              "Close": "1", "Volume": "100", "Amount": "300"}])
+        full = c.get_bars("600519", "day", 1)
+        assert full[0].vol == 1.0 and full[0].amount == 300.0   # stock ÷100 → 手
+        assert "missing_cols" not in full.provenance.extra
+    finally:
+        hq_pb.get_bars = real
 
 
 if __name__ == "__main__":

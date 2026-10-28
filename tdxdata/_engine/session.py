@@ -25,7 +25,6 @@ import time
 from . import datacenter as dc
 
 __all__ = ["Session", "body_of", "parse", "HOSTS", "PORT"]
-
 PORT = 7615
 HOSTS = ["121.37.180.65", "124.223.177.105", "60.204.149.166", "121.5.164.43"]
 
@@ -54,6 +53,15 @@ def parse(payload: bytes):
         `EMPTY`         空包（通道不通 / 命令无响应）
         `ERR_-1002`     参数错       `ERR_-1005` 服务端执行失败
         `ERR_-1000`     命令不存在   `RAW` 非 JSON（需按 protobuf 处理）
+        `BADJSON`       是合法 JSON、但**不是 `ResultSets` 协议形态**
+                        （顶层是数组/标量、`ResultSets` 不是列表、行不是列表…）
+
+    ⚠️ **本函数永不抛异常**，所有异常形态都必须落到上面 7 个 verdict 之一。
+    历史 bug（2026-10）：
+    * 顶层是 JSON 数组 → 直接 `.get("ResultSets")` → 裸
+      `AttributeError: 'list' object has no attribute 'get'`，穿透到用户
+      （`errors.py` 的异常体系接不住），文案还和"标的写错了"毫不相干；
+    * `{"ResultSets": "…"}` → 遍历字符串 → `'str' object has no attribute 'get'`。
 
     `rows` 与 `primary` 的关系（**必须成对使用**）
     ------------------------------------------------
@@ -71,10 +79,21 @@ def parse(payload: bytes):
         j = json.loads(payload.decode("gbk", "replace"))
     except Exception:                                        # noqa: BLE001
         return "RAW", 0, 0, [], None, []
-    if isinstance(j, dict) and j.get("ErrorCode") not in (0, None):
+
+    if not isinstance(j, dict):
+        # 合法 JSON 但顶层不是对象。空数组按"这一段没数据"，其余算协议形态坏。
+        if isinstance(j, list) and not j:
+            return "EMPTY_RS", 0, 0, [], None, []
+        return "BADJSON", 0, 0, [], None, []
+
+    if j.get("ErrorCode") not in (0, None):
         return "ERR_%s" % j.get("ErrorCode"), 0, 0, [], j.get("ErrorInfo"), []
 
-    rss = (j or {}).get("ResultSets") or []
+    rss = j.get("ResultSets") or []
+    if not isinstance(rss, list):
+        return "BADJSON", 0, 0, [], None, []
+    if not all(isinstance(rs, dict) for rs in rss):
+        return "BADJSON", 0, 0, [], None, []
     best = None
     for rs in rss:
         names = dc._colnames(rs.get("ColName")) or dc._colnames(rs.get("ColDes")) or []
@@ -113,12 +132,14 @@ def _complete(payload: bytes) -> bool:
 class Session:
     """一条 7615 长连接（自动握手、自动换服务器重连）。
 
-    `pin`（阶段 5，keyword-only，**默认 False = 行为不变**）
+    `pin`（keyword-only，**默认 False = 可轮换**）
     --------------------------------------------------------
     `pin=True` 表示这条连接**钉死**在 `host` 上：建连失败不轮换、被踢也不换机
-    （`switch_host()` 退化成"同机重连"）。给 `Client(concurrency>1)` 的 lane 用 ——
-    "第 i 条 lane 钉 HOSTS[i]"这句话只有在 Session 层面被强制时才成立，
-    否则一次失败就悄悄跑到别的机器上，per-host 槽位和实际流量就对不上了。
+    （`switch_host()` 退化成"同机重连"）。
+
+    ⚠️ 它曾经是给 `Client(concurrency>1)` 的 lane 用的（"第 i 条 lane 钉
+    HOSTS[i]"）。并发特性已于 2026-10 删除，但 `pin` 作为 **Session 层能力**
+    保留 —— 手工排查、抓包复现时"钉住某台服务器"同样有用。
 
     ⚠️ 默认 `False` 时**每一行代码路径都和改造前一致**（照样跳过冷却中的服务器、
     照样轮换、照样在被踢时 `note_limited()`）。
@@ -172,9 +193,15 @@ class Session:
                     self.sock.sendall(dc.fresh_handshake(0x7000))
                     time.sleep(1.3)             # 少了这句 → 服务端直接 10054
                     _n, dead = self._drain()
-                    if dead:
-                        # 握手期被重置：这条连接是死的，换台机器重来
-                        raise ConnectionResetError(10054, "握手期被重置")
+                    if dead or _n <= 0:
+                        # DEF-B4-01：握手回包**从不校验内容** —— 0 字节回包
+                        # （timeout 分支 got=0, dead=False）与正常回包一样被
+                        # 当成"建连成功"，上层不知道连接从未真正建好，表现为
+                        # 下一条命令必然失败再重连（实测多建一条连接）。
+                        # 修复：0 字节 / 对端关闭 → 视同握手失败，走既有重连
+                        # /换机路径。只做"非空"这一最小校验，不动模板内容
+                        # （指纹/票据外置是 ENG-009 的范围）。
+                        raise ConnectionResetError(10054, "握手回包为空（0 字节/对端关闭）")
                     self.host = host
                     self._last_io = time.time()
                     return self
@@ -185,11 +212,9 @@ class Session:
                                              ConnectionAbortedError)) \
                         or getattr(e, "winerror", None) in (10053, 10054)
                     if limited:
-                        # 钉死的连接要连带推该主机的槽位（Pacer 内部同时推全局）
-                        if self.pin:
-                            pacer.note_limited(host)
-                        else:
-                            pacer.note_limited()
+                        # DEF-030（B5）：per-host 槽位已删，Pacer 只剩全局
+                        # 槽位；pin 与非 pin 的退避反馈等价（都是推全局）。
+                        pacer.note_limited()
                         pacer.block(host)
                         break                   # 这台被踢了，直接换下一台
                     time.sleep(0.6 * (attempt + 1))
@@ -257,8 +282,26 @@ class Session:
         with self._lock:                    # 串行化：同一 socket 不能并发写
             return self._ask_locked(ctl, cmd, args, idle, tail)
 
+    def ask_blobs(self, ctl: int, cmd: str, args: bytes,
+                  idle: float = 4.0, tail: float = 0.35) -> list[bytes]:
+        """ARCH-001 新接缝：与 `ask` 完全同一路径，但**返回包体列表**（不 join）。
+
+        为什么加这个而不是改 `ask` 的返回值
+        ----------------------------------
+        `ask -> bytes` 的形状被既有判据钉着（`client.call` 的 `parse(raw)`、
+        golden_runner 的 ask 拦截点、test_session_offline_b4 全部 ask 断言），
+        而 `client.py` 本步禁碰。所以拍板：**`ask` 原样保留（拍平口径）**，
+        `ask_blobs` 是新接缝 —— 收发逻辑只此一份（`_ask_locked` 里多留一份
+        未拍平的包列表），两条出口共享，杜绝"两份读循环漂移"。
+        `Transport` 契约（`transport.SessionTransport`）走的就是这条。
+        """
+        with self._lock:
+            _joined, blobs = self._ask_locked(ctl, cmd, args, idle, tail,
+                                              keep_blobs=True)
+            return list(blobs)
+
     def _ask_locked(self, ctl: int, cmd: str, args: bytes,
-                    idle: float, tail: float) -> bytes:
+                    idle: float, tail: float, *, keep_blobs: bool = False):
         """发一条命令，读回载荷（已 unwrap，未解析 JSON）。
 
         读取策略（两段式，为吞吐而设计）
@@ -268,6 +311,9 @@ class Session:
 
         旧实现是「读到安静 `idle` 秒」，一条命令固定多花 ~4 秒 ——
         100 条就要多等 6 分钟，纯浪费。命令总数不变时响应都是秒级，主段通常 <0.3s 就齐了。
+
+        ARCH-001：`keep_blobs=True` 时返回 `(joined, blobs_list)` ——
+        `ask_blobs` 用来拿**未拍平**的包列表；默认返回 `joined`（旧行为）。
         """
         # 空闲太久就先重连（服务端会静默重置空闲连接：实测 60s 可用、180s 已死）
         if self.sock is not None and self.idle_reconnect > 0:
@@ -319,9 +365,11 @@ class Session:
                     pass
 
         self._last_io = time.time()
-        if not blobs:
-            return b""
-        return b"".join(dc.unwrap(b"".join(blobs)))
+        unwrapped: list[bytes] = dc.unwrap(b"".join(blobs)) if blobs else []
+        joined = b"".join(unwrapped)
+        if keep_blobs:
+            return joined, unwrapped       # ARCH-001：包边界保留给 ask_blobs
+        return joined
 
     def reconnect(self, tries: int = 2) -> "Session":
         """**同机**重连（不换服务器）。

@@ -311,10 +311,237 @@ def test_non_positive_period_raises_value_error():
 
 
 def test_exports_complete():
-    want = {"ma", "ema", "macd", "kdj", "rsi", "boll"}
+    want = {"ma", "ema", "macd", "kdj", "rsi", "boll",
+            "hv", "momentum", "sharpe", "max_drawdown", "beta"}
     assert set(ind.__all__) == want, ind.__all__
     missing = [x for x in ind.__all__ if not callable(getattr(ind, x, None))]
     assert not missing, missing
+
+
+# ═══════════════ 阶段 C 增补：确定性数学指标（HV/动量/夏普/回撤/Beta）═══════════
+# 期望值全部**手算死写**或写出手工推导的闭式（不复用被测实现的中间量）：
+#   · momentum / max_drawdown / beta：小样本逐位死写
+#   · hv / sharpe：两点样本 std = |a-b|/√2 推导出的闭式
+# ── 10. momentum：手算（百分数）──────────────────────────────────────────
+def test_momentum_hand_computed():
+    closes = [1.0, 2.0, 4.0, 8.0]
+    # n=1：(2/1-1)*100=100，(4/2-1)*100=100，(8/4-1)*100=100
+    assert ind.momentum(closes, 1) == [None, 100.0, 100.0, 100.0]
+    # n=2：(4/1-1)*100=300，(8/2-1)*100=300
+    assert ind.momentum(closes, 2) == [None, None, 300.0, 300.0]
+    # 横盘 → 0.0（算出来是 0，不是 None）
+    assert ind.momentum([5.0, 5.0, 5.0], 1) == [None, 0.0, 0.0]
+
+
+# ── 11. max_drawdown：手算（百分数，≤ 0）─────────────────────────────────
+def test_max_drawdown_hand_computed():
+    closes = [10.0, 8.0, 12.0, 6.0]
+    got = ind.max_drawdown(closes, 4)
+    assert got[:3] == [None, None, None], got
+    _eq(got[3], -50.0, "mdd n=4：窗口[10,8,12,6]，峰值 12，末位 6/12-1=-50%")
+
+    got2 = ind.max_drawdown(closes, 2)
+    assert got2[0] is None, got2
+    _eq(got2[1], -20.0, "mdd i=1 窗口[10,8]：8/10-1=-20%")
+    _eq(got2[2], 0.0, "mdd i=2 窗口[8,12]：只创新高 → 0%")
+    _eq(got2[3], -50.0, "mdd i=3 窗口[12,6]：6/12-1=-50%")
+
+    # 全程创新高 → 0.0（不是 None）
+    assert ind.max_drawdown([1.0, 2.0, 3.0], 2) == [None, 0.0, 0.0]
+    # n=1：窗口只有一根，回撤恒 0.0；且从下标 0 起有值
+    assert ind.max_drawdown([1.0, 2.0], 1) == [0.0, 0.0]
+
+
+# ── 12. hv：样本标准差（分母 n-1）× √252 × 100 ──────────────────────────
+def test_hv_hand_computed():
+    import pytest                       # 局部导入：保持本文件「独立脚本可跑」
+
+    closes = [100.0, 110.0, 99.0, 108.0]
+    got = ind.hv(closes, 2)
+    assert got[:2] == [None, None], got
+    # 手算：r = [ln(110/100), ln(99/110), ln(108/99)] = [ln(11/10), ln(9/10), ln(12/11)]
+    #   i=2 窗口 (r1, r2)，两点样本 std = |r1-r2|/√2 = ln(11/9)/√2
+    #   hv[2] = ln(11/9)/√2 × √252 × 100 = 100·ln(11/9)·√126 ≈ 225.2522969955066
+    assert got[2] == pytest.approx(100.0 * math.log(11.0 / 9.0) * math.sqrt(126.0),
+                                   rel=1e-9)
+    assert got[2] == pytest.approx(225.25229699550664, rel=1e-9)
+    #   i=3 窗口 (r2, r3)，std = |r3-r2|/√2 = ln(40/33)/√2
+    #   hv[3] = 100·ln(40/33)·√126 ≈ 215.9369139396112
+    assert got[3] == pytest.approx(100.0 * math.log(40.0 / 33.0) * math.sqrt(126.0),
+                                   rel=1e-9)
+    assert got[3] == pytest.approx(215.93691393961117, rel=1e-9)
+
+    # 平盘 → 波动率 0.0（不是 None）
+    assert ind.hv([5.0] * 4, 2) == [None, None, 0.0, 0.0]
+    # 年化因子确实是 √252：同样收益序列，hv 与「样本 std × √252 × 100」一致
+    assert got[2] > 100.0, "年化+百分数换算后量级应上百"
+
+
+# ── 13. sharpe：手算（均值/rf/样本 std）──────────────────────────────────
+def test_sharpe_hand_computed():
+    import pytest
+
+    closes = [100.0, 110.0, 99.0]
+    got = ind.sharpe(closes, 2)
+    assert got[:2] == [None, None], got
+    # r = [0.1, -0.1] → mean = 0，样本 std = √((0.01+0.01)/1) = √0.02
+    # sharpe = (0 - 0)/√0.02 × √252 = 0
+    # 注意：浮点里 110/100-1 并非精确 0.1，mean 实测 ~5.6e-17，
+    # 故结果 ~6.2e-15（**不是 None**，量级为 0）。语义判据是 "0 而非 None"。
+    assert got[2] is not None, got
+    assert got[2] == pytest.approx(0.0, abs=1e-12), got
+    # 用**精确可表示**的收益（±0.5）再验一次：此处 sharpe 恰好是 0.0
+    assert ind.sharpe([100.0, 150.0, 75.0], 2)[2] == 0.0
+    assert ind.sharpe([100.0, 150.0, 75.0], 2)[2] is not None
+
+    # rf 年化 2.52%（小数 0.0252）：
+    #   (0 - 0.0252/252)/√0.02 × √252 = -0.0252/√5.04 ≈ -0.0112249721603218
+    rf = 0.0252
+    got_rf = ind.sharpe(closes, 2, rf=rf)
+    assert got_rf[2] == pytest.approx(-rf / math.sqrt(5.04), rel=1e-9)
+    assert got_rf[2] == pytest.approx(-0.011224972160321823, rel=1e-9)
+    assert got_rf[2] < 0.0, "有 rf 时同一零均值窗口夏普应为负"
+
+    # 零波动（收益全等）→ None，不用 inf 顶替
+    assert ind.sharpe([10.0, 10.0, 10.0], 2) == [None, None, None]
+
+
+# ── 14. beta：对基准的 OLS 斜率 ──────────────────────────────────────────
+def test_beta_hand_computed():
+    closes = [1.0, 2.0, 3.0, 4.0]
+    same = ind.beta(closes, closes, 2)
+    assert same[:2] == [None, None], same
+    for i in (2, 3):
+        _eq(same[i], 1.0, "beta 对自身（cov=var）必为 1.0，i=%d" % i)
+
+    # 基准收益恰为个股收益的 2 倍 → cov 翻倍、var 翻 4 倍 → beta = 0.5
+    # 个股收益 [1.0, 0.5, 1/3]；基准 [1→3→6→10] 收益 [2.0, 1.0, 2/3]
+    market = [1.0, 3.0, 6.0, 10.0]
+    got = ind.beta(closes, market, 2)
+    _eq(got[2], 0.5, "beta i=2（2 倍基准）")
+    _eq(got[3], 0.5, "beta i=3（2 倍基准）")
+
+    # 基准恒值 → 市场收益全 0、var=0 → None（不用 inf 顶替）
+    assert ind.beta(closes, [7.0] * 4, 2) == [None, None, None, None]
+
+    # 长度不等 → ValueError，且消息说明「调用方负责日历对齐」
+    try:
+        ind.beta(closes, [1.0, 2.0], 2)
+    except ValueError as e:
+        assert "日历对齐" in str(e), e
+    else:
+        raise AssertionError("个股与基准不等长应抛 ValueError")
+
+
+# ── 15. 新指标统一契约：长度 ≡ 输入长度、头部 None 位精确 ────────────────
+def test_new_functions_length_and_head_none():
+    closes = [10.0, 11.5, 11.0, 12.5, 12.0, 13.5, 13.0, 14.5]
+    m = len(closes)
+    market = [3000.0 + 10.0 * i for i in range(m)]
+    for n in (2, 3, 5):
+        cases = {
+            "hv": ind.hv(closes, n),
+            "momentum": ind.momentum(closes, n),
+            "sharpe": ind.sharpe(closes, n),
+            "max_drawdown": ind.max_drawdown(closes, n),
+            "beta": ind.beta(closes, market, n),
+        }
+        for name, seq in cases.items():
+            assert len(seq) == m, "%s(n=%d) 长度 %d != %d" % (name, n, len(seq), m)
+        # hv / momentum / sharpe / beta：首个有值下标 = n（窗口要 n 个收益）
+        for name in ("hv", "momentum", "sharpe", "beta"):
+            seq = cases[name]
+            assert all(seq[i] is None for i in range(n)), (name, n, seq)
+            assert seq[n] is not None, (name, n, seq)
+        # max_drawdown：首个有值下标 = n-1（窗口 n 根价格）
+        mdd = cases["max_drawdown"]
+        assert all(mdd[i] is None for i in range(n - 1)), (n, mdd)
+        assert mdd[n - 1] is not None, (n, mdd)
+
+
+def test_new_functions_accept_bars():
+    closes = [10.0, 11.0, 10.5, 12.0, 11.0, 13.0]
+    bins = _bars(closes)
+    assert ind.hv(closes, 2) == ind.hv(bins, 2)
+    assert ind.momentum(closes, 2) == ind.momentum(bins, 2)
+    assert ind.sharpe(closes, 2) == ind.sharpe(bins, 2)
+    assert ind.max_drawdown(closes, 2) == ind.max_drawdown(bins, 2)
+    assert ind.beta(closes, closes, 2) == ind.beta(bins, bins, 2)
+
+
+def test_new_functions_empty_and_single_input():
+    assert ind.hv([], 20) == []
+    assert ind.momentum([], 20) == []
+    assert ind.sharpe([], 20) == []
+    assert ind.max_drawdown([], 20) == []
+    assert ind.beta([], [], 20) == []
+    # 长度 1：窗口永远填不满 → [None]（长度仍是 1，不截断）
+    assert ind.hv([10.0], 2) == [None]
+    assert ind.momentum([10.0], 2) == [None]
+    assert ind.sharpe([10.0], 2) == [None]
+    assert ind.max_drawdown([10.0], 2) == [None]
+    assert ind.beta([10.0], [10.0], 2) == [None]
+
+
+def test_new_functions_invalid_period_raises():
+    closes = [1.0, 2.0, 3.0, 4.0]
+    cases = [
+        ("hv", lambda n: ind.hv(closes, n)),
+        ("momentum", lambda n: ind.momentum(closes, n)),
+        ("sharpe", lambda n: ind.sharpe(closes, n)),
+        ("max_drawdown", lambda n: ind.max_drawdown(closes, n)),
+        ("beta", lambda n: ind.beta(closes, closes, n)),
+    ]
+    for name, fn in cases:
+        for bad in (0, -1, -5):
+            try:
+                fn(bad)
+            except ValueError:
+                continue
+            raise AssertionError("%s(n=%r) 应抛 ValueError" % (name, bad))
+    # hv / sharpe / beta：样本口径至少需要 2 个收益 → n==1 也非法
+    for name, fn in (("hv", lambda n: ind.hv(closes, n)),
+                     ("sharpe", lambda n: ind.sharpe(closes, n)),
+                     ("beta", lambda n: ind.beta(closes, closes, n))):
+        try:
+            fn(1)
+        except ValueError:
+            continue
+        raise AssertionError("%s(n=1) 应抛 ValueError（样本口径需 ≥2 个收益）" % name)
+
+
+# ── 16. client 接线：_indicator_columns 认识新指标名，默认全集不变 ────────
+def test_indicator_columns_supports_new_names():
+    from tdxdata.client import _indicator_columns
+    import tdxdata.indicator as ind
+
+    cols = _indicator_columns(ind, [1.0, 2.0, 3.0, 4.0],
+                              {"hv": {}, "momentum": {"n": 1}})
+    names = [c for c, _ in cols]
+    assert names == ["hv20", "momentum1"], names
+    # 默认全集不变：spec=None 仍是修复前那 6 个指标的展开列
+    default_names = [c for c, _ in _indicator_columns(ind, [1.0, 2.0, 3.0, 4.0], None)]
+    assert default_names == [
+        "ma5", "ma10", "ma20", "ema12", "ema26",
+        "dif", "dea", "macd", "k", "d", "j", "rsi14",
+        "boll_upper", "boll_mid", "boll_lower",
+    ], default_names
+    assert "hv20" not in default_names and "momentum20" not in default_names
+    # 新指标可点名，且默认参数可被覆盖 / 给多个周期
+    many = _indicator_columns(ind, [1.0, 2.0, 3.0, 4.0, 5.0],
+                              {"max_drawdown": {"n": [3, 5]}, "sharpe": {"n": 3}})
+    assert [c for c, _ in many] == ["max_drawdown3", "max_drawdown5", "sharpe3"], many
+    for col, seq in many:
+        assert len(seq) == 5, (col, seq)
+    # 错误消息里应列出**全部**可点名指标（含阶段 C 新增）
+    try:
+        _indicator_columns(ind, [1.0, 2.0], {"nosuch": {}})
+    except ValueError as e:
+        msg = str(e)
+        for want in ("hv", "momentum", "sharpe", "max_drawdown"):
+            assert want in msg, (want, msg)
+    else:
+        raise AssertionError("不认识的指标名应抛 ValueError")
 
 
 if __name__ == "__main__":

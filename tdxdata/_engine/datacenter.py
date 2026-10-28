@@ -41,6 +41,8 @@ import time
 import zlib
 from datetime import datetime, timedelta, timezone
 
+from .. import errors
+
 CST = timezone(timedelta(hours=8))
 
 # 四台 7615 服务器。限流是**按来源 IP**（不是「IP × 服务器」）算的 ——
@@ -326,12 +328,52 @@ _CONN: dict = {"sock": None, "host": None, "t": 0.0}
 _CONN_LOCK = threading.RLock()
 _PB_IDLE_RECONNECT = 90.0      # 与 Session.IDLE_RECONNECT 对齐（服务端会静默重置空闲连接）
 
+#: 「PB 通路优先连哪台」。`None` = 内置轮询。
+#:
+#: ⚠️ 为什么是**进程级**而不是实例级：PB 通路是**一条进程级持久连接**
+#: （`_CONN` 本来就是模块级单例，两个 `Client` 共用同一根 socket）。
+#: 既然连接本身没有"实例"可言，主机偏好也只能是进程级的 ——
+#: 后一个带 `host=` 的 `Client` 会覆盖前一个（`set_preferred_host` 会丢旧连接，
+#: 否则"钉住"就成了一句假话）。
+_PREFERRED_HOST: str | None = None
 
-def _drop_pb_conn() -> None:
-    """丢掉 PB 持久连接（幂等，可在锁内嵌套调用）。"""
+
+def set_preferred_host(host) -> None:
+    """登记「PB 通路优先连哪台」（`Client(host=...)` 调它）。
+
+    实测背景（`DEF-048`）：`Client(host="10.0.0.5")` 原来只影响
+    `Session`（数据中心 JSON 通路），PB 通路（K 线 / 分时 / 快照 / 逐笔 /
+    涨跌家数 / 分页）**完全无视它**，照样连内置的 `SERVERS` ——
+    用户以为钉住了某台机器（镜像、代理、抓包目标），实际流量跑去了别处，
+    且没有任何提示。
+
+    换目标时**必须丢掉已有连接**：`_pb_conn()` 命中空闲长连接会直接复用，
+    不丢就会"继续用旧主机"，等于没生效。
+    """
+    global _PREFERRED_HOST
     with _CONN_LOCK:
-        s = _CONN["sock"]
-        _CONN.update(sock=None, host=None, t=0.0)
+        new = (host or None)
+        if new != _PREFERRED_HOST:
+            _PREFERRED_HOST = new
+            _drop_pb_conn()
+
+
+def preferred_host() -> str | None:
+    """当前 PB 通路的主机偏好（排查/测试用）。"""
+    return _PREFERRED_HOST
+
+
+def _drop_pb_conn(state=None) -> None:
+    """丢掉 PB 持久连接（幂等，可在锁内嵌套调用）。
+
+    ARCH-001：`state=None` = 模块级 `_CONN`（旧行为）；传实例级 state dict
+    则只丢那一条（实例化过渡缝，全局连接不动）。
+    """
+    if state is None:
+        state = _CONN
+    with _CONN_LOCK:
+        s = state["sock"]
+        state.update(sock=None, host=None, t=0.0)
     if s is not None:
         try:
             s.close()
@@ -342,16 +384,27 @@ def _drop_pb_conn() -> None:
 atexit.register(_drop_pb_conn)
 
 
-def _pb_conn(host=None, *, drain=0.25):
+def _pb_conn(host=None, *, drain=0.25, state=None):
     """取一条**已握手**的 PB 连接；空闲超时/换机时重建。
 
     走持久连接时 `sleep(1.3)` + 预排空只付一次，之后每次调用只花 0.18 秒左右。
+
+    `host=None` 时优先用 `set_preferred_host()` 登记的偏好（= `Client(host=…)`），
+    没有偏好才按 `SERVERS` 轮询。
+
+    ARCH-001：`state=None` = 模块级 `_CONN`（旧行为，进程级单例）；传实例级
+    state dict（与 `_CONN` 同构：`{"sock","host","t"}`）则读写那条 ——
+    这是「`_CONN` 从单例向实例化过渡」的第一步缝，全局默认行为不变。
     """
+    if state is None:
+        state = _CONN
     with _CONN_LOCK:
-        s = _CONN["sock"]
-        if s is not None and (time.time() - _CONN["t"]) < _PB_IDLE_RECONNECT:
+        s = state["sock"]
+        if s is not None and (time.time() - state["t"]) < _PB_IDLE_RECONNECT:
             return s
-        _drop_pb_conn()
+        _drop_pb_conn(state)
+        if host is None:
+            host = _PREFERRED_HOST
         if host is None:
             host = SERVERS[_SRV_I[0] % len(SERVERS)]
             _SRV_I[0] += 1
@@ -372,7 +425,7 @@ def _pb_conn(host=None, *, drain=0.25):
             except Exception:              # noqa: BLE001
                 pass
             raise
-        _CONN.update(sock=s, host=host, t=time.time())
+        state.update(sock=s, host=host, t=time.time())
         return s
 
 
@@ -382,7 +435,7 @@ def close_pb() -> None:
 
 
 def _send(frame: bytes, host=None, wait=15.0, idle=2.0,
-          *, drain=0.25, tail=0.15):
+          *, drain=0.25, tail=0.15, conn=None):
     """发一帧、收齐回包，返回包体列表（已 `unwrap`）。
 
     ⚠️ 这是 **PB 路径的唯一咽喉**（`pb_api._raw_send` → 这里）。
@@ -410,13 +463,30 @@ def _send(frame: bytes, host=None, wait=15.0, idle=2.0,
     """
     from .pacer import get_pacer
 
+    # ARCH-001：`conn=` 显式指定 PB 通道实例（_CONN 实例化过渡缝）。
+    # `None` = 旧行为：模块级 `_CONN` dict，行为逐位不变。
+    global _CONN
+    if conn is None:
+        _conn_state = _CONN
+    elif isinstance(conn, dict):
+        _conn_state = conn          # 容忍 dict 形状的实例级通道（与 _CONN 同构）
+    else:
+        _conn_state = conn.state()  # PBChannel 实例 → 同构 dict 视图
+    _conn_lock = getattr(conn, "lock", None) or _CONN_LOCK
+
     get_pacer().wait()                     # ★ 进程级匀速闸门，PB 路径原来没有
 
     last: Exception | None = None
     for attempt in (0, 1):
         try:
-            with _CONN_LOCK:
-                s = _pb_conn(host if attempt == 0 else None, drain=drain)
+            with _conn_lock:
+                # `state` 只在显式实例通道时传（既有的 `_pb_conn` 注入桩是
+                # `(host, drain)` 签名，多传 kwarg 会炸 —— 默认路径保持原样）
+                if _conn_state is _CONN:
+                    s = _pb_conn(host if attempt == 0 else None, drain=drain)
+                else:
+                    s = _pb_conn(host if attempt == 0 else None, drain=drain,
+                                 state=_conn_state)
                 s.sendall(frame)
                 s.settimeout(idle)         # 首包最多等 idle（默认 2.0）
                 buf = b""
@@ -431,7 +501,7 @@ def _send(frame: bytes, host=None, wait=15.0, idle=2.0,
                     buf += c
                     s.settimeout(tail)     # ★ 之后只要 tail 秒静默就收工
                     t0 = time.time()
-                _CONN["t"] = time.time()   # 记活跃时间，供空闲重连判断
+                _conn_state["t"] = time.time()   # 记活跃时间，供空闲重连判断
             if not buf:
                 # 空回包不是"没有数据"，是连接被掐了（诊断实测就是 10053）——
                 # 按连接异常处理：丢弃这条连接，让下面的统一重试换一条新的。
@@ -445,10 +515,19 @@ def _send(frame: bytes, host=None, wait=15.0, idle=2.0,
             return blobs
         except (ConnectionError, OSError) as exc:
             last = exc
-            _drop_pb_conn()
-    # 两轮都失败 → 上抛，不假装成功
-    raise last if last is not None else RuntimeError(
-        "PB 发送两轮既没返回也没异常，逻辑有洞")
+            _drop_pb_conn(state=_conn_state)
+    # 两轮都失败 → 上抛，不假装成功。
+    #
+    # ★ 必须**归一化到 errors 体系**（2026-10 修）：原来这里是 `raise last`，
+    # 于是 `get_quotes` / `get_ticks` / `get_name` / `get_board_members` 在网络
+    # 故障时抛的是裸 `ConnectionRefusedError` / `ConnectionError` ——
+    # 用户的 `except tdxdata.TdxError` **接不住**，而离线/防火墙/代理恰恰是
+    # 最常见的运行环境。传输层只允许抛 ConnectionFailed/Timeout（errors 的纪律）。
+    if last is None:
+        raise RuntimeError("PB 发送两轮既没返回也没异常，逻辑有洞")
+    raise errors.ConnectionFailed(
+        "数据中心通道发送失败（已换机重试 2 轮）：%s: %s"
+        % (type(last).__name__, last)) from last
 
 
 def call(cmd, ctl, params, mid=0x7000, wait=22.0, idle=4.0, host=None):

@@ -27,6 +27,7 @@ import time
 sys.stdout.reconfigure(encoding="utf-8")
 sys.path.insert(0, os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
 
+from tdxdata import errors                                         # noqa: E402
 from tdxdata._engine import datacenter as dc                       # noqa: E402
 from tdxdata._engine import pacer as P                            # noqa: E402
 
@@ -72,6 +73,7 @@ class Harness:
 
     def __init__(self, socks):
         self.made = []
+        self.addrs = []           # 每次 create_connection 的目标地址（DEF-048 用）
         self._socks = list(socks)
         self._real = {}
 
@@ -85,6 +87,7 @@ class Harness:
         def _cc(addr, timeout=None):
             s = self._socks.pop(0) if self._socks else FakeSock([])
             self.made.append(s)
+            self.addrs.append(addr)
             return s
 
         dc.socket.create_connection = _cc
@@ -201,10 +204,10 @@ def test_empty_response_is_an_error_not_an_empty_result():
     with Harness([sock]):
         try:
             dc._send(b"F")
-        except ConnectionError:
+        except errors.ConnectionFailed:
             pass
         else:
-            raise AssertionError("空回包必须抛 ConnectionError")
+            raise AssertionError("空回包必须抛 errors.ConnectionFailed")
         assert dc._CONN["sock"] is None, "空回包后必须丢弃连接"
     assert sock.closed
 
@@ -231,16 +234,21 @@ def test_connection_error_retries_once_with_new_connection():
 
 
 def test_connection_error_twice_raises():
-    """两次都失败要**上抛**，不许假装成功返回 None/[]。"""
+    """两次都失败要**上抛**，不许假装成功返回 None/[]。
+
+    ⚠️ 曾经这里断言 `OSError`。2026-10 起传输层**必须归一化到 `errors` 体系**
+    （`DEF-006`）：裸 `ConnectionRefusedError` 会让用户的
+    `except tdxdata.TdxError` 接不住，而离线/防火墙恰恰是最常见的运行环境。
+    """
     b1 = FakeSock([], fail_on_sendall=ConnectionAbortedError(10053, "aborted"))
     b2 = FakeSock([], fail_on_sendall=ConnectionAbortedError(10053, "aborted"))
     with Harness([b1, b2]):
         try:
             dc._send(b"F")
-        except OSError:
-            pass
+        except errors.ConnectionFailed as e:
+            assert "10053" in str(e) or "aborted" in str(e), str(e)
         else:
-            raise AssertionError("两次连接失败必须抛 OSError")
+            raise AssertionError("两次连接失败必须抛 errors.ConnectionFailed")
 
 
 def test_close_pb_is_idempotent():
@@ -255,12 +263,14 @@ def test_close_pb_is_idempotent():
 
 
 # ══════════════════════════════════════════════════════════════════════════
-# 四、退避：最后一轮之后的 8 秒是纯浪费（D6，2026-10-27）
+# 四、退避：最后一次之后不睡 + 失败必须 typed（DEF-005）
 # ══════════════════════════════════════════════════════════════════════════
 def test_raw_send_does_not_sleep_after_the_last_attempt():
-    """`tries=4` 时只能睡 **3** 次；第 4 次失败后再睡 8 秒没有任何意义。
+    """`tries=4` 时只能睡 **3** 次；第 4 次失败后再睡一次没有任何意义。
 
     实测依据：`113711` 当年 33~35 秒的等待里，有 8 秒就是这记多余的 sleep。
+    2026-10 起单轮退避从 8s 降到 3s（`dc._send` 自己已经换机重试 2 轮），
+    并且**失败必须抛 typed 异常**，不再返回 `None`（否则上层会翻成"K线无数据"）。
     """
     from tdxdata._engine import pb_api
 
@@ -269,16 +279,21 @@ def test_raw_send_does_not_sleep_after_the_last_attempt():
     pb_api.dc._send = lambda *a, **k: []            # 永远"没有包体"
     pb_api.time = type("T", (), {"sleep": staticmethod(lambda s: slept.append(s))})()
     try:
-        assert pb_api._raw_send(0x0E, "HQServ.PBFXT", b"x", tries=4) is None
+        try:
+            pb_api._raw_send(0x0E, "HQServ.PBFXT", b"x", tries=4)
+        except errors.ProtocolError:
+            pass
+        else:
+            raise AssertionError("解不出帧时必须抛 errors.ProtocolError，不许返回 None")
     finally:
         pb_api.dc._send = real_send
         pb_api.time = real_time
     assert len(slept) == 3, "4 次尝试只该睡 3 次，实际 %d 次" % len(slept)
-    assert slept == [8, 8, 8], slept
+    assert slept == [3.0, 3.0, 3.0], slept
 
 
 def test_raw_send_tries_once_is_zero_sleep():
-    """`tries=1`（不重试）时一次都不该睡。"""
+    """`tries=1`（不重试）时一次都不该睡，且失败仍然要 typed。"""
     from tdxdata._engine import pb_api
 
     slept = []
@@ -286,11 +301,30 @@ def test_raw_send_tries_once_is_zero_sleep():
     pb_api.dc._send = lambda *a, **k: []
     pb_api.time = type("T", (), {"sleep": staticmethod(lambda s: slept.append(s))})()
     try:
-        assert pb_api._raw_send(0x0E, "HQServ.PBFXT", b"x", tries=1) is None
+        try:
+            pb_api._raw_send(0x0E, "HQServ.PBFXT", b"x", tries=1)
+        except errors.ProtocolError:
+            pass
+        else:
+            raise AssertionError("tries=1 也必须抛 errors.ProtocolError")
     finally:
         pb_api.dc._send = real_send
         pb_api.time = real_time
     assert slept == [], slept
+
+
+def test_raw_send_default_is_two_tries_not_four():
+    """默认重试轮数必须是 **2**（= 最多 3s 退避），不是原来的 4 轮 24s。
+
+    这就是 `DEF-005`：断网时 `get_breadth("880005")` 实测白等 24.00s 才报
+    「今日无数据」。`dc._send` 内部已经换机重试 2 轮，`_raw_send` 再叠 4 轮纯属浪费。
+    """
+    from tdxdata._engine import pb_api
+    import inspect
+
+    sig = inspect.signature(pb_api._raw_send)
+    assert sig.parameters["tries"].default == 2, sig
+    assert sig.parameters["backoff"].default == 3.0, sig
 
 
 if __name__ == "__main__":
@@ -309,3 +343,75 @@ if __name__ == "__main__":
             print("  ❌ %s: %s: %s" % (name, type(e).__name__, e))
     print("\n%d 个用例，失败 %d" % (len(fns), bad))
     sys.exit(1 if bad else 0)
+
+
+# ══════════════════════════════════════════════════════════════════════════
+# 五、主机偏好必须真的传到 PB 通路（DEF-048）
+# ══════════════════════════════════════════════════════════════════════════
+def test_pb_path_honors_the_preferred_host():
+    """`Client(host="10.0.0.5")` 必须让 PB 通路**真的**连 10.0.0.5。
+
+    历史缺陷：`host=` 只传给了 `Session`（数据中心 JSON 通路），
+    PB 通路（K 线 / 分时 / 快照 / 逐笔 / 涨跌家数）照样连内置 `SERVERS`，
+    用户想钉住镜像/代理/抓包目标时**静默拿到别处的数据**，且无任何提示。
+    """
+    from tdxdata._engine import datacenter as _dc
+
+    sock = FakeSock([TIMEOUT, _res(b'{"ok": "2"}'), TIMEOUT])
+    _dc.set_preferred_host(None)
+    try:
+        with Harness([sock]) as h:
+            _dc.set_preferred_host("10.0.0.5")
+            _dc._send(b"F")
+        assert h.addrs, "一次连接都没建？"
+        assert all(a[0] == "10.0.0.5" for a in h.addrs), \
+            "PB 通路没连到指定主机，实际连了 %r" % (h.addrs,)
+        assert all(a[1] == 7615 for a in h.addrs), h.addrs
+    finally:
+        _dc.set_preferred_host(None)
+
+
+def test_preferred_host_switch_drops_the_old_connection():
+    """换偏好必须丢旧连接 —— 否则命中空闲长连接会继续用旧主机，等于没生效。"""
+    from tdxdata._engine import datacenter as _dc
+
+    s1 = FakeSock([TIMEOUT, _res(b'{"a": "1"}'), TIMEOUT])
+    s2 = FakeSock([TIMEOUT, _res(b'{"a": "2"}'), TIMEOUT])
+    _dc.set_preferred_host(None)
+    try:
+        with Harness([s1, s2]) as h:
+            _dc.set_preferred_host("10.0.0.5")
+            _dc._send(b"F")
+            assert h.addrs[0][0] == "10.0.0.5"
+            _dc.set_preferred_host("10.0.0.6")     # 换目标 → 必须重建
+            _dc._send(b"F")
+        assert [a[0] for a in h.addrs] == ["10.0.0.5", "10.0.0.6"], h.addrs
+        assert s1.closed, "换目标后旧连接没关"
+    finally:
+        _dc.set_preferred_host(None)
+
+
+def test_client_host_parameter_registers_the_preference():
+    """`Client(host=…)` 必须把偏好登记到 `datacenter`；`Client()` 不许清掉它。"""
+    import tdxdata
+    from tdxdata._engine import datacenter as _dc
+
+    # 项目纪律：测试里不写类名字面量（门禁第 7 条会扫）
+    cls = getattr(tdxdata, "Client")
+    _dc.set_preferred_host(None)
+    try:
+        # 真构造一个（clock_probe=False 保证不联网）
+        c = cls(host="10.0.0.7", clock_probe=False)
+        try:
+            assert _dc.preferred_host() == "10.0.0.7"
+            # 默认构造（host=None）**不许**把别人的偏好清掉
+            c2 = cls(clock_probe=False)
+            try:
+                assert _dc.preferred_host() == "10.0.0.7", \
+                    "Client() 把已有主机偏好清掉了（会让钉住的用户莫名其妙跑到内置服务器）"
+            finally:
+                c2.close()
+        finally:
+            c.close()
+    finally:
+        _dc.set_preferred_host(None)

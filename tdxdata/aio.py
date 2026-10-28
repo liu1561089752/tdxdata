@@ -28,21 +28,24 @@
 * 这层**不导入** `indicator` / `limits` / `sections` 等重模块 ——
   它们是 `Client` 方法体里懒 import 的，这里提前导入会连带整包启动变慢。
 
-`concurrency`（阶段 5，**默认 1 = 关**）
---------------------------------------
-`AsyncClient(concurrency=…)` 会**原样转给同步 `Client`**（参数名/语义完全一致，
-见 `Client` 的"并发与限流"）。两层的分工必须说清，否则很容易误以为"aa 已经并发了"：
+`max_concurrency`（本层唯一旋钮）
+--------------------------------
+⚠️ 同步层的 `concurrency`（多 lane / 多主机）**已于 2026-10 删除** ——
+实测配额按来源 IP 算，4 台服务器换不来 4 份配额（并发 4 条 lane 头 5 秒就被重置、
+之后 175 秒 0 次成功），而且它带一个永久死锁。所以 `AsyncClient` **不接受**
+`concurrency=`（传了会由同步层抛 `TypeError`，明确而不是静默忽略）。
+
+本层只剩 `max_concurrency`，它管的是**完全不同的一件事**：
 
 | 旋钮 | 在哪一层 | 管什么 |
 |---|---|---|
-| `concurrency` | 同步层 `Client` | **多条 lane + 多主机**。只影响 `Client._map_independent` 里那批"彼此独立的多次调用"（目前是 `get_market_stat('industry')` 的 30 个一级码） |
-| `max_concurrency` | 本层 `AsyncClient` | 本事件循环里"同时有多少个 `await` 能进线程池"的上限；**不**多建连接、**不**多占槽位 |
+| `max_concurrency` | 本层 `AsyncClient` | 本事件循环里"同时有多少个 `await` 能进线程池"的上限；**不**多建连接、**不**绕过匀速闸门 |
 
 ⚠️ **本层不另起线程池**：它本身就是 async，所有阻塞都在 `asyncio.to_thread` 里；
 再加一层 executor 只会让"谁在排队"变成两处，收益为 0。
-⚠️ `asyncio.gather` 一个"普通串行方法"（`get_bars` / 翻页 / `get` 等）
-**不会**因为 `concurrency>1` 而变快：那些链路要么必须串行，要么压根没被
-分发到 lane 上 —— 异步壳如实透传，不假装能加速。
+⚠️ `asyncio.gather` 一批取数**不会变快**：7615 的匀速闸门是**进程级**的
+（约 2.2 s 一次），任务再多也只是把等待挪到线程池里排队。
+要更快只有两条路：**减少请求数**，或**跨进程/跨机分摊**。
 """
 from __future__ import annotations
 
@@ -77,12 +80,14 @@ class AsyncClient:
         注入一个已建好的同步客户端（**测试用假对象即可，不必连网**）。
         给了它就不能再给其它参数。
     **kw :
-        原样转给 `Client(**kw)`（`host` / `timeout` / `gap` / `concurrency` …）。
-        `client` 为 `None` 时才生效。
-        ⚠️ 这里**不翻译** `concurrency` 的语义：它就是同步层那个 key-only 参数
-        （默认 `1` = 完全串行）。`>1` 时的硬上限/截断/`ValueError` 全部由
+        原样转给 `Client(**kw)`（`host` / `timeout` / `gap` / `clock_probe` /
+        `strict_symbols` / `cache` …）。`client` 为 `None` 时才生效。
+
+        ⚠️ 同步层的 `concurrency=` **已删除**（按来源 IP 配额，多开连接换不来
+        多份配额，且带永久死锁）。传 `concurrency=` 会由 `Client.__init__`
+        抛 `TypeError` —— 本层**不做**兼容垫片，也不静默忽略。
+        ⚠️ 本层**不翻译**任何同步层参数的语义：硬上限/`ValueError` 全部由
         `Client` 决定，本层不重复实现一遍（重复实现必然分叉）。
-        想要 `rate_stats()["concurrency_effective"]` 看实际生效值。
 
     位置参数也会原样转给 `Client`（兼容 `API设计.md` §2.7 的 `__init__(*a, **kw)` 写法）。
 
@@ -175,6 +180,14 @@ class AsyncClient:
     async def get_samples(self, symbols_, *a, **kw):
         """`await` 版 `Client.get_samples`（批量抽样快照）。"""
         return await self._run(self._c.get_samples, symbols_, *a, **kw)
+
+    async def get_intraday_samples(self, symbols_, *a, **kw):
+        """`await` 版 `Client.get_intraday_samples`（分时点位抽样，2026-10-28 新增）。"""
+        return await self._run(self._c.get_intraday_samples, symbols_, *a, **kw)
+
+    async def get_market_breadth(self, view="summary", *a, **kw):
+        """`await` 版 `Client.get_market_breadth`（实时涨跌家数，2026-10-28 新增）。"""
+        return await self._run(self._c.get_market_breadth, view, *a, **kw)
 
     async def get_breadth(self, code, *a, **kw):
         """`await` 版 `Client.get_breadth`（广度指标：880005 涨跌家数等）。"""
@@ -295,7 +308,7 @@ class AsyncClient:
 
         ⚠️ 这是**本地静态注册表，一个请求都不发** —— 它之所以也过 `to_thread`，
         纯粹是为了让同步/异步两套接口长得一样（`test_aio_parity` 要求方法集完全一致），
-        **不是**为了并行。同理，`concurrency > 1` 对它毫无意义。
+        **不是**为了并行。
         """
         return await self._run(self._c.capabilities, *a, **kw)
 
@@ -303,8 +316,8 @@ class AsyncClient:
         """`await` 版 `Client.rate_stats`（限流状态快照）。
 
         返回值里除 `base` / `current` / `max` / `limited_events` / `cooling_hosts`
-        外，还有阶段 5 的三个并发键：`concurrency`（请求值）/
-        `concurrency_effective`（生效值）/ `lanes`（每条 lane 钉的主机）。
+        外，还有三个**兼容键**：`concurrency` / `concurrency_effective` / `lanes`
+        —— 并发特性已删除，它们恒为 `1` / `1` / `[]`，留着只为不破坏已有解析。
         异步壳**不另加口径**，照抄同步层。
         """
         return await self._run(self._c.rate_stats, *a, **kw)

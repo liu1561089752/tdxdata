@@ -16,24 +16,25 @@
 3. **服务器冷却**（`block()` / `ready()`）：
    刚踢过我们的服务器，30 秒内不再连，避免"换个头继续撞同一堵墙"
 
-per-host 槽位（`host=` 参数；阶段 5 新增，**默认不用**）
+per-host 槽位：**已删除**（DEF-030 收敛，B5 执行）
 --------------------------------------------------------
-`wait(host="x")` / `note_limited(host="x")` 让这台主机拥有**自己的一份槽位**，
-于是钉在不同主机上的两条 lane 互不排队 —— 这是"多主机分摊"能提速的唯一机制。
+阶段 5 曾有 `wait(host="x")` / `note_limited(host="x")` 的 per-host 槽位，
+但其唯一使用者 `Client(concurrency>1)` 的 lane 已按实测结论删除（配额按
+来源 IP 算，换服务器不换配额；详见 `Client` 模块 docstring 的实测表），
+这段代码自 2026-10 起就是**无生产调用方的死路**，且带着一个已知缺陷：
+`note_limited(host="A")` 之后 `wait(host="B")` 直接返回 `0.0` ——
+换台机器就重置了全场退避。
 
-⚠️ **为什么默认不用它**（`host=None` 时行为与本文件改造前逐字节一致）：
-    库内部对"配额按什么算"至今**没有定论**，两种说法同时存在于源码里：
-      · `_engine/datacenter.py` 的注释说「按客户端 IP × 服务器」→ 多主机可以放大；
-      · 本文件 / `client.py` / `aio.py` 的历史结论说「按来源（IP）」→ 放大必被踢。
-    在实测说清之前，**默认路径必须只用一个槽位**（等价于"按来源"这个保守假设），
-    否则等于替所有用户私自放大请求频率。所以：
-      · `Client(concurrency=1)`（默认）→ 从不传 `host=`，只有全局槽位，与旧版一致；
-      · `Client(concurrency>1)` 才由调用方显式传 `host=`，并在 `Client` 的文档里
-        写明"自担可能触发按来源 IP 的限流"。
-    实测口径与原始输出见 `reports/refactor/probe/phase5/`（并发是否真带来收益以实测为准）。
+**B5 拍板：方案甲（删除），理由**：
+1. `grep -r "wait(host" / "note_limited(host"` 全仓确认：库内 0 个生产调用方
+   （`client.py:316/320` 均为无参调用），无隐式依赖（aio.py 不触碰）；
+2. 方案乙（`wait(host=…)` 也过全局槽位）是给一个没人用的 API 打补丁，
+   净增代码与测试面；方案甲净减 ~25 行，缺陷连根拔掉；
+3. 若将来重新引入按主机分流，届时按正确语义重写比保留带洞代码更安全。
 
-⚠️ `note_limited(host="x")` 除了推后 x 的槽位，**还会推后全局槽位**（保守）：
-    被踢说明"整体都该慢下来"，不能因为"踢的是 x"就让别的 lane 继续抢。
+兼容面：`stats()` 的 `hosts_tracked` 键**保留、恒为 0** —— `client.py`
+的 `rate_stats()` 文档与监控解析都引用它，删键会破坏兼容
+（`tests/test_no_concurrency.py` 断言的五个老键也不受影响）。
 """
 from __future__ import annotations
 
@@ -51,10 +52,8 @@ COOLDOWN = 30.0         # 服务器被踢后的冷却秒数
 class Pacer:
     """全局匀速闸门。线程安全。
 
-    槽位有两种粒度（阶段 5）：
-      · **全局槽位** `_next_at` —— `host is None` 时用，等价于旧版的唯一槽位；
-      · **per-host 槽位** `_next_at_by_host[host]` —— 只在显式给 `host` 时用。
-    两种槽位共用同一个 `cur`（退避间隔是进程级的，不按主机分叉）。
+    槽位只有一种：全局槽位 `_next_at`（per-host 槽位已按 DEF-030 删除，
+    理由见模块 docstring）。退避间隔 `cur` 同样是进程级的。
     """
 
     def __init__(self, base_gap: float = BASE_GAP, max_gap: float = MAX_GAP):
@@ -63,29 +62,17 @@ class Pacer:
         self.max = float(max_gap)
         self.cur = float(base_gap)
         self._next_at = 0.0             # 下一次允许发送的单调时刻（全局槽位）
-        #: per-host 槽位。**只**在调用方显式给出 `host` 时才建条目 ——
-        #: 所以默认路径（`host=None`）连这个 dict 都不会被碰，`hosts_tracked` 恒为 0。
-        self._next_at_by_host: dict[str, float] = {}
         self._ok_streak = 0
         self.limited_events = 0         # 累计被限流次数（供上层判断）
         self._cooldown: dict[str, float] = {}
 
     # ── 匀速闸门 ──────────────────────────────────────────────────────────
-    def wait(self, host: str | None = None) -> float:
-        """预约一个发送槽位并 sleep 到它。返回实际等待秒数。
-
-        `host=None`（默认）→ 只用全局槽位，**行为与改造前逐字节一致**。
-        `host="x"`        → 只用 x 的槽位（首次出现即建条目，起始 0.0 = 立刻可发）。
-        """
+    def wait(self) -> float:
+        """预约一个发送槽位并 sleep 到它。返回实际等待秒数。"""
         with self._lock:
             now = time.monotonic()
-            if host is None:
-                slot = max(now, self._next_at)
-                self._next_at = slot + self.cur
-            else:
-                nxt = self._next_at_by_host.get(host, 0.0)
-                slot = max(now, nxt)
-                self._next_at_by_host[host] = slot + self.cur
+            slot = max(now, self._next_at)
+            self._next_at = slot + self.cur
         delay = slot - time.monotonic()
         if delay > 0:
             time.sleep(delay)
@@ -100,14 +87,8 @@ class Pacer:
                 self.cur = max(self.base, self.cur * 0.75)
                 self._ok_streak = 0
 
-    def note_limited(self, host: str | None = None) -> float:
-        """被限流/被踢：间隔翻倍（不超过上限）。返回新间隔。
-
-        `host=None`（默认）→ 只推后全局槽位，**行为与改造前一致**。
-        `host="x"`        → **既**推后 x 的槽位，**也**推后全局槽位。
-        为什么被踢了还要推全局：被踢说明整体该慢下来；只推 x 会让另一条 lane
-        继续按旧节奏撞同一堵墙（"换个头继续撞"就是这么发生的）。
-        """
+    def note_limited(self) -> float:
+        """被限流/被踢：间隔翻倍（不超过上限），并推后全局槽位。返回新间隔。"""
         with self._lock:
             self.limited_events += 1
             self._ok_streak = 0
@@ -115,9 +96,6 @@ class Pacer:
             # 把下一个槽位往后推，避免立刻再撞
             now = time.monotonic()
             self._next_at = max(self._next_at, now + self.cur)
-            if host is not None:
-                self._next_at_by_host[host] = max(
-                    self._next_at_by_host.get(host, 0.0), now + self.cur)
             return self.cur
 
     # ── 服务器冷却 ────────────────────────────────────────────────────────
@@ -142,7 +120,8 @@ class Pacer:
         ⚠️ `base` / `current` / `max` / `limited_events` / `cooling_hosts`
         这五个键的**键名与含义自阶段 0 起就没变**（`tests/test_pacer.py`、
         `README` 的 `rate_stats()` 表格、`golden_runner._NoPacer` 都依赖它们）。
-        阶段 5 只**新增** `hosts_tracked`，一个旧键都没动。
+        `hosts_tracked` 兼容保留、**恒为 0**（per-host 槽位已按 DEF-030 删除；
+        `client.py::rate_stats` 的文档与既有监控解析仍引用该键）。
         """
         with self._lock:
             return {
@@ -152,9 +131,8 @@ class Pacer:
                 "limited_events": self.limited_events,
                 "cooling_hosts": sum(1 for h, t in self._cooldown.items()
                                      if t > time.monotonic()),
-                #: 已建 per-host 槽位的主机数。默认路径（`host=None`）恒为 0 ——
-                #: 这个数一旦 >0，说明有人显式开了多主机摊销（`concurrency>1`）。
-                "hosts_tracked": len(self._next_at_by_host),
+                #: per-host 槽位已删（DEF-030），恒为 0 的兼容键。
+                "hosts_tracked": 0,
             }
 
 

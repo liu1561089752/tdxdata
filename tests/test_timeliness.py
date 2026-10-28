@@ -11,8 +11,8 @@ r"""时效判定（**离线**）：假时钟把"盘中 / 收盘 / 周末"钉死�
 本文件守三件事
 --------------
 1. **判定规则**：日线当根 / 分钟当根 / 历史根 / 周末 / T+1 产品 / 涨停清单。
-2. **时钟来源**（`fetch_clock` 一等字段）：探针成功 → `"server"` 且 `fetched_at`
-   就是探针给的时刻；探针失败 → `"local"` 且 `clock_note` 非空。
+2. **时钟来源**（`Provenance.clock` 一等字段）：探针成功 → `SERVER` 且 `fetched_at`
+   就是探针给的时刻；探针失败 → `LOCAL` 且降级 note 非空。
    ⚠️ 这一格**黄金样本原理上兜不住**：离线回放里探针永远失败，
    `fetch_clock` 恒为 `local`，"探针永久失效"在回放里与正常态完全同形 ——
    所以必须由这里守着（`tests/test_golden_contract.py` 里有一条静态守卫
@@ -39,6 +39,7 @@ import tdxdata
 from tdxdata import timeliness as tl
 from tdxdata.enums import Status
 from tdxdata.models import Bar, Dataset, Table
+from tdxdata._provenance import ClockSource, Provenance
 
 # ── 固定的"服务器时刻"（都是 2026-10-27 周二，真实交易日）───────────────
 D = date(2026, 10, 27)          # 周二
@@ -147,7 +148,7 @@ def test_fake_clock_gives_three_states_intraday_close_weekend():
 # ══════════════════════════════════════════════════════════════════════════
 def test_day_bar_intraday_is_provisional():
     """当根日线在盘中（14:44）→ `PROVISIONAL`（就是那 13,130.88 亿的场景）。"""
-    got = tl.judge_bar(_bar("20261027"), server_now=_at(14, 44))
+    got = tl.judge_bar(_bar("20261027"), server_now=tl.NowInfo(_at(14, 44)))
     assert got is Status.PROVISIONAL
     assert got.value == "provisional"
 
@@ -165,15 +166,15 @@ def test_same_day_bar_after_close_is_final():
 def test_close_cutoff_boundary_153459_vs_153500():
     """边界：**15:34:59 → PROVISIONAL**，**15:35:00 → FINAL**（一秒都不能早）。"""
     bar = _bar("20261027")
-    assert tl.judge_bar(bar, server_now=_at(15, 34, 59)) is Status.PROVISIONAL
-    assert tl.judge_bar(bar, server_now=_at(15, 35, 0)) is Status.FINAL
+    assert tl.judge_bar(bar, server_now=tl.NowInfo(_at(15, 34, 59))) is Status.PROVISIONAL
+    assert tl.judge_bar(bar, server_now=tl.NowInfo(_at(15, 35, 0))) is Status.FINAL
 
 
 def test_historical_bar_is_always_final():
     """历史根恒 `FINAL` —— 不管"现在"是盘中还是收盘。"""
     bar = _bar("20261024")            # 上周五
     for now in (_at(9, 31), _at(11, 0), _at(14, 44), _at(15, 34, 59)):
-        assert tl.judge_bar(bar, server_now=now) is Status.FINAL
+        assert tl.judge_bar(bar, server_now=tl.NowInfo(now)) is Status.FINAL
 
 
 def test_weekend_friday_bar_stays_final():
@@ -183,7 +184,7 @@ def test_weekend_friday_bar_stays_final():
     排除掉了。硬要引入节假日表只会多一份会静默过时的事实源。
     """
     bar = _bar("20261023")            # 周五
-    assert tl.judge_bar(bar, server_now=_at(10, 0, day=D_SAT)) is Status.FINAL
+    assert tl.judge_bar(bar, server_now=tl.NowInfo(_at(10, 0, day=D_SAT))) is Status.FINAL
     # 周一的"上一交易日"是周五（不是周日）—— 由 get_bars 取两根日线得出
     assert D_FRI < D_SAT
 
@@ -198,13 +199,13 @@ def test_minute_bar_unfinished_is_provisional():
     所以 14:55 那根 5m 要到 15:00 之后才算走完。
     """
     bar = _bar("20261027", period="5m", tm="14:55")
-    assert tl.judge_bar(bar, server_now=_at(14, 57)) is Status.PROVISIONAL
-    assert tl.judge_bar(bar, server_now=_at(15, 1)) is Status.FINAL
+    assert tl.judge_bar(bar, server_now=tl.NowInfo(_at(14, 57))) is Status.PROVISIONAL
+    assert tl.judge_bar(bar, server_now=tl.NowInfo(_at(15, 1))) is Status.FINAL
 
     # 60m 末根（15:00）在 15:00 之前一律 PROVISIONAL
     h = _bar("20261027", period="60m", tm="15:00")
-    assert tl.judge_bar(h, server_now=_at(14, 59, 59)) is Status.PROVISIONAL
-    assert tl.judge_bar(h, server_now=_at(15, 0, 1)) is Status.FINAL
+    assert tl.judge_bar(h, server_now=tl.NowInfo(_at(14, 59, 59))) is Status.PROVISIONAL
+    assert tl.judge_bar(h, server_now=tl.NowInfo(_at(15, 0, 1))) is Status.FINAL
 
 
 def test_bar_period_end_treats_time_as_period_end():
@@ -219,52 +220,52 @@ def test_bar_period_end_treats_time_as_period_end():
 # ══════════════════════════════════════════════════════════════════════════
 def test_ztqd_intraday_is_pending_not_error_not_empty():
     """`ztqd` 盘中 → `PENDING`（"今天的还没生成"），**不是异常、不是空列表**。"""
-    got = tl.judge_product("ztqd", D_PREV, server_now=_at(10, 30), prev_trade_date=D_PREV)
+    got = tl.judge_product("ztqd", D_PREV, server_now=tl.NowInfo(_at(10, 30)), prev_trade_date=D_PREV)
     assert got is Status.PENDING
     # 收盘后才轮到它定稿
-    got2 = tl.judge_product("ztqd", D, server_now=_at(16, 10), prev_trade_date=D_PREV)
+    got2 = tl.judge_product("ztqd", D, server_now=tl.NowInfo(_at(16, 10)), prev_trade_date=D_PREV)
     assert got2 is Status.FINAL
 
 
 @pytest.mark.parametrize("name", ["lrmx", "north"])
 def test_lrmx_and_north_data_date_is_prev_trade_date_then_delayed(name):
     """两融/北向是 **T+1**：数据日 == 上一交易日 → `DELAYED`（数据本身滞后）。"""
-    got = tl.judge_product(name, D_PREV, server_now=_at(16, 10), prev_trade_date=D_PREV)
+    got = tl.judge_product(name, D_PREV, server_now=tl.NowInfo(_at(16, 10)), prev_trade_date=D_PREV)
     assert got is Status.DELAYED
     # 更早的数据日同样是滞后，不许升级成 FINAL
-    older = tl.judge_product(name, D_FRI, server_now=_at(16, 10), prev_trade_date=D_PREV)
+    older = tl.judge_product(name, D_FRI, server_now=tl.NowInfo(_at(16, 10)), prev_trade_date=D_PREV)
     assert older is Status.DELAYED
 
 
 def test_market_stat_industry_older_than_prev_trade_date_is_delayed():
     """行业统计是 T-1：数据日 < 上一交易日 → `DELAYED`。"""
-    got = tl.judge_market_stat("industry", D_FRI, server_now=_at(16, 10),
+    got = tl.judge_market_stat("industry", D_FRI, server_now=tl.NowInfo(_at(16, 10)),
                                prev_trade_date=D_PREV)
     assert got is Status.DELAYED
     # 数据日 == 上一交易日也是 T-1 常态 → 仍 DELAYED
-    assert tl.judge_market_stat("industry", D_PREV, server_now=_at(16, 10),
+    assert tl.judge_market_stat("industry", D_PREV, server_now=tl.NowInfo(_at(16, 10)),
                                 prev_trade_date=D_PREV) is Status.DELAYED
 
 
 def test_prev_trade_date_none_must_not_yield_final():
     """拿不到上一交易日时**不许**判成 `FINAL`（不确定只能更保守）。"""
     # T+1 产品：数据日读不出来 → DELAYED
-    assert tl.judge_product("lrmx", None, server_now=_at(16, 10),
+    assert tl.judge_product("lrmx", None, server_now=tl.NowInfo(_at(16, 10)),
                             prev_trade_date=None) is Status.DELAYED
     # 数据日不是今天、又不知道上一交易日 → 降级成 DELAYED
-    assert tl.judge_product("lrmx", D_PREV, server_now=_at(16, 10),
+    assert tl.judge_product("lrmx", D_PREV, server_now=tl.NowInfo(_at(16, 10)),
                             prev_trade_date=None) is Status.DELAYED
     # 市场统计同理
-    assert tl.judge_market_stat("industry", D_PREV, server_now=_at(16, 10),
+    assert tl.judge_market_stat("industry", D_PREV, server_now=tl.NowInfo(_at(16, 10)),
                                 prev_trade_date=None) is Status.DELAYED
     # 涨停清单：收盘后数据日还是昨天 → 滞后（不是 FINAL）
-    assert tl.judge_product("ztqd", D_PREV, server_now=_at(16, 10),
+    assert tl.judge_product("ztqd", D_PREV, server_now=tl.NowInfo(_at(16, 10)),
                             prev_trade_date=None) is Status.DELAYED
 
 
 def test_unregistered_product_is_provisional_not_final():
     """没登记时效口径的产品 → `PROVISIONAL`（unknown ≠ 0，绝不默认 FINAL）。"""
-    got = tl.judge_product("some_new_product", D, server_now=_at(16, 10),
+    got = tl.judge_product("some_new_product", D, server_now=tl.NowInfo(_at(16, 10)),
                            prev_trade_date=D_PREV)
     assert got is Status.PROVISIONAL
 
@@ -298,18 +299,16 @@ def test_probe_success_sets_fetch_clock_server_and_server_fetched_at():
     rec = c._record_call("HQServ.PXFXT", 0x0E, host="10.0.0.9", t0=_time_mod.monotonic())
 
     assert rec["fetch_clock"] == "server"
-    assert rec["fetched_at"] == "2026-10-27 09:00:01"
-    assert rec["fetched_at"] == PROBE_AT.isoformat(sep=" ", timespec="seconds")
+    assert rec["fetched_at"] == PROBE_AT, "fetched_at 现在是 datetime（探针给的原始时刻）"
 
-    now_stamp = datetime.now().isoformat(sep=" ", timespec="seconds")
+    now_stamp = datetime.now()
     assert rec["fetched_at"] != now_stamp, "探针成功时不许拿本机时钟当 fetched_at"
     assert "clock_note" not in rec, "时钟可信就不该出现降级标注"
 
-    # 同一份记录摊进容器/表 meta 后，fetch_clock 仍是结构化字段（不是自由文本）
-    meta = c._meta_from(rec)
-    assert meta["fetch_clock"] == "server"
-    assert meta["source"]["clock"] == "server"
-    assert meta["fetched_at"] == "2026-10-27 09:00:01"
+    # 同一份记录摊成 Provenance 后，时钟来源仍是结构化字段（不是自由文本）
+    prov = c._prov_from(rec)
+    assert prov.clock is ClockSource.SERVER
+    assert prov.fetched_at == PROBE_AT.replace(tzinfo=prov.fetched_at.tzinfo)
 
 
 def test_probe_failure_sets_fetch_clock_local_with_nonempty_clock_note():
@@ -330,11 +329,11 @@ def test_probe_failure_sets_fetch_clock_local_with_nonempty_clock_note():
     assert rec.get("clock_detail"), "降级原因要能在 last_call 里看见（不是空）"
     assert "RuntimeError" in rec["clock_detail"]
     # 降级时 fetched_at 是本机时钟 —— 但它被 clock_note 明确标注了，不是"冒充"
-    assert rec["fetched_at"] == "2026-10-27 16:00:00"
+    assert rec["fetched_at"] == _at(16, 0, 0)
 
-    meta = c._meta_from(rec)
-    assert meta["fetch_clock"] == "local"
-    assert meta["clock_note"] == "local-clock-fallback"
+    prov = c._prov_from(rec)
+    assert prov.clock is ClockSource.LOCAL
+    assert "local-clock-fallback" in prov.notes
 
 
 def test_probe_failure_never_makes_today_day_bar_final():
@@ -359,9 +358,9 @@ def test_probe_failure_never_makes_today_day_bar_final():
     # 但历史根不受影响（日子早于今天这件事任何合理的钟都成立）
     assert tl.judge_bar(_bar("20261024"), server_now=info) is Status.FINAL
 
-    # 显式传 datetime（而不是 NowInfo）时，可信度默认仍是 True —— 两者语义不同，
-    # 所以"让 NowInfo 自己带可信度"这件事必须由 judge_* 内部完成，不能靠调用方记得。
-    assert tl.judge_bar(bar, server_now=_at(16, 0, 0)) is Status.FINAL
+    # DEF-019 类型锁：裸 datetime 分不清服务器/本机时刻，必须被拒收
+    with pytest.raises(TypeError):
+        tl.judge_bar(bar, server_now=_at(16, 0, 0))
 
 
 def test_bare_client_without_probe_permission_never_touches_network():
@@ -380,14 +379,20 @@ def test_bare_client_without_probe_permission_never_touches_network():
     assert rec["clock_note"] == "local-clock-fallback"
 
 
-def test_clock_probe_false_sends_zero_probes():
+def test_clock_probe_false_sends_zero_probes(monkeypatch):
     """`clock_probe=False` → **一次探针都不许发**（用户关掉开关等于零额外请求）。
 
     守的是本项目红线：「不许让用户在不知情时多花配额」。默认开、可以关、关了可自证
     —— 这三件缺一不可，所以这里用**计数器**证明调用次数是 0（不是"看起来没联网"）。
     走的是**真路径**：`_clock` 留空，让 `_clock_obj()` 自己按开关决定建哪种时钟；
     探针位打桩成计数器 —— 只要被调一次就会 +1。
+
+    ⚠️ 本用例的探针锚点是 **2026-10-27**（`PROBE_AT`），而 `HybridClock` 要求
+    「本机日期 == 服务器交易日」。若不冻结本机钟，**运行日一过 10-27** 控制组就会
+    降级 `local`、断言红（2026-10-28 实测到的跨日缺陷）。所以这里把模块级本机钟
+    钉到同一场景日 —— 冻结的是**测试的"今天"**，不是放宽任何判定。
     """
+    monkeypatch.setattr(tl, "_local_now", lambda: _at(16, 0, 0))
     cls = getattr(tdxdata, "Client")
     calls = {"probe": 0, "bars": 0}
 
@@ -430,7 +435,10 @@ def test_clock_probe_false_note_is_distinguishable_from_probe_failure():
     disabled = cls.__new__(cls)
     disabled._clock_probe = False
     disabled._probe_allowed = False
-    disabled._clock = tl.ServerClock(None, note="用户关了 clock_probe")
+    # 本机钟冻结到场景日（2026-10-27 16:00）：否则 `_now()` 落到"真实今天"，
+    # judge_bar 会把 10-27 的 bar 当"往日"判成 FINAL —— 跨日后这条用例必红。
+    disabled._clock = tl.ServerClock(None, note="用户关了 clock_probe",
+                                     local=lambda: _at(16, 0, 0))
     rec_off = disabled._record_call("HQServ.PXFXT", 0x0E, host=None,
                                     t0=_time_mod.monotonic())
 
@@ -451,18 +459,16 @@ def test_clock_probe_false_note_is_distinguishable_from_probe_failure():
     assert tl.judge_bar(bar, server_now=disabled._now()) is Status.PROVISIONAL
 
 
-def test_meta_source_dict_keyset_is_fixed():
-    """`meta["source"]` 的键集**固定为 5 个**，`host` 取不到也要在（值是 None）。"""
-    from tdxdata.client import META_SOURCE_KEYS
-
-    assert META_SOURCE_KEYS == ("host", "cmd", "ctl", "clock", "cached")
+def test_provenance_source_fields_are_fixed():
+    """ARCH-002：出处是一等字段 `Provenance`；host 取不到也要在（值是 None）。"""
     c = _client_with_clock(tl.FakeClock(_at(16, 0, 0)))
     rec = c._record_call("CWServ.x", 0x21, host=None, t0=_time_mod.monotonic())
-    src = c._meta_from(rec)["source"]
-    assert tuple(src) == META_SOURCE_KEYS, "键集不许变、不许省键、顺序也要稳"
-    assert src["host"] is None, "取不到就给 None（显式），不编主机名"
-    assert src["cmd"] == "CWServ.x" and src["ctl"] == 0x21
-    assert src["clock"] == "server" and src["cached"] is False
+    prov = c._prov_from(rec)
+    assert isinstance(prov, Provenance)
+    assert prov.host is None, "取不到就给 None（显式），不编主机名"
+    assert prov.cmd == "CWServ.x" and prov.ctl == 0x21
+    assert prov.clock is ClockSource.SERVER and prov.cached is False
+    assert prov.fetched_at == _at(16, 0, 0).replace(tzinfo=prov.fetched_at.tzinfo)
 
 
 # ══════════════════════════════════════════════════════════════════════════
@@ -479,7 +485,7 @@ def test_unregistered_status_note_says_no_timeliness_declaration():
         host="10.0.0.9", t0=_time_mod.monotonic(),
         status=tl.judge_unregistered(server_now=c._now()),
         as_of=None, status_note=tl.UNREGISTERED_NOTE)
-    note = table.meta["status_note"]
+    note = "；".join(table.provenance.notes)
     assert "421" in note and "时效声明" in note and "无法判定" in note
     assert "非定稿" in note
     assert table.status == "provisional"
@@ -496,8 +502,8 @@ def test_ztqd_delayed_note_carries_the_evidence():
     ds = Dataset(name="ztqd", table=Table(cols=["N001"], rows=[{"N001": "20261026"}]))
     c._describe_product(ds)
 
-    assert ds.table.meta["status"] == "delayed"
-    note = ds.table.meta["status_note"]
+    assert ds.table.provenance.status == "delayed"
+    note = "；".join(ds.table.provenance.notes)
     assert note, "status_note 不许为空"
     assert "00102" in note and "41 行" in note
     assert "真的滞后" in note and "还没生成" in note
@@ -515,14 +521,15 @@ def test_status_note_is_nonempty_when_status_is_not_final():
     ds = Dataset(name="lrmx", table=Table(cols=["N001"], rows=[{"N001": "20261026"}]))
     c._describe_product(ds)
 
-    meta = ds.table.meta
-    assert meta["status"] == Status.DELAYED.value == "delayed"
-    assert meta["data_date"] == "2026-10-26"          # 数据信号：结构化字段
-    assert meta["status_note"], "被判成 delayed 时必须能看出原因，不许是空串/None"
-    assert "上一交易日" in meta["status_note"]
-    assert meta["fetch_clock"] == "server"
-    # 删掉 status_note 也照样能得出结论（说明性键不承载唯一信息）
-    assert meta["status"] == "delayed" and meta["data_date"] == "2026-10-26"
+    prov = ds.table.provenance
+    assert prov.status == Status.DELAYED.value == "delayed"
+    assert prov.data_date == "2026-10-26"             # 数据信号：结构化字段
+    note = "；".join(prov.notes)
+    assert note, "被判成 delayed 时必须能看出原因，不许是空串/None"
+    assert "上一交易日" in note
+    assert prov.clock is ClockSource.SERVER
+    # 删掉 notes 也照样能得出结论（说明性文本不承载唯一信息）
+    assert prov.status == "delayed" and prov.data_date == "2026-10-26"
 
 
 def test_status_note_is_nonempty_for_unregistered_command():
@@ -535,10 +542,9 @@ def test_status_note_is_nonempty_for_unregistered_command():
         as_of=None,
         status_note="该命令未登记时效口径 → 按最保守口径标 provisional")
     assert table.status == "provisional"
-    assert table.meta["status_note"]
-    assert "未登记" in table.meta["status_note"]
-    # Table 也有只读便捷属性，取值与 meta 同源
-    assert table.meta["as_of"] is None and table.as_of is None
+    assert "未登记" in "；".join(table.provenance.notes)
+    # Table 也有只读便捷属性，取值与 provenance 同源
+    assert table.provenance.as_of is None and table.as_of is None
 
 
 def test_bars_as_of_note_explains_that_as_of_is_the_last_bar_not_the_fetch_time(monkeypatch):
@@ -557,16 +563,18 @@ def test_bars_as_of_note_explains_that_as_of_is_the_last_bar_not_the_fetch_time(
     c = _client_with_clock(tl.FakeClock(_at(16, 0, 0)))
     bars = c.get_bars("600519", count=1)
 
-    assert len(bars) == 1 and bars.meta["as_of"] == "2026-10-27"
-    assert bars.meta["fetched_at"] == "2026-10-27 16:00:00"
-    assert bars.meta["as_of"] != bars.meta["fetched_at"]
-    assert bars.meta["as_of_note"], "as_of 的来源必须能看出来，不许是空串"
-    assert "不是取数时刻" in bars.meta["as_of_note"]
+    prov = bars.provenance
+    assert len(bars) == 1 and prov.as_of == "2026-10-27"
+    assert prov.fetched_at == _at(16, 0, 0).replace(tzinfo=prov.fetched_at.tzinfo)
+    assert prov.as_of != prov.fetched_at.isoformat(sep=" ", timespec="seconds")
+    joined = "；".join(prov.notes)
+    assert joined, "as_of 的来源必须能看出来，不许是空串"
+    assert "不是取数时刻" in joined
     # 数据信号在结构化字段：收盘后 → final，末根不是 provisional
     assert bars.status == Status.FINAL.value
-    assert bars.meta["provisional"] is False
+    assert prov.extra.get("provisional") is False
     assert bars[0].provisional is False
-    assert bars.fetch_clock == "server"
+    assert prov.clock is ClockSource.SERVER
 
 
 # ══════════════════════════════════════════════════════════════════════════
@@ -716,8 +724,8 @@ def test_hybrid_clock_date_mismatch_falls_back_to_untrusted_local():
 
 def test_bar_dated_after_today_is_never_final():
     """根的日期比"今天"还晚 → 至少有一个源错了 → **不许** `FINAL`（未知 ≠ 定稿）。"""
-    assert tl.judge_bar(_bar("20261030"), server_now=_at(16, 10)) is Status.PROVISIONAL
-    assert tl.judge_bar(_bar("20261030"), server_now=_at(16, 10, day=date(2026, 10, 29))) is Status.PROVISIONAL
+    assert tl.judge_bar(_bar("20261030"), server_now=tl.NowInfo(_at(16, 10))) is Status.PROVISIONAL
+    assert tl.judge_bar(_bar("20261030"), server_now=tl.NowInfo(_at(16, 10, day=date(2026, 10, 29)))) is Status.PROVISIONAL
 
 
 def test_hybrid_clock_historical_bar_stays_final_even_when_contradicting():

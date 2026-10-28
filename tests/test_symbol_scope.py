@@ -227,6 +227,7 @@ SYMBOL_METHODS = {
     "get_name": ("{}",),
     "get_quotes": ("{}",),
     "get_samples": ("{}",),
+    "get_intraday_samples": ("{}",),
     "get_indicators": ("{}",),
     "get_f10": ("{}",),
     "get_finance": ("{}",),

@@ -40,8 +40,8 @@ from tdxdata._engine import hq_pb
 from tdxdata._engine import session as sess_mod
 from tdxdata.models import Dataset, Table
 
-#: 每条 `Table`/`Dataset` 都必须有的语义层键（Lead 2026-10-27 派单第 1 条）
-REQUIRED = ("as_of", "status", "fetched_at", "elapsed", "source")
+#: 每条 `Table`/`Dataset` 都必须有的语义层字段（ARCH-002：Provenance 一等字段）
+REQUIRED = ("as_of", "status", "fetched_at", "elapsed", "cmd")
 
 #: `meta["source"]` 的固定子键集（`client.META_SOURCE_KEYS`）
 SOURCE_KEYS = ("host", "cmd", "ctl", "clock", "cached")
@@ -63,6 +63,8 @@ ARGS = {
     "get_f10": ("600519",),
     "get_finance": ("600519",),
     "get_indicators": ("600519",),
+    "get_intraday_samples": (["999999"],),
+    "get_market_breadth": (),
     "get_market_stat": ("updown",),
     "get_samples": (["600519", "000001"],),
     "get_xdxr": ("600519",),
@@ -236,6 +238,17 @@ def offline(monkeypatch):
                         lambda *a, **k: (["Data"], [dict(_BARS_ROW)]))
     monkeypatch.setattr(hq_pb, "get_market_page",
                         lambda *a, **k: (["Code"], [{"Code": "880903"}]))
+    # 2026-10-28 新增的两条 PB 直通函数（`PBSdstat` / `PBSample`），
+    # 与上面几条同级：都是 `hq_pb` 的**原始取数**层，桩打在这里才守得住 meta 路径。
+    monkeypatch.setattr(hq_pb, "market_breadth",
+                        lambda *a, **k: {"shape": "summary", "declared_count": 1,
+                                         "fields": {1: 1637, 2: 3775, 3: 160,
+                                                    4: 35, 5: 15}, "off": 3})
+    monkeypatch.setattr(hq_pb, "intraday_samples",
+                        lambda *a, **k: [{"code": "999999", "market": 1,
+                                          "total_points": 240, "pre_close": 3658.026,
+                                          "n_points": 2, "points": [1.0, 2.0],
+                                          "off": 0}])
     # `block_data` 真实返回 `(块名, 块状态, 行)` 三元组
     monkeypatch.setattr(hq_extra, "block_data",
                         lambda *a, **k: ("MStock_ZLJX_ADDE_R", "1",
@@ -259,56 +272,57 @@ def _table_of(got) -> Table:
 
 
 @pytest.mark.parametrize("name", sorted(ARGS))
-def test_every_table_method_carries_semantic_meta(name, offline):
-    """**每条**返回 `Table`/`Dataset` 的公开方法都必须带齐 5 键。
+def test_every_table_method_carries_semantic_provenance(name, offline):
+    """**每条**返回 `Table`/`Dataset` 的公开方法都必须带齐语义层出处。
 
-    缺一个就红，并点名是哪个方法缺哪个键 —— 这就是复核者要的"缺失检测"。
+    ARCH-002：5 键的 meta dict 已被一等字段 `Provenance` 取代 ——
+    `as_of` / `status` / `fetched_at` / `elapsed` 是字段，"source" 收拢为
+    `host` / `cmd` / `ctl` / `clock` / `cached` 五个字段。缺一个就红，
+    并点名是哪个方法缺哪个键 —— 这就是复核者要的"缺失检测"。
     """
     c = _client()
     method = getattr(c, name)
     got = method(*ARGS[name])
     table = _table_of(got)
-    meta = table.meta or {}
+    prov = table.provenance
+    assert prov is not None, "%s() 返回的 Table 连 provenance 都没有" % name
 
-    missing = [k for k in REQUIRED if k not in meta]
-    assert not missing, "%s() 返回的 Table 缺语义层键：%s（现有键：%s）" % (
-        name, missing, sorted(meta))
-
-    # source 必须是**结构化的 5 键 dict**，不是人读字符串
-    src = meta["source"]
-    assert isinstance(src, dict), \
-        "%s().meta['source'] 必须是 dict（收到 %r）" % (name, type(src).__name__)
-    assert tuple(src) == SOURCE_KEYS, \
-        "%s().meta['source'] 键集必须固定为 %s（实际 %s）" % (name, SOURCE_KEYS, tuple(src))
-    assert src["cmd"], "%s().meta['source']['cmd'] 不许为空" % name
+    # ARCH-002："as_of 在场"= 字段被显式写过（None 也是合法值 —— 快照通道没有数据时刻）
+    missing = [k for k in REQUIRED
+               if getattr(prov, k) is None and k not in ("fetched_at",)]
+    # `as_of` / `elapsed` 允许是 None（快照通道/缓存路径），
+    # 但**字段必须被显式写过**：对象存在且来自 `_stamp_table` 链路即算在场。
+    missing = [k for k in missing if k not in ("as_of", "elapsed")]
+    assert not missing, "%s() 返回的 Table 缺语义层字段：%s" % (name, missing)
+    assert prov.fetched_at is not None, "%s() 缺 fetched_at" % name
+    assert prov.cmd, "%s().provenance.cmd 不许为空" % name
+    assert hasattr(prov.clock, "value"), "%s().provenance.clock 必须是 ClockSource" % name
 
     # status 必须是四态之一（不是 None、不是自由文本）
-    assert meta["status"] in {"final", "provisional", "pending", "delayed"}, \
-        "%s().meta['status'] 不是合法四态：%r" % (name, meta["status"])
+    assert prov.status in {"final", "provisional", "pending", "delayed"}, \
+        "%s().provenance.status 不是合法四态：%r" % (name, prov.status)
 
-    # fetched_at 必须能解析成时刻
-    assert meta["fetched_at"] and len(str(meta["fetched_at"])) == 19, \
-        "%s().meta['fetched_at'] 形态不对：%r" % (name, meta["fetched_at"])
+    # fetched_at 必须是 aware datetime（UTC+8）
+    from datetime import datetime as _dt
+    assert isinstance(prov.fetched_at, _dt) and prov.fetched_at.tzinfo is not None, \
+        "%s().provenance.fetched_at 必须是 aware datetime：%r" % (name, prov.fetched_at)
 
 
 @pytest.mark.parametrize("name", sorted(ARGS))
-def test_as_of_none_implies_as_of_note(name, offline):
-    """`as_of is None` 的通道**必须**配 `as_of_note`（说清为什么给不出时刻）。
+def test_as_of_none_implies_note(name, offline):
+    """`as_of is None` 的通道**必须**配说明（notes 里说清为什么给不出时刻）。
 
     真实事故形态：`f10`/`finance` 那两条通道确实没有数据日期，但解释被塞进了
-    `status_note` —— 下游看到 `status_note` 有一长串，就会以为"时效判定有问题"，
+    时效判定原因里 —— 下游看到 notes 有一长串，就会以为"时效判定有问题"，
     而真相是"这条通道压根不带时刻"。两件事必须分开放、分开说。
     """
     c = _client()
     table = _table_of(getattr(c, name)(*ARGS[name]))
-    meta = table.meta or {}
-    assert "as_of" in meta, "%s() 连 as_of 都没写" % name
-    if meta["as_of"] is None:
-        assert meta.get("as_of_note"), \
-            "%s() 的 as_of 是 None，但没有 as_of_note 说明原因" % name
-    else:
-        # 有 as_of 的通道不要求 note，但若写了必须非空
-        assert meta.get("as_of_note") is None or meta["as_of_note"]
+    prov = table.provenance
+    assert prov is not None, "%s() 连 provenance 都没有" % name
+    assert prov.as_of is not None or any("as_of" in n for n in prov.notes), \
+        "%s() 的 as_of 是 None，但 notes 里没有 as_of 无法确定的原因：%r" % (
+            name, prov.notes)
 
 
 def test_no_stubbed_call_escaped_the_fake_session(offline):

@@ -40,7 +40,8 @@ __all__ = [
     "COMBHQ_COLS", "COMBHQ_STD", "CTL", "CMD",
     "_args_combhq", "_args_hqinfo", "_args_xmlblock", "_args_samplemore", "_args_hystat",
     "peel", "fields_raw", "strings_of",
-    "parse_rowtable", "parse_name", "parse_block", "parse_samples",
+    "parse_rowtable", "parse_name", "parse_block",
+    "parse_samples", "parse_samples_more", "parse_sample_single",
     "get_quotes", "name_of", "block_data", "block_rows", "samples", "board_stat",
     "ticks", "parse_ticks", "TICKEX_COLS", "_args_tickex",
 ]
@@ -403,25 +404,56 @@ def parse_rowtable(body: bytes):
     ⚠️ 交接文档 §3 说「第 1 行铺在 `field1`、第 2 行起才用 `field4`」——
     **实测不成立**：本机 6 个代码时 6 行全在 `field4`，`field1` 是空的。
     所以这里只认 `field4`；`field1` 若有内容也按行收（兼容文档描述的那种抓包）。
+
+    ⚠️ **`field3` 可能出现不止一个，且后面的可能是空的**（2026-10-28 修）：
+    `cap_1023_183457.pcap` msgid=150（美股 NVDA/AMD 那条）实测 `field3` 出现 2 次 ——
+    第 1 个是 8 个真列名、**第 2 个是末尾的空占位块**。旧实现 `if fn == 3: cols = _cells(val)`
+    取**最后一个**，于是真列名被空块顶成 `[]`，**77 行好数据整表丢掉**。
+
+    现行规则：
+    1. **取第一个"非空列名块"**，空块（`_cells` 返回 `[]`）一律忽略；
+    2. 若存在**多个非空列名块且内容不同**，不静默挑一个 —— 抛
+       `errors.NotSupportedError`（静默挑一个会把整表按错列切分，比报错危险得多）；
+       内容相同则视为重复、照第一个用。
+
+    现实影响（全量 1496 帧 PBCombHQ/PBMultiHQ/PBHYStat 统计）：
+    「有 2 个 `field3`」**1 次**（就是上面那个首非空 + 末尾空的帧）、
+    「多个非空且内容不同」**0 次** —— 所以规则 2 是防御性护栏，不改变任何现有帧的结果。
     """
     top = fields_raw(body)
-    cols: list[str] = []
+    blocks: list[list[str]] = []                   # 所有**非空**列名块，按出现顺序
     cells_by_field: dict[int, list[list[str]]] = {}
     for fn, wt, val in top:
         if wt != 2 or fn not in (1, 3, 4):
             continue
+        one = _cells(val)
         if fn == 3:
-            cols = _cells(val)
-        else:
-            one = _cells(val)
-            if one:
-                cells_by_field.setdefault(fn, []).append(one)
+            if one:                                # 空块是尾部占位，**不许**覆盖真列名
+                blocks.append(one)
+        elif one:
+            cells_by_field.setdefault(fn, []).append(one)
+
+    cols: list[str] = blocks[0] if blocks else []
+    for other in blocks[1:]:
+        if other != cols:
+            raise errors.NotSupportedError(
+                "parse_rowtable：出现多个非空列名块（field3）且内容不同，"
+                "无法判定哪一个是表头 —— 静默挑一个会把整表按错列切分"
+                "（2026-10-28 实测过：1 个末尾空块曾顶掉 77 行真数据）。"
+                "第一个（%d 列）= %s …；第二个（%d 列）= %s …。请抓包核对该帧。"
+                % (len(cols), cols[:6], len(other), other[:6]))
+
     rows = cells_by_field.get(1, []) + cells_by_field.get(4, [])
     return cols, rows
 
 
 def _cells(sub: bytes) -> list[str]:
-    """一个嵌套消息里的单元格 → 字符串列表（varint 也按十进制转，保证列数对齐）。"""
+    """一个嵌套消息里的单元格 → 字符串列表（varint 也按十进制转，保证列数对齐）。
+
+    ⚠️ `wt == 5`（fixed32）**必须先验长度**：`fields_raw` 在流被截断时会给出不足 4 字节的
+    载荷，旧实现直接 `struct.unpack("<f", val)` 抛 `struct.error` 冒出解析函数、把整批中断。
+    现在长度不是 4 就回 hex（**不跳过**，否则后面所有列会左移错位）。
+    """
     out: list[str] = []
     for _fn, wt, val in fields_raw(sub):
         if wt == 2:
@@ -432,7 +464,10 @@ def _cells(sub: bytes) -> list[str]:
         elif wt == 0:
             out.append(str(val))
         elif wt == 5:
-            out.append("%.3f" % struct.unpack("<f", val)[0])
+            if len(val) == 4:
+                out.append("%.3f" % struct.unpack("<f", val)[0])
+            else:                                  # 截断的 fixed32：给 hex，不抛、不丢格
+                out.append(val.hex())
     return out
 
 
@@ -483,26 +518,48 @@ def parse_block(body: bytes) -> dict:
     return out
 
 
-def parse_samples(body: bytes) -> list[dict]:
+def _looks_like_col_names(cols) -> bool:
+    """这堆字符串**像不像列名**（而不是一堆数值/二进制垃圾）。
+
+    判据：非空，且 ≥60% 的列名里至少含一个字母。
+    为什么必须有这条：`PBZST` 那种帧会把**列与值整体互换** —— 解出来的「列名」是
+    `['899', '535.000000', '4999.000000', '192061937', '0', '0.000000']`（其实是值），
+    长度对得上、看着完全正常；只查「非空 + 宽度对齐」根本抓不住，只有这条能抓住。
+    """
+    if not cols:
+        return False
+    hit = sum(1 for c in cols if any(ch.isalpha() for ch in str(c)))
+    return hit * 5 >= len(cols) * 3          # hit/len >= 0.60
+
+
+def parse_samples_more(body: bytes) -> list[dict]:
     """`PBSampleMore` → `[{code, count, pre_close, floats}]`。
 
-    每条（04 文档 §3）：`field3`=代码、`field5`=字段数、`field6`=**昨收**(fixed32 float)、
-    `field8`=**打包的 float32 数组**（`count × 4` 字节）。
-    ⚠️ 数组里的浮点**列序至今没锚定、个数还会变**（`count` 声明 60，实测 9/11/13，
-随盘中推进增长），所以只给 `f0..fN`，不许猜名字、也不许写死个数。
+    适用范围**只有 `PBSampleMore`**（`CMD["samplemore"]`）。识别依据：
+    响应顶层**只有重复的 `field1`**（每个标的包一层），实网 257 帧 257/257 如此。
+
+    每条（04 文档 §3）：`field3`=代码、`field5`=**声明**的字段数、`field6`=**昨收**(fixed32 float)、
+    `field7`=实际个数、`field8`=**打包的 float32 数组**（`实际个数 × 4` 字节）。
+
+    ⚠️ 数组里的浮点**列序至今没锚定、个数还会变**（`field5` 声明 60，`field7`/`field8` 实测
+    9/11/13…，随盘中推进增长），所以只给 `f0..fN`，不许猜名字、也不许写死个数。
     ⚠️ float32 转成 float64 会带出 `551.4000244140625` 这种噪声，统一 round 到 3 位
     （TDX 报价就是 3 位小数）。
+    ⚠️ **只认顶层 `field1`**：旧实现遍历「任何顶层子消息」，于是把 `PBDeepWarn` 的
+    `field2`（里面恰好有 `field3='002990'` 和一个 `field5=14435`）错配成一条假记录
+    `{code:'002990', count:14435, pre_close:None, floats:[]}` —— 2026-10-28 修。
     """
     out: list[dict] = []
     for fn, wt, val in fields_raw(body):
-        if wt != 2:
+        if wt != 2 or fn != 1:                 # ← 只吃 PBSampleMore 的包装层
             continue
         sub = fields_raw(val)
         code = next((v.decode("utf-8") for f, w, v in sub if f == 3 and w == 2), None)
         if not code or not code[:1].isdigit():
             continue
         cnt = next((v for f, w, v in sub if f == 5 and w == 0), None)
-        f6 = next((struct.unpack("<f", v)[0] for f, w, v in sub if f == 6 and w == 5), None)
+        f6 = next((struct.unpack("<f", v)[0] for f, w, v in sub
+                   if f == 6 and w == 5 and len(v) == 4), None)   # 截断的 fixed32 不解
         packed = next((v for f, w, v in sub if f == 8 and w == 2), None)
         floats = ([round(struct.unpack("<f", packed[i:i + 4])[0], 3)
                    for i in range(0, len(packed) - 3, 4)] if packed else [])
@@ -510,6 +567,62 @@ def parse_samples(body: bytes) -> list[dict]:
                     "pre_close": round(f6, 3) if f6 is not None else None,
                     "floats": floats})
     return out
+
+
+def parse_sample_single(body: bytes) -> list[dict]:
+    """`PBSample`（单个标的）→ `[{code, count, declared_count, pre_close, floats}]`，最多 1 条。
+
+    与 `PBSampleMore` 的**结构差别**（实网 324 帧实测）：`PBSample` 的 `field8`（打包 float32）
+    在**顶层**、且**没有 `field1` 包装层**：
+
+    ```
+    field2 varint   field3 <子消息>   field4 varint
+    field5 varint   **声明的字段数**（实测 240）
+    field6 fixed32  **昨收**
+    field7 varint   **实际个数**（556/4 = 139）
+    field8 bytes    打包 float32（`实际个数 × 4` 字节）
+    ```
+
+    ⚠️ **这个响应里没有 6 位代码** —— `field3` 是子消息，里面是一个 `field7` fixed64
+    （实测 `99999` / `20285` / `20592` / `20096` / `20641` 这类 5 位序数；324 帧里另有 146 帧
+    `field3` 干脆是空的），解不出任何股票代码。所以 `code` 如实记 `None`，
+    **由调用方按自己请求的代码补**（不编造一个看起来像代码的东西）。
+    """
+    top = fields_raw(body)
+    if any(f == 1 and w == 2 for f, w, _ in top):
+        return []                              # 有 field1 包装层 → 那是 SampleMore，不是本形状
+    packed = next((v for f, w, v in top if f == 8 and w == 2 and v), None)
+    if not packed or len(packed) % 4:
+        return []                              # 没有打包数组（或长度不是 4 的倍数）→ 认不出
+    declared = next((v for f, w, v in top if f == 5 and w == 0), None)
+    actual = next((v for f, w, v in top if f == 7 and w == 0), None)
+    f6 = next((struct.unpack("<f", v)[0] for f, w, v in top
+               if f == 6 and w == 5 and len(v) == 4), None)
+    floats = [round(struct.unpack("<f", packed[i:i + 4])[0], 3)
+              for i in range(0, len(packed) - 3, 4)]
+    return [{"code": None,                  # 响应里没有代码，不编造
+             "count": actual if actual is not None else declared,
+             "declared_count": declared,
+             "pre_close": round(f6, 3) if f6 is not None else None,
+             "floats": floats}]
+
+
+def parse_samples(body: bytes) -> list[dict]:
+    """按**结构**分发到 `PBSampleMore` / `PBSample`；两套都认不出 → `[]`。
+
+    分发依据（互斥，实网实测）：
+      * 顶层有 `field1` 包装层、无顶层 `field8` → `PBSampleMore`（257/257 帧）
+      * 顶层有 `field8` 打包数组、无 `field1`  → `PBSample`（324/324 帧）
+      * 两者都没有（`PBDeepWarn` 只有 `field2`/`field3`；`PBHYStat`/`PBCombHQ` 是 rowtable 形状）
+        → `[]`，**不猜**
+
+    ⚠️ 本函数**不再**把「任何顶层子消息里恰好有 `field3` 代码 + `field5` 数字」当成一条记录 ——
+    那正是 `PBDeepWarn` 被错配成假 code 的原因（2026-10-28 修）。
+    """
+    more = parse_samples_more(body)
+    if more:
+        return more
+    return parse_sample_single(body)
 
 
 # ══════════════════════════════════════════════════════════════════════════
@@ -566,7 +679,7 @@ def get_quotes(symbols_, batch=20, *, retry_missing=True, on_missing="raise"):
     * `"raise"`（默认，行为与旧版一字不差）：仍缺就抛 `EmptyResult` 点名，
       绝不返回"少了几个代码"的表冒充完整结果；
     * `"skip"` / `"report"`：**不抛**，按请求顺序返回能拿到的那些（可能为空列表），
-      并把缺失清单交给上层 `Client.get_quotes` 写进 `Quotes.meta["missing"]`。
+      并把缺失清单交给上层 `Client.get_quotes` 写进 `Quotes.provenance.extra["missing"]`。
 
     ⚠️ `report` 的 `warnings.warn` **不在这里发**：本层只知道"批里缺了谁"，
     知道"你一共要了哪些"的是上层。提醒只发一次，别让人一次取数收两条同义警告。
@@ -805,11 +918,26 @@ def parse_ticks(body: bytes) -> dict:
 
     ⚠️ 行里的值**全是字符串**（`"1349.130005"`、`"\\x01"`），转数字由调用方做。
     ⚠️ `Second` 是**当日秒数**（40978 → 11:22:58），不是序号、也不是 `HHMMSS`。
+
+    ⚠️ **认不出列名就返回空，绝不拿 `TICKEX_COLS` 顶包**（2026-10-28 修）：
+    旧实现写的是 `if not cols: cols = list(TICKEX_COLS)` —— 于是把**任何**没有 `field7`
+    的帧都贴上 7 个正经列名，还照样 `zip` 出行来。实网反例（M6 抓包证据）：
+      * `PBHQInfo` → `Now='mLO@'`、`HKTTFlag='奐譓'`（二进制垃圾被当文本输出）
+      * `PBZST`    → 列与值**整体互换**（「列名」其实是值），长度还对得上
+    这比返回空**危险得多**：字段名完全正常，下游无从察觉。
+    现在判据是 `_looks_like_col_names`（≥60% 的列名含字母），不满足就
+    `{"cols": [], "rows": [], ...}`。**返回空而不抛错**的理由见下。
+
+    为什么选「返回空」而不是抛 `NotSupportedError`：`_collect_ticks` 的停止条件是
+    `if not got or not got.get("rows"): break` —— **空行本来就是翻页的正常终止态**。
+    而「一页没有成交」时的空响应很可能同样不带 `field7`；若改成抛错，就会在**正常翻页
+    到底**时炸掉，而这是活代码路径（`get_ticks`）。返回空能同时覆盖「真空页」与「异形帧」，
+    且不会让异常穿出到用户代码 —— 爆炸半径比修的这个 bug 更大。
     """
     raw = peel(body)
     top = fields_raw(raw)
     cols: list[str] = []
-    rows: list[dict] = []
+    rows: list[list[str]] = []
     span = None
     date = None
     for f, w, v in top:
@@ -820,14 +948,9 @@ def parse_ticks(body: bytes) -> dict:
         elif f == 7 and isinstance(v, bytes):
             cols = [_txt(x[2]) for x in fields_raw(v) if x[0] == 1]
         elif f == 8 and isinstance(v, bytes):
-            rows.append({})
-            cell = [_txt(x[2]) for x in fields_raw(v)]
-            rows[-1] = cell
+            rows.append([_txt(x[2]) for x in fields_raw(v)])
         elif f == 4 and w == 0:
             date = str(v)
-    if not cols:
-        cols = list(TICKEX_COLS)
-    dicts = [dict(zip(cols, r)) for r in rows]
     anchor = None
     if span and "," in span:
         a, b = span.split(",", 1)
@@ -835,6 +958,10 @@ def parse_ticks(body: bytes) -> dict:
             anchor = (int(a), int(b))
         except ValueError:
             anchor = None
+    if not _looks_like_col_names(cols):
+        # 没有列名块 / 列名不像列名 → 一行都不给（span/date 是真解出来的，照留）
+        return {"cols": [], "rows": [], "span": span, "anchor": anchor, "date": date}
+    dicts = [dict(zip(cols, r)) for r in rows]
     return {"cols": cols, "rows": dicts, "span": span, "anchor": anchor, "date": date}
 
 
