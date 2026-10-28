@@ -86,6 +86,39 @@ def test_stats_shape():
     assert s["limited_events"] == 1
 
 
+def test_per_host_slots_removed_def030():
+    """DEF-030（B5 收敛拍板：方案甲删除）：
+    per-host 槽位连根拔掉 —— `wait` / `note_limited` 不再收 `host` 参数，
+    槽位字典 `_next_at_by_host` 不复存在，「换台机器就把退避清零」的洞消失。
+    """
+    import inspect
+    sig_wait = inspect.signature(Pacer.wait)
+    sig_nl = inspect.signature(Pacer.note_limited)
+    assert "host" not in sig_wait.parameters, sig_wait
+    assert "host" not in sig_nl.parameters, sig_nl
+    p = Pacer()
+    assert not hasattr(p, "_next_at_by_host"), "per-host 槽位字典没删干净"
+    # 被限流后下一次 wait 必须等全局退避（原缺陷：wait(host="B") 直接 0.0）
+    p.note_limited()
+    w0 = time.monotonic()
+    real_sleep = time.sleep
+    try:
+        time.sleep = lambda s: real_sleep(min(s, 0.01))
+        waited = p.wait()
+    finally:
+        time.sleep = real_sleep
+    assert waited >= p.gap - 0.05, "被限流后 wait 绕过了全局退避：%r" % waited
+    assert time.monotonic() - w0 >= 0.0
+
+
+def test_stats_keeps_hosts_tracked_compat_key():
+    """`hosts_tracked` 键兼容保留（client.rate_stats 文档/监控解析引用），恒为 0。"""
+    p = Pacer()
+    p.note_limited()
+    p.note_ok()
+    assert p.stats()["hosts_tracked"] == 0
+
+
 if __name__ == "__main__":
     fns = [(n, f) for n, f in sorted(globals().items())
            if n.startswith("test_") and callable(f)]
