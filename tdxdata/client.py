@@ -2004,6 +2004,58 @@ class Client:
                   "f3 取值含义见 docs/VERIFICATION.md",
         ))
 
+    # ── 期权 T 型报价（2026-10-29 抓包打通；旧台账写的是"无通道"，已推翻）────
+    def option_underlyings(self) -> list[dict]:
+        """期权标的列表（`PBQQUnderly2`）→ `[{"market","code","name"}]`。
+
+        实测 9 个：`510050/510300/510500/588000/588080`（沪, market=1）与
+        `159901/159915/159919/159922`（深, market=0）。
+
+        无参命令（请求体 8 字节常量），所以随时能要一份"当前可交易的期权标的"。
+        """
+        from ._engine import hq_extra as _x
+        return _x.option_underlyings()
+
+    def option_months(self, underly: str) -> dict:
+        """某标的的期权月份（`PBQQMonth`）→ `{"count","months","expires"}`。
+
+        `months` 是 `YYYYMM` 整数（`2611` = 2026 年 11 月），
+        `expires` 是 `YYYYMMDD` 到期日，两者一一对应。
+        """
+        from ._engine import hq_extra as _x
+        return _x.option_months(underly)
+
+    def get_option_chain(self, underly: str = "510050",
+                         month: int | None = None) -> Table:
+        """期权 T 型报价链（`PBQQTXCode2`）→ `Table`，每行一个行权价档位。
+
+        列：`Strike` / `CallCode` / `CallName` / `PutCode` / `PutName`。
+        `month=None` 取最近月份（先发一次 `PBQQMonth`）。
+
+        ```python
+        t = c.get_option_chain("510050")
+        t.rows[0]        # [2.65, '10012637', '50ETF购11月2650', '10012638', '50ETF沽11月2650']
+        ```
+
+        ⚠️ 这里给的是**合约代码/名称**，不是行情。要行情再
+        `c.get_quotes(["8:10012637"])`（市场号 8 = 期权，2026-10-29 实证）。
+        ⚠️ 名称是服务端拼的（`购/沽` + `11月` + 行权价×1000），
+        可以用来交叉核对 `Strike` —— 两者对不上时以代码为准。
+        """
+        from ._engine import hq_extra as _x
+
+        return self._fetch(self._FetchSpec(
+            cmd="HQServ:PBQQTXCode2", ctl=0x0E, shape="table",
+            transport=lambda: _x.option_chain(underly, month),
+            codec=lambda got: got,
+            empty_msg="%s %s 没有期权链（标的不支持期权？）" % (underly, month),
+            as_of=None,
+            as_of_note="PBQQTXCode2 回包没有时间字段，as_of 无法确定（快照口径）",
+            extra={"underly": underly, "month": month,
+                   "option_market": 8},
+            notes="Strike 是 f32 行权价；名称里的数字是 行权价×1000",
+        ))
+
     def get_ticks(self, symbol: str | tuple, count: int = 200,
                   max_pages: int = 50) -> list[Tick]:
         """逐笔成交（`HQServ:PBTickEx`，2026-10-27 打通）。返回 `list[Tick]`，**按时间升序**（旧→新）。

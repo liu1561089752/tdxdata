@@ -399,14 +399,38 @@ CAPABILITIES: tuple[Capability, ...] = (
                    "（600519 塞进 field3=99 照样回同一根 K 线，逐位相同）",
     ),
     Capability(
-        name="期权",
+        name="期权 T 型报价链",
+        instrument="option",
+        interface="get_option_chain",
+        available=True,
+        reason="三步链 2026-10-29 抓包实测打通：PBQQUnderly2(ctl=15) 回 9 个标的 → "
+               "PBQQMonth(ctl=12) 回月份 2611/2612/2703/2706 + 到期日 → "
+               "PBQQTXCode2(ctl=14) 回每档「行权价 + 认购代码/名称 + 认沽代码/名称」；"
+               "回包是 {\"Length\"}+zlib+Base64 四层信封，peel() 已能剥",
+        workaround='用法：get_option_chain("510050")（默认最近月份）、option_underlyings()、'
+                   'option_months("510050")',
+        evidence="pcap cap_1029_090838.pcap msgid 854/864/866；夹具 qq_*_响应.bin；"
+                 "tests/test_option_chain.py 9 例（请求体逐字节对照抓包）",
+    ),
+    Capability(
+        name="期权 行情（市场号 8）",
+        instrument="option",
+        interface="get_quotes",
+        available=True,
+        reason="T 型链里每档的 f2/f5 恒为 8 —— 市场号 8 就是期权市场，"
+               "与 PBCombHQ 的 setcode 体系一致，可 get_quotes([\"8:10012637\"]) 取行情",
+        workaround="期权没有一次性全量合约清单，只能按「标的 + 月份」现取",
+        evidence="cap_1029_090838.pcap（12 档 T 型链，市场号 8 全命中）",
+    ),
+    Capability(
+        name="期权（旧结论，已作废）",
         instrument="option",
         interface="",
         available=False,
-        reason="同期货：4 条命令 × 6 个市场码 × 30 个合约代码全空、ERR_-1000 0 次，"
-               "说明代码不在证券表里，不是市场码问题",
-        evidence="§12.1 / probe/Q1Q2",
-        workaround="无通道",
+        reason="当时写「4 条命令 × 6 个市场码 × 30 个合约码全空 ⇒ 期权无通道」，"
+               "**错在探针**：期权不走那 4 条命令，而是 PBQQ* 三步链",
+        workaround="别再用「命令 × 市场码 × 合约码」笛卡尔积猜通道；先看抓包里 App 发了什么",
+        evidence="§12.1 / probe/Q1Q2（结论作废），更正见 notes/19",
     ),
     Capability(
         name="国债期货",

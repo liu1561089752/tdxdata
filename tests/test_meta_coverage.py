@@ -66,6 +66,7 @@ ARGS = {
     "get_intraday_samples": (["999999"],),
     "get_market_breadth": (),
     "get_market_stat": ("updown",),
+    "get_option_chain": ("510050", 2611),   # 标的 + 月份（2026-10-29 期权链）
     "get_samples": (["600519", "000001"],),
     "get_xdxr": ("600519",),
 }
@@ -258,6 +259,13 @@ def offline(monkeypatch):
     monkeypatch.setattr(hq_extra, "board_stat",
                         lambda *a, **k: (["Setcode"], [["1", "600519", "贵州茅台",
                                                         1.0, 0.0, 1.0, 1]]))
+    # 期权链（2026-10-29）：桩打在 `hq_extra.option_chain` 上 —— 与其它 PB 方法同一层，
+    # 这样 `_fetch` → `_FetchSpec` → `Provenance` 那条真路径仍然全跑，meta 丢了才抓得到。
+    monkeypatch.setattr(hq_extra, "option_chain",
+                        lambda *a, **k: (("Strike", "CallCode", "CallName",
+                                          "PutCode", "PutName"),
+                                         [[2.65, "10012637", "50ETF购11月2650",
+                                           "10012638", "50ETF沽11月2650"]]))
     return monkeypatch
 
 

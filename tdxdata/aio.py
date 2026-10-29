@@ -173,6 +173,18 @@ class AsyncClient:
         """`await` 版 `Client.get_ticks`（逐笔成交）。"""
         return await self._run(self._c.get_ticks, symbol, *a, **kw)
 
+    async def option_underlyings(self, *a, **kw):
+        """`await` 版 `Client.option_underlyings`（期权标的列表，2026-10-29 新增）。"""
+        return await self._run(self._c.option_underlyings, *a, **kw)
+
+    async def option_months(self, underly, *a, **kw):
+        """`await` 版 `Client.option_months`（期权月份 + 到期日）。"""
+        return await self._run(self._c.option_months, underly, *a, **kw)
+
+    async def get_option_chain(self, underly="510050", *a, **kw):
+        """`await` 版 `Client.get_option_chain`（期权 T 型报价链）。"""
+        return await self._run(self._c.get_option_chain, underly, *a, **kw)
+
     async def get_name(self, symbol, *a, **kw):
         """`await` 版 `Client.get_name`（代码 → 名称）。"""
         return await self._run(self._c.get_name, symbol, *a, **kw)

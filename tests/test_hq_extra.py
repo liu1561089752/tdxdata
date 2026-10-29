@@ -348,9 +348,14 @@ def test_args_hystat_f5_zero_still_emitted():
 
 
 def test_ctl_table_matches_handoff():
-    """ctl 抄错就是"命令不通"，必须钉住。"""
+    """ctl 抄错就是"命令不通"，必须钉住。
+
+    2026-10-29 期权链落地后多三项：`qq_underly=0x0F` / `qq_month=0x0C` / `qq_chain=0x0E`。
+    三个 ctl **各不相同**，是抓包逐帧量出来的，不是按先后顺序猜的。
+    """
     assert X.CTL == {"combhq": 0x11, "hqinfo": 0x11, "xmlblock": 0x13,
-                     "samplemore": 0x15, "hystat": 0x11, "tickex": 0x11}
+                     "samplemore": 0x15, "hystat": 0x11, "tickex": 0x11,
+                     "qq_underly": 0x0F, "qq_month": 0x0C, "qq_chain": 0x0E}
     assert X.CMD["xmlblock"] == "HQServ:PBXmlBlock"
 
 

@@ -45,6 +45,10 @@ __all__ = [
     "parse_samples", "parse_samples_more", "parse_sample_single",
     "get_quotes", "MAX_BATCH", "name_of", "block_data", "block_rows", "samples", "board_stat",
     "ticks", "parse_ticks", "TICKEX_COLS", "_args_tickex",
+    # 期权链（PBQQUnderly2 / PBQQMonth / PBQQTXCode2）
+    "OPTION_MARKET", "QQ_CHAIN_COLS", "_args_qq_underly", "_args_qq_month",
+    "parse_qq_underly", "parse_qq_month", "parse_qq_chain",
+    "option_underlyings", "option_months", "option_chain",
 ]
 
 # ── ctl / 命令名 ──────────────────────────────────────────────────────────
@@ -56,6 +60,10 @@ CTL = {
     "samplemore": 0x15,
     "hystat": 0x11,
     "tickex": 0x11,
+    # 期权 T 型报价三步链（2026-10-29 抓包实测；三步的 ctl 各不相同，别想当然）
+    "qq_underly": 0x0F,
+    "qq_month": 0x0C,
+    "qq_chain": 0x0E,
 }
 
 #: 命令名。服务名与方法名之间 `:` 和 `.` 服务端都收（实测），这里统一用抓包里的 `:`。
@@ -66,6 +74,10 @@ CMD = {
     "samplemore": "HQServ:PBSampleMore",
     "hystat": "HQServ:PBHYStat",
     "tickex": "HQServ:PBTickEx",
+    # 期权链：QQ = 期权。三条命令是**串行**的（标的 → 月份 → 链），抓包里就是这么点的
+    "qq_underly": "HQServ:PBQQUnderly2",
+    "qq_month": "HQServ:PBQQMonth",
+    "qq_chain": "HQServ:PBQQTXCode2",
 }
 
 #: `PBCombHQ` 请求要的 17 个列名（**抓包原样，顺序有意义**）。
@@ -1056,3 +1068,160 @@ def ticks(code, market, anchor="0", count=100) -> dict | None:
     if not body:
         return None
     return parse_ticks(body)
+
+
+# ══════════════════════════════════════════════════════════════════════════
+# 期权 T 型报价（QQ = 期权）：标的 → 月份 → 链
+#
+# 全部来自 2026-10-29 抓包 `cap_1029_090838.pcap`（服务端 124.222.181.56:7615）。
+# 这三条命令**不是 rowtable**：回包是嵌套 protobuf（第三层还要过 `peel` 的
+# JSON 头 + zlib + Base64 四层信封），所以走 `fields_raw` 自己下钻。
+# ══════════════════════════════════════════════════════════════════════════
+
+#: 期权合约的市场号。**实证**：T 型链里每档的 `f2`/`f5` 恒为 8，
+#: 且行权价档位两侧分别挂认购/认沽代码 —— 8 就是期权市场。
+#: （旧台账里把 8 当成"猜的市场码"，2026-10-29 抓包证明它是**真的**期权市场号。）
+OPTION_MARKET = 8
+
+#: 期权链表头（`option_chain()` 返回的 cols）。
+QQ_CHAIN_COLS = ("Strike", "CallCode", "CallName", "PutCode", "PutName")
+
+
+def _args_qq_underly(f1: int = 1, f5: int = 1, f3: int = 0) -> bytes:
+    r"""`PBQQUnderly2` 请求体 —— **8 字节常量**：`0a0410012801 1800`。
+
+    抓包里 5 次请求逐字节相同（点开期权页就发这一条，无参数）。
+    """
+    return _bfield(1, _vfield(2, f1) + _vfield(5, f5)) + _vfield(3, f3)
+
+
+def _args_qq_month(code: str) -> bytes:
+    r"""`PBQQMonth` 请求体（25 B，`code="510050"` 时与抓包逐字节一致）。
+
+    ```
+    0a0b 0a0131 1001 1a00 2200 2801   ← f1{ f1:"1" f2:1 f3:"" f4:"" f5:1 }
+    120a 0801 1206 353130303530       ← f2{ f1:1 f2:"510050" }
+    ```
+    `f1` 里那个字符串 `"1"` 是**常量**（抓包里 4 次全是 `31`），不是市场号。
+    """
+    head = (_bfield(1, b"1") + _vfield(2, 1) + _bfield(3, b"")
+            + _bfield(4, b"") + _vfield(5, 1))
+    return _bfield(1, head) + _bfield(2, _vfield(1, 1) + _bfield(2, code.encode("ascii")))
+
+
+def _args_qq_chain(code: str, month: int, width: int = 500) -> bytes:
+    r"""`PBQQTXCode2` 请求体 = 月份请求 + `f3=月份` + `f4=width`（31 B）。
+
+    `month=2611`（2026 年 11 月）时与抓包逐字节一致：
+    `... 18b314 20f403`（`b314`=2611, `f403`=500）。
+    `width` 的含义**未定**（抓包里只有 500 一个值），先按原样透传，别猜成"档数"。
+    """
+    return (_args_qq_month(code) + _vfield(3, month) + _vfield(4, width))
+
+
+def _packed_varints(payload: bytes) -> list[int]:
+    """解 packed varint（protobuf 里 repeated int 的紧凑写法）。"""
+    out, v, sh = [], 0, 0
+    for b in payload:
+        v |= (b & 0x7F) << sh
+        if b & 0x80:
+            sh += 7
+        else:
+            out.append(v)
+            v, sh = 0, 0
+    if sh:
+        out.append(v)
+    return out
+
+
+def _sub(buf: bytes, want: int) -> list[bytes]:
+    """取某个 field_no 的所有 wt=2 载荷。"""
+    return [v for fn, wt, v in fields_raw(buf) if fn == want and wt == 2]
+
+
+def parse_qq_underly(buf: bytes) -> list[dict]:
+    r"""解 `PBQQUnderly2` 回包 → `[{"market":int, "code":str, "name":str}]`。
+
+    每条是 `f2{ f1=市场号 f2=代码 f3=名称 }`。**`f1` 就是市场号**：
+    沪市 5 个（510050/510300/510500/588000/588080）都带 `f1=1`，
+    深市 4 个（159901/159915/159919/159922）**没有 `f1`**（=0）。这是自证的。
+    """
+    out = []
+    for rec in _sub(buf, 2):
+        got = {fn: v for fn, wt, v in fields_raw(rec) if wt == 0}
+        txt = {fn: v.decode("utf-8", "replace") for fn, wt, v in fields_raw(rec) if wt == 2}
+        if 2 not in txt:
+            continue
+        out.append({"market": int(got.get(1, 0)), "code": txt[2], "name": txt.get(3, "")})
+    return out
+
+
+def parse_qq_month(buf: bytes) -> dict:
+    r"""解 `PBQQMonth` 回包 → `{"count":int, "months":[2611,…], "expires":[20261125,…]}`。
+
+    * `f2` = 月份个数（与 `f3` 解出来的长度一致，可自检）
+    * `f3` = **packed varint 月份**（`2611` = 2026-11）
+    * `f4` = **packed varint 到期日** `YYYYMMDD`（`20261125`）
+    """
+    top = {fn: (wt, v) for fn, wt, v in fields_raw(buf)}
+    count = int(top.get(2, (0, 0))[1]) if 2 in top else 0
+    months = _packed_varints(top[3][1]) if 3 in top else []
+    expires = _packed_varints(top[4][1]) if 4 in top else []
+    return {"count": count, "months": months, "expires": expires}
+
+
+def parse_qq_chain(buf: bytes) -> tuple[tuple[str, ...], list[list]]:
+    r"""解 `PBQQTXCode2` 回包 → `(QQ_CHAIN_COLS, rows)`，每行一个行权价档位。
+
+    每档 = `f2{ f1=行权价(fixed32 float) f3=认购代码 f4=认购名 f6=认沽代码 f7=认沽名 }`，
+    `f2`/`f5` 是同档两侧的市场号（恒 8）。
+    名称是**自解释**的（`50ETF购11月2650` / `50ETF沽11月2650`），可以直接核行权价。
+    """
+    rows = []
+    for rec in _sub(buf, 2):
+        strike = None
+        txt: dict[int, str] = {}
+        for fn, wt, v in fields_raw(rec):
+            if fn == 1 and wt == 5:
+                strike = _f32(v)
+            elif wt == 2:
+                txt[fn] = v.decode("utf-8", "replace")
+        if strike is None or 3 not in txt:
+            continue
+        rows.append([strike, txt[3], txt.get(4, ""), txt.get(6, ""), txt.get(7, "")])
+    return QQ_CHAIN_COLS, rows
+
+
+def _f32(raw: bytes) -> float:
+    """fixed32 → float（行权价是 f32 不是 f64：`0d 9a992940` = 2.65）。"""
+    import struct
+    return round(struct.unpack("<f", raw[:4])[0], 4)
+
+
+def option_underlyings() -> list[dict]:
+    """期权标的列表（9 个 ETF）。失败抛 `EmptyResult`。"""
+    body = _call("qq_underly", _args_qq_underly())
+    got = parse_qq_underly(body) if body else []
+    if not got:
+        raise errors.EmptyResult("PBQQUnderly2 没回标的列表（通道或服务端变了）")
+    return got
+
+
+def option_months(code: str) -> dict:
+    """某标的的期权月份 + 到期日。失败抛 `EmptyResult`。"""
+    body = _call("qq_month", _args_qq_month(code))
+    got = parse_qq_month(body) if body else {}
+    if not got or not got.get("months"):
+        raise errors.EmptyResult("%s 没回期权月份（标的代码写错？）" % code)
+    return got
+
+
+def option_chain(code: str, month: int | None = None, width: int = 500):
+    """期权 T 型报价链 → `(cols, rows)`；`month=None` 取**最近**月份。"""
+    if month is None:
+        month = option_months(code)["months"][0]
+    body = _call("qq_chain", _args_qq_chain(code, int(month), width))
+    cols, rows = parse_qq_chain(body) if body else (QQ_CHAIN_COLS, [])
+    if not rows:
+        raise errors.EmptyResult("%s %s 没回期权链" % (code, month))
+    return cols, rows

@@ -201,8 +201,12 @@ def test_capabilities_mark_the_new_assets_available():
         assert by_name[name].available, "%s 应标为可用（抓包已实证）" % name
         assert "get_quotes" in by_name[name].interface, "%s 要给出真实接口" % name
     # 仍然不可用的（K 线/分时那几条别被顺手标成可用）
-    for name in ("港股 日线 / 分时", "期权", "国债期货", "港股 清单（可枚举代码表）"):
+    for name in ("港股 日线 / 分时", "国债期货", "港股 清单（可枚举代码表）"):
         assert not by_name[name].available, "%s 仍无通道，不能标可用" % name
+    # 期权原先挂在这里（"仍不可用"）。2026-10-29 抓包把 PBQQ* 三步链打通了，
+    # 它现在是**可用**的；而"旧结论"那条必须继续 available=False，用来记住教训。
+    assert by_name["期权 T 型报价链"].available
+    assert not by_name["期权（旧结论，已作废）"].available
 
 
 def test_hk_quote_docstring_warns_about_delay():

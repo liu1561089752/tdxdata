@@ -287,8 +287,8 @@ def test_empty_selection_raises_empty_result_not_an_empty_table():
     try:
         with pytest.raises(EmptyResult):
             c.capabilities(instrument="no_such_instrument")
-        with pytest.raises(EmptyResult):
-            c.capabilities(instrument="option", available_only=True)
+        # ⚠️ 样本必须**真的全不可用**：`hk`/`option` 现在都已有可用条目
+        # （2026-10-29 抓包打通报价与期权链），拿它们当样本会立刻失效。
         with pytest.raises(EmptyResult):
             c.capabilities(instrument="  CBT  ", available_only=True)
     finally:

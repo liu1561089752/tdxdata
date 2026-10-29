@@ -273,8 +273,12 @@ def test_fetch_keeps_base_status_when_judge_yields_none():
     assert table.provenance.status == Status.PROVISIONAL.value
 
 
-def test_public_api_surface_unchanged_33_methods():
-    """公开 API 面零变化：ARCH-003 不增删改公开方法。"""
+def test_public_api_surface_unchanged_36_methods():
+    """公开 API 面**只增不改**：ARCH-003 要求存量方法零变化。
+
+    2026-10-29 增 3 个（期权链）：`option_underlyings` / `option_months` /
+    `get_option_chain`。**存量一条没动**（旧用例名里的 33 就是这个意思）。
+    """
     public = {n for n in dir(_CLS) if not n.startswith("_")}
     expected = {
         "products", "domains", "last_call", "call", "get", "get_bars",
@@ -285,6 +289,7 @@ def test_public_api_surface_unchanged_33_methods():
         "get_price_limits", "get_finance", "get_f10", "get_xdxr",
         "get_boards", "board_page", "get_board_members", "get_capital_flow",
         "get_market_breadth", "get_market_stat", "capabilities",
+        "option_underlyings", "option_months", "get_option_chain",
         "rate_stats", "timeliness", "close",
     }
     assert public == expected, (public - expected, expected - public)
