@@ -317,9 +317,23 @@ def unwrap_frames(buf: bytes) -> list[bytes]:
 
 
 def _is_frame_head(buf: bytes, i: int) -> bool:
-    """`i` 处是不是一个 7615 帧头（三重校验，尽量别在随机字节上误命中）。"""
-    return (buf[i] in (0x0B, 0x3B)          # 0x0B 明文 / 0x3B zlib
-            and buf[i + 10:i + 12] == b"K&"     # 0x264B
+    """`i` 处是不是一个 7615 帧头（三重校验，尽量别在随机字节上误命中）。
+
+    ⚠️ 标记位有**两种**（2026-10-29 实测，别再只认一种）：
+
+    | 协议 | `buf[i+10:i+12]` | 出现在 |
+    |---|---|---|
+    | protobuf（新版） | `4b 26`（即 `"K&"`） | `HQServ:PBFXT` 等 |
+    | **经典二进制** | **`b4 26`** | `0x122E` 期货 K 线等 |
+
+    只认前者时经典回包被整段丢掉 → 期货 K 线遇到 `count=10` 这种小回包会
+    **静默返回空表**（实测 527 B 明文帧，body 明明就在里面：
+    `0b 00700000 00 0102 0102 b426 0064 …`）。
+    两个字节顺序颠倒不是笔误，是两条协议各自的实测事实。
+    """
+    if buf[i] not in (0x0B, 0x3B):           # 0x0B 明文 / 0x3B zlib
+        return False
+    return (buf[i + 10:i + 12] in (b"K&", b"\xb4\x26")
             and buf[i + 12:i + 14] == b"\x00d")
 
 

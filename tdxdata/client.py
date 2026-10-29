@@ -2078,7 +2078,7 @@ class Client:
         ))
 
     def get_futures_bars(self, code: str, market: int | None = None,
-                         count: int = 700) -> Table:
+                         count: int = 700, period: str = "day") -> Table:
         """**期货 K 线**（经典二进制协议，命令 `0x122E`），返回 `Table`。
 
         为什么要单独一个方法、不走 `get_bars`
@@ -2093,8 +2093,15 @@ class Client:
         --
         `Date / Open / High / Low / Close` 是**实测校验过**的（700 根逐根满足
         `low ≤ min(open, close) ≤ max(open, close) ≤ high`）；
-        `OpenInterest / Volume / Settle` 是按量级关系**推断**的（见 `_engine/hq_classic.py`），
-        `Settle` 在盘中未结算的那根上是 0.0。
+        `OpenInterest / Volume / AvgPrice` 是按量级关系**推断**的（见 `_engine/hq_classic.py`）；
+        `AvgPrice` 在未结算那根常为 0.0（像结算均价，但没有独立标签证据，所以只叫均价）。
+
+        周期（2026-10-29 实测）
+        ----------------------
+        `period` 支持 `"1m" / "5m" / "15m" / "30m" / "day" / "week" / "month"`：
+        协议上是**同一个命令、同一种 36 B 记录**，只改请求体第 26 字节的枚举值。
+        **分钟周期会自动多一列 `Time`（`HH:MM`）**，因为同一 `Date` 下有多根。
+        ⚠️ `60m` **故意不支持**：协议值 `3` 实测会让服务端断连（`WinError 10053`），没验证过的值不放出来。
 
         参数
         ----
@@ -2133,7 +2140,7 @@ class Client:
                 "纯数字代码请用 get_bars" % code)
         self._check_quote_symbol("%d:%s" % (mk, code))   # 发请求前先校验写法
         t0 = time.monotonic()
-        cols, rows = classic.get_bars(code, mk, count=int(count))
+        cols, rows = classic.get_bars(code, mk, count=int(count), period=period)
         if not rows:
             raise errors.EmptyResult(
                 "%s（市场号 %s）没取到 K 线：确认合约码带年月的写法（如 MA2612），"
@@ -2145,7 +2152,8 @@ class Client:
             table, "HQServ.FXT(0x122E)", classic.CTL,
             host=self._session_host(), t0=t0,
             status=timeliness.judge_unregistered(server_now=self._now()),
-            as_of=rows[-1][0] if rows else None,
+            as_of=("%s %s" % (rows[-1][0], rows[-1][1]) if rows and "Time" in cols
+                   else (rows[-1][0] if rows else None)),
             status_note="经典二进制协议（0x122E）：服务端不带「现在几点」字段，"
                         "时效按未登记通道口径保守处理；夜盘那根归属下一交易日")
         return table

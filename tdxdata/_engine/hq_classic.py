@@ -67,8 +67,43 @@ MARK = b"\xb4\x26"
 #: 默认要多少根：与服务端单页上限一致（实测 700）
 COUNT_DEFAULT = 700
 
-#: 日线周期标记（分钟周期未验证，先只放日线）
+#: 日线周期标记（保留旧名，值即协议字节）
 PERIOD_DAY = 4
+
+#: **周期枚举**（`body[26]`，2026-10-29 实测 29 次真机 + 逐条日期核对）
+#:
+#: 这是本轮探测最省事的一条结论：**同一个命令、同一种记录格式**，
+#: 改一个字节就从日线变成分钟/周/月线，不需要新的命令号。
+#:
+#: | 协议值 | 周期 | 验证强度 |
+#: |---|---|---|
+#: | `0` | 5 分钟 | ★★★「声明根数 × 每日根数 = 实回根数-3」三条独立互证 |
+#: | `1` | 15 分钟 | ★★★ 同上（368 声明 → 371 实回） |
+#: | `2` | 30 分钟 | ★★★ 同上（184 → 187） |
+#: | `4` | 日 | ★★★ |
+#: | `5` | 周 | ★★★（138 → 141） |
+#: | `6` | 月 | ★★★（50 → 53） |
+#: | `7` / `8` | 1 分钟 | ★★☆ 相邻时间戳间隔 60 秒，自洽 |
+#: | `3` | 60 分钟 | ⚠️ **未验证**（触发 `WinError 10053`，按纪律停手）→ 故意不对外暴露 |
+PERIODS = {
+    "1m": 7,
+    "5m": 0,
+    "15m": 1,
+    "30m": 2,
+    "day": 4,
+    "week": 5,
+    "month": 6,
+}
+
+#: 反查：协议值 → 对外周期名（`3` 不在里面，因为没验证过，别偷偷放行）
+PERIOD_NAMES = {v: k for k, v in PERIODS.items()}
+
+#: 分钟级周期：回包里 `[16:20]` 是「当日秒数」，要单独出 `Time` 列
+INTRADAY = frozenset({"1m", "5m", "15m", "30m"})
+
+#: 分钟线列名（比日线多一列 `Time`，位置紧跟 `Date`）
+BARS_COLS_INTRADAY = ("Date", "Time", "Open", "High", "Low", "Close",
+                      "OpenInterest", "Volume", "AvgPrice")
 
 #: 回包记录宽度
 REC_SIZE = 36
@@ -165,11 +200,28 @@ def is_date(v: int) -> bool:
     return 19900101 <= v <= 21001231 and 1 <= m <= 12 and 1 <= d <= 31
 
 
-def parse_bars(payload: bytes):
-    """回包 → `(列名, 行)`。行是 dict 风格元组（与库内其它解析器一致）。
+def parse_bars(payload: bytes, with_time: bool = False):
+    """回包 → `(列名, 行)`。行是与其它解析器一致的元组。
 
-    定位方式：先在载荷里找第一个**合法日期**，再以 36 B 为步长往后切；
-    日期必须单调不减，否则丢弃该行（尾部常有 3~4 条非行情尾包）。
+    记录定位：先在载荷里找第一个**合法日期**（并要求 `+36` 处也是合法日期），
+    以它为记录起点；36 B 为步长往后切，日期必须单调不减，否则停止
+    （尾部常带 3~4 条非行情尾包）。
+
+    记录内偏移（**以日期字段为原点**）：
+
+    | 相对位置 | 含义 |
+    |---|---|
+    | `-12..-8` | 持仓量 f32（推断） |
+    | `-8..-4` | 成交量 f32（推断） |
+    | `-4..0` | 均价 f32（推断，商品常 0） |
+    | `0..4` | **日期 u32** `YYYYMMDD` |
+    | `4..8` | **分钟线的「当日秒数」**（日线恒 0） |
+    | `8..24` | Open / High / Low / Close 四个 f32 |
+    | `24..36` | 保留 |
+
+    `with_time=True` 时多出 `Time` 列（`HH:MM`，由当日秒数换算）。
+    实测证据（5 分钟线）：`36900 → 37200 → 37500 … 54000` 正好是
+    10:15 → 10:20 → 10:25 … 15:00。
     """
     if not payload:
         return (), []
@@ -193,26 +245,57 @@ def parse_bars(payload: bytes):
         date = struct.unpack_from("<I", rec, 0)[0]
         if not is_date(date):
             break
-        oi, vol, avg = struct.unpack_from("<3f", rec, -12)    # 0..12 相对记录起点
+        clock = struct.unpack_from("<I", rec, 4)[0]
+        oi, vol, avg = struct.unpack_from("<3f", rec, -12)    # 日期前 12 字节
         open_, high, low, close = struct.unpack_from("<4f", rec, 8)
         if not (low <= min(open_, close) + 1e-3 and max(open_, close) - 1e-3 <= high):
             break
         if date < last_date:
             break
         last_date = date
-        rows.append((date,
-                     round(open_, 3), round(high, 3), round(low, 3), round(close, 3),
-                     round(oi, 1), round(vol, 1), round(avg, 3)))
+        tail = (round(oi, 1), round(vol, 1), round(avg, 3))
+        if with_time:
+            rows.append((date, "%02d:%02d" % (clock // 3600, clock // 60 % 60),
+                         round(open_, 3), round(high, 3), round(low, 3),
+                         round(close, 3)) + tail)
+        else:
+            rows.append((date,
+                         round(open_, 3), round(high, 3), round(low, 3),
+                         round(close, 3)) + tail)
         off += REC_SIZE
-    return BARS_COLS, rows
+    return (BARS_COLS_INTRADAY if with_time else BARS_COLS), rows
 
 
-def get_bars(code: str, market: int, count: int = COUNT_DEFAULT):
-    """直连取期货 K 线，返回 `(列名, 行)`；失败返回 `((), [])`。"""
+def period_code(period) -> int:
+    """周期名（`"5m"`/`"day"`…）或协议值 → 协议字节。**不认识的直接拒**。
+
+    ⚠️ 故意**不接受 60 分钟（协议值 `3`）**：这个值没验证过（实测触发
+    `WinError 10053`），放进来等于让用户拿到一个可能错的答案。
+    """
+    if isinstance(period, int):
+        if period in PERIOD_NAMES:
+            return period
+        raise ValueError(
+            "周期值 %r 未验证（已确证的只有 %s）；60 分钟（协议值 3）实测会让服务端断连，"
+            "因此没有对外暴露。" % (period, sorted(PERIOD_NAMES)))
+    key = str(period).strip().lower()
+    if key in PERIODS:
+        return PERIODS[key]
+    raise ValueError("不认识的周期 %r。可用：%s" % (period, sorted(PERIODS)))
+
+
+def get_bars(code: str, market: int, count: int = COUNT_DEFAULT,
+             period=PERIOD_DAY):
+    """直连取 K 线，返回 `(列名, 行)`；失败返回 `((), [])`。
+
+    `period` 接受 `"1m"/"5m"/"15m"/"30m"/"day"/"week"/"month"` 或协议值；
+    分钟周期自动多出 `Time` 列（`HH:MM`）。
+    """
     from . import datacenter as dc          # 局部导入：避免引擎层循环依赖
 
-    body = bars_args(code, market, count)
+    pcode = period_code(period)
+    body = bars_args(code, market, count, period=pcode)
     blobs = dc._send(frame(KLINE, body), wait=8.0, idle=1.5)
     if not blobs:
         return (), []
-    return parse_bars(blobs[0])
+    return parse_bars(blobs[0], with_time=PERIOD_NAMES.get(pcode) in INTRADAY)

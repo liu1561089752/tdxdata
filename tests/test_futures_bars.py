@@ -98,3 +98,73 @@ def test_能力台账说可用():
     assert "0x122E" in text, "必须写明命令号，否则下一个人又要从头找"
     assert "get_futures_bars" in text
     assert "未定位" not in (row.workaround or ""), "workaround 不能再写未定位"
+
+
+# ══════════════════════════════════════════════════════════════════════════
+# 周期（2026-10-29 探测 D 结论）：一个字节换分钟/周/月
+# ══════════════════════════════════════════════════════════════════════════
+def test_周期表与实测一致():
+    """协议值必须和真机试验对得上，且**60 分钟不许偷偷放行**。"""
+    assert classic.PERIODS == {"1m": 7, "5m": 0, "15m": 1, "30m": 2,
+                               "day": 4, "week": 5, "month": 6}
+    for name, code in classic.PERIODS.items():
+        assert classic.period_code(name) == code
+        assert classic.period_code(code) == code
+    for bad in ("60m", "3", 3, "7m", "", None):
+        try:
+            classic.period_code(bad)
+        except (ValueError, TypeError):
+            pass
+        else:                                    # pragma: no cover
+            raise AssertionError("%r 应该被拒绝（未验证的周期不许放出去）" % (bad,))
+
+
+def test_周期字段进的是第26字节():
+    day = classic.bars_args("MA2612", 28)
+    for name, code in classic.PERIODS.items():
+        body = classic.bars_args("MA2612", 28, period=code)
+        assert body[26] == code, name
+        # 除了第 26 字节，其它位置必须一字不动
+        assert body[:26] == day[:26] and body[27:] == day[27:], name
+
+
+def test_分钟线多出Time列且时间按序():
+    """5 分钟 fixture（真机回包 1593 B）：10:15 起、每根 +5 分钟、收在 15:00。"""
+    buf = (FIX / "fut_bars_if2611_5m.bin").read_bytes()
+    cols, rows = classic.parse_bars(buf, with_time=True)
+    assert cols == classic.BARS_COLS_INTRADAY
+    assert "Time" in cols and cols.index("Time") == 1
+    assert len(rows) >= 30
+    times = [r[1] for r in rows]
+    assert times[0] == "10:15", times[:3]
+    assert times[-1] == "15:00", times[-3:]
+    minutes = [int(x[:2]) * 60 + int(x[3:]) for x in times]
+    gaps = [b - a for a, b in zip(minutes, minutes[1:])]
+    # 相邻间隔只允许两种：正常 5 分钟，以及**午休跨段**（11:25 → 13:00 = 95 分钟）
+    assert set(gaps) <= {5, 95}, "出现了非预期间隔：%s" % sorted(set(gaps))
+    assert gaps.count(5) >= 30, "5 分钟间隔至少要占绝大多数，实测 %d/%d" % (
+        gaps.count(5), len(gaps))
+
+
+def test_日线不加Time列():
+    ans = (FIX / "fut_bars_ma2612_响应.bin").read_bytes()
+    cols, rows = classic.parse_bars(ans)
+    assert cols == classic.BARS_COLS and "Time" not in cols
+    assert len(rows) == 700
+
+
+# ══════════════════════════════════════════════════════════════════════════
+# 帧头：经典回包的标记是 b4 26（不是 protobuf 的 4b 26）
+# ══════════════════════════════════════════════════════════════════════════
+def test_帧头两种标记都认():
+    """只认 `4b 26` 时，小回包（count=10，527 B 明文帧）会被静默丢成空表。"""
+    from tdxdata._engine.datacenter import _is_frame_head
+
+    pb = bytes.fromhex("0b0070000000010201024b260064") + b"\x00" * 8
+    cls = bytes.fromhex("0b007000000001020102b4260064") + b"\x00" * 8
+    assert _is_frame_head(pb, 0), "protobuf 帧（4b 26）必须认"
+    assert _is_frame_head(cls, 0), "经典帧（b4 26）也必须认 —— 否则小回包全被丢"
+    bad = bytearray(cls)
+    bad[10:12] = b"\x4b\x26"      # 标记换回 protobuf 但下面 0064 也对不上
+    bad[12:14] = b"\x00\x00"
+    assert not _is_frame_head(bytes(bad), 0)

@@ -170,10 +170,10 @@ class AsyncClient:
         return await self._run(self._c.get_quotes, symbols_, *a, **kw)
 
     async def get_futures_bars(self, code: str, market: int | None = None,
-                               count: int = 700):
+                               count: int = 700, period: str = "day"):
         """`Client.get_futures_bars` 的 await 版（期货 K 线，经典协议 0x122E）。"""
         return await self._run(self._c.get_futures_bars, code,
-                               market=market, count=count)
+                               market=market, count=count, period=period)
 
     async def get_ticks(self, symbol, *a, **kw):
         """`await` 版 `Client.get_ticks`（逐笔成交）。"""
