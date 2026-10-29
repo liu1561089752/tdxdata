@@ -382,7 +382,11 @@ CAPABILITIES: tuple[Capability, ...] = (
                "实测回 19 列（OPEN/CLOSE/NOW/MGJZC/SPECTYPE/WTB/RELAG/EXT_ZF），"
                "一次带 100 个合约、发多少回多少。旧结论「PBCombHQ 期货全空」是**探针代码写错**"
                "（IF00 这类缺年份/缺交易所前缀的码），不是通道没有，也不是市场码被拒。"
-               "(b) K 线/分时 ❌：PBFXT/PBZST 无期货通道。"
+               "(b) K 线/分时 **未定位**（2026-10-29 二次复核，此前写「无通道」是我们的判断，"
+               "不是证据）：用户实测 App 里期货 K 线**页面存在且有图**；但 36 份 pcap 里"
+               "**一条 K 线命令都没有**（连 A 股的 PBFXT 都没有 → 抓包里从来没进过 K 线页面），"
+               "服务端侧 PBFXT 对 60 组期货码/市场号（含主连 MA00/MA9999/MAZL）全 0 行，"
+               "PBSYSINFO 先注册再取仍 0 行，经典名 HQServ.FXT 用 protobuf 体被 reset。"
                "(c) 专题数据 ✅（7615 数据中心侧抓包实测）：tdxrb_qh "
                "期货合约榜（12 列×100 行，含 MA2701/V2701/FU2701 与市场码 28/29/30）、qhlhb_sy 001 "
                "全市场合约清单（5 列×318 行）与 002 会员成交量/多空持仓/增减（10 列×21 行，"
@@ -392,7 +396,9 @@ CAPABILITIES: tuple[Capability, ...] = (
                "不能叫「持仓增量」",
         evidence="§12.1 / probe/Q1Q2（行情侧）；reports/eval3/findings/M4-fx-futures.md §2.3-2.5（专题侧，"
                  "31 份 pcap 真实回包）",
-        workaround="合约 K 线/分时/五档无通道（7727 仅笔记证据）。要专题数据走数据中心通道："
+        workaround="合约 K 线**未定位**（别再写成「无通道」：App 有页面，我们只是没抓到请求）。"
+                   "下一步是**全端口 + 未看过的新合约**再抓一次（工具 tools/cap_start_all.sh）。"
+                   "要专题数据走数据中心通道："
                    "qhlhb_sy（001 合约清单 / 002 持仓与增减）/ qhlhb_jcgc（002 机构持仓）/ "
                    "tdxrb_qh（合约榜）/ qh_hqpd_qhhy（主力连续最新价）—— 本库均未封装成公开方法。"
                    "⚠️ 别归因成「市场码被拒」—— field3 对已知码是宽松的"

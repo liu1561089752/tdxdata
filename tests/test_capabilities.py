@@ -188,7 +188,7 @@ def test_hk_three_conclusions_coexist_and_quote_is_now_available():
 
 
 def test_futures_is_not_blamed_on_the_market_code():
-    """期货：K 线/分时仍「无通道」，但**不许**再把报价说成拿不到。
+    """期货：K 线/分时标「未定位」，**不许**再把报价说成拿不到。
 
     2026-10-29 复核推翻了自己：PBCombHQ + 市场号 28/29/30/66 + 带年份月份的合约码
     （MA2701）实测能回 19 列。旧探针用 IF00 这类缺年份的码，才得出"全空"。
@@ -204,7 +204,10 @@ def test_futures_is_not_blamed_on_the_market_code():
     assert "field3" in joined, "必须留下「field3 宽松」这个反证"
     assert "不支持这个市场码" not in joined, "不许写成「不支持这个市场码」（错误归因）"
     assert "MA2701" in joined, "必须给出实测能回的合约码"
-    assert "K 线" in joined and "无通道" in joined, "K 线/分时不存在的结论要保留"
+    assert "K 线" in joined, "K 线那层必须写到"
+    # 2026-10-29 起**不再**断言"无通道"：用户实测 App 有期货 K 线页面，
+    # 而我们 36 份 pcap 里连一条 K 线命令都没有 —— 没抓到 ≠ 不存在。
+    assert "未定位" in joined, "期货 K 线必须标成「未定位」，不许写死「无通道」"
 
 
 
@@ -260,13 +263,13 @@ def test_forex_7727_quote_is_labelled_as_note_evidence_not_capture():
 
 
 def test_futures_has_three_layers_quote_ok_bars_gap_datacenter_ok():
-    """期货必须拆成三层：**报价可用** + **K 线/分时无通道** + **专题数据可用**。"""
+    """期货必须拆成三层：**报价可用** + **K 线/分时未定位** + **专题数据可用**。"""
     rows = caps.describe("futures")
     assert rows, "futures 一条都没登记"
     joined = " ".join(c.reason + " " + c.workaround + " " + c.evidence for c in rows)
 
     assert any(c.available for c in rows), "报价那层必须标可用"
-    assert "无通道" in joined, "K 线/分时那层必须写「无通道」"
+    assert "未定位" in joined, "K 线/分时那层必须写「未定位」（App 有页面，我们没抓到请求）"
     assert "数据中心" in joined, "专题那层必须落在「数据中心侧」这条通道上"
 
     for needle in ("qhlhb_sy", "qhlhb_jcgc", "tdxrb_qh", "qh_hqpd_qhhy"):
