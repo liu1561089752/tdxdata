@@ -409,6 +409,27 @@ class Client:
             warnings.warn(msg, stacklevel=3)
         return market, code
 
+    def _check_quote_symbol(self, symbol):
+        """**报价专用**的代码校验：A 股走老路，其它资产交给 `symbols.parse_quote`。
+
+        为什么不能直接用 `_check_symbol`：它只认 `symbols.parse()`（6 位 A 股），
+        而 `get_quotes` 现在要收 `hk00700` / `31:00700` / `usNVDA` / `fxUSDCNH` /
+        `28:MA2701` / `8:10012637` 这些写法 —— 用旧门禁会在**发请求之前**就炸，
+        台账里"get_quotes 取港股/期权"的用法等于假的。
+
+        为什么要**先试 A 股那条**：两义代码（`000300`）的提醒、以及"位数不对"的
+        提示文案都长在那里，直接跳过去等于把老用户的提醒弄丢。
+
+        ⚠️ 只有 `get_quotes` 用这个方法；`get_bars` / `get_ticks` 这些仍然过
+        `_check_symbol`，期货/港股码照样在入口被拒（那几条通道确实没有）。
+        """
+        try:
+            return self._check_symbol(symbol)
+        except (ValueError, errors.OutOfScope):
+            # 交给 parse_quote：港股 5 位、期货带年月、`市场号:代码`、us/fx 前缀都在它的射程内。
+            # 它也不认就原样抛 —— 它的错误文案带着"已登记的市场号表"，比"要 6 位数字"有用得多。
+            return symbols.parse_quote(symbol)
+
     def _load_products(self) -> None:
         """挂上产品表（**进程级共享的只读缓存**，见 `_catalog()`）。
 
@@ -1676,7 +1697,7 @@ class Client:
 
         mode = check_on_missing(on_missing)      # 非法值先炸，别白跑一轮网络
         for one in symbols.iter_symbols(symbols_):
-            self._check_symbol(one)              # 位数/期货/两义：进网络之前就拦
+            self._check_quote_symbol(one)        # 位数/两义走老路；港股/期货/期权走 parse_quote
         pairs = _x._pairs(symbols_)
         verdict_box: list = []                  # transport 闭包回填 (status, got)
 

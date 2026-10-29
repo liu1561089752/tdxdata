@@ -100,7 +100,9 @@ def test_chain_rows_name_their_own_strike():
 # ── 5. 三个入口在内网打桩下的行为（不联网）───────────────────────────────
 def test_entry_points_use_the_three_distinct_ctl(monkeypatch):
     """三步的 ctl 各不相同（15/12/14）—— 抄错一个就串包。"""
-    assert (H.CTL["qq_underly"], H.CTL["qq_month"], H.CTL["qq_chain"]) == (0x0F, 0x0C, 0x0E)
+    # ⚠️ 这三个数来自**整帧偏移 5**（`0b5603 0000 15 …` / `0b6003 0000 12 …` / `0b6203 0000 14 …`）。
+    # 曾经写成 0x0F/0x0C/0x0E（从嵌套子头取的，固定小 6）→ 真机一发就被 reset。
+    assert (H.CTL["qq_underly"], H.CTL["qq_month"], H.CTL["qq_chain"]) == (0x15, 0x12, 0x14)
     assert (H.CMD["qq_underly"], H.CMD["qq_month"], H.CMD["qq_chain"]) == (
         "HQServ:PBQQUnderly2", "HQServ:PBQQMonth", "HQServ:PBQQTXCode2")
 

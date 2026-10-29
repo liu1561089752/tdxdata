@@ -355,7 +355,7 @@ def test_ctl_table_matches_handoff():
     """
     assert X.CTL == {"combhq": 0x11, "hqinfo": 0x11, "xmlblock": 0x13,
                      "samplemore": 0x15, "hystat": 0x11, "tickex": 0x11,
-                     "qq_underly": 0x0F, "qq_month": 0x0C, "qq_chain": 0x0E}
+                     "qq_underly": 0x15, "qq_month": 0x12, "qq_chain": 0x14}
     assert X.CMD["xmlblock"] == "HQServ:PBXmlBlock"
 
 

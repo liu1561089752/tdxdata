@@ -215,3 +215,68 @@ def test_hk_quote_docstring_warns_about_delay():
 
     hk = [c for c in CAPABILITIES if c.name == "港股 实时报价"][0]
     assert "15" in hk.reason and "延时" in hk.reason
+
+
+# ══════════════════════════════════════════════════════════════════════════
+# 真机才暴露的两个洞（2026-10-29，取期权行情时撞出来）
+# ══════════════════════════════════════════════════════════════════════════
+def test_get_quotes_gate_accepts_every_asset_form():
+    """`Client.get_quotes` 的门禁必须收得下新写法，否则台账写的用法是假的。
+
+    原来 get_quotes 调 `_check_symbol` → `symbols.parse`（只认 6 位 A 股），
+    `get_quotes(["hk00700"])` / `(["8:10012637"])` 在**发请求之前**就 ValueError。
+    """
+    from tdxdata import symbols as S
+
+    c = _CLS()
+    try:
+        assert c._check_quote_symbol("hk00700") == (31, "00700")
+        assert c._check_quote_symbol("31:00700") == (31, "00700")
+        assert c._check_quote_symbol("usNVDA") == (74, "NVDA")
+        assert c._check_quote_symbol("8:10012637") == (8, "10012637")
+        assert c._check_quote_symbol("28:MA2701") == (28, "MA2701")
+        assert c._check_quote_symbol("600519")[1] == "600519"      # A 股老路没变
+
+        # 其它方法仍走严格门禁：期权码不许传给 K 线之类的接口
+        import pytest
+        with pytest.raises((ValueError, Exception)):
+            c._check_symbol("8:10012637")
+        assert S.parse_quote("8:10012637") == (8, "10012637")
+    finally:
+        c.close()
+
+
+def test_looks_code_accepts_all_asset_code_shapes():
+    """行首判据不能写死 6 位数字 —— 那会把港股/期权/期货/美股的行整批丢掉。
+
+    症状特别难查：请求发对了、服务端也回了，最后却报"服务端静默未返回"。
+    """
+    from tdxdata._engine import hq_extra as H
+
+    for good in ("600519", "00700", "08285", "10012637", "MA2701", "V2701",
+                 "IF2611", "NVDA", "A_DJI", "USDCNH", "HSI"):
+        assert H._looks_code(good), "%r 是合法代码，不该被过滤" % good
+    for bad in ("", "总计", "贵州茅台", "1" * 13, "2026-10-29 18:40"):
+        assert not H._looks_code(bad), "%r 不是代码，必须被过滤" % bad
+
+
+def test_get_quotes_keeps_non_six_digit_rows(monkeypatch):
+    """端到端（离线）：5 位港股 + 8 位期权混在一批里，两行都要回来、且按请求顺序。"""
+    from tdxdata._engine import hq_extra as H
+
+    cols = ["Code", "Setcode", "Name", "CLOSE", "NOW"]
+    table = [["10012637", "8", "沪-50ETF购11月2650", "0.2160", "0.2091"],
+             ["00700", "31", "腾讯控股", "382.400", "386.000"]]
+    sent = []
+
+    def fake_call(which, args, tries=3):
+        sent.append(args)
+        return b"\x00"                              # 非空即可，parse 被下面替掉
+
+    monkeypatch.setattr(H, "_call", fake_call)
+    monkeypatch.setattr(H, "parse_rowtable", lambda _b: (cols, table))
+
+    got_cols, rows = H.get_quotes(["8:10012637", "31:00700"], batch=100)
+    assert got_cols == cols
+    assert [r[0] for r in rows] == ["10012637", "00700"], "必须按请求顺序返回"
+    assert len(sent) == 1, "两个码一批发完，不该单发"

@@ -61,9 +61,11 @@ CTL = {
     "hystat": 0x11,
     "tickex": 0x11,
     # 期权 T 型报价三步链（2026-10-29 抓包实测；三步的 ctl 各不相同，别想当然）
-    "qq_underly": 0x0F,
-    "qq_month": 0x0C,
-    "qq_chain": 0x0E,
+    # ⚠️ 这三个值量自**整帧偏移 5**：`0b5603 0000 15 …`(underly) / `0b6003 0000 12 …`(month)
+    #    / `0b6203 0000 14 …`(chain)。别从嵌套子头里取（会小 6，我踩过）。
+    "qq_underly": 0x15,
+    "qq_month": 0x12,
+    "qq_chain": 0x14,
 }
 
 #: 命令名。服务名与方法名之间 `:` 和 `.` 服务端都收（实测），这里统一用抓包里的 `:`。
@@ -830,7 +832,20 @@ def _one_batch(items):
 
 
 def _looks_code(s: str) -> bool:
-    return len(s) == 6 and s.isdigit()
+    """行首单元格是不是"一个代码"：非空 ASCII 字母数字（可带 `_.-`），最长 12。
+
+    ⚠️ 原来写的是 `len(s) == 6 and s.isdigit()` —— 那是 **A 股**的口径。
+    港股价 5 位（`00700`）、期权 8 位（`10012637`）、期货 `MA2701`、美股 `NVDA`
+    全被它过滤掉，外层看到的就是"服务端静默未返回"（**假阴性**）。
+    2026-10-29 真机取期权行情时暴露：服务端明明回了 21 列 1 行，这里却报缺码。
+
+    放宽不会放进垃圾行：调用方是按"请求里出现过的 code"归档的
+    （`by_code` / `retry_plain`），多出来的行会被自然丢弃；中文表头之类
+    带非 ASCII 字符，仍然过不来。
+    """
+    if not s or len(s) > 12 or not s.isascii():
+        return False
+    return all(ch.isalnum() or ch in "_.-" for ch in s)
 
 
 def name_of(symbol, market=None, *, f2=3, f9=5) -> str:
