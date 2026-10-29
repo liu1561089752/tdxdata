@@ -273,7 +273,7 @@ def test_fetch_keeps_base_status_when_judge_yields_none():
     assert table.provenance.status == Status.PROVISIONAL.value
 
 
-def test_public_api_surface_unchanged_36_methods():
+def test_public_api_surface_unchanged_37_methods():
     """公开 API 面**只增不改**：ARCH-003 要求存量方法零变化。
 
     2026-10-29 增 3 个（期权链）：`option_underlyings` / `option_months` /
@@ -284,7 +284,8 @@ def test_public_api_surface_unchanged_36_methods():
         "products", "domains", "last_call", "call", "get", "get_bars",
         "get_breadth", "get_minutes", "get_quotes", "get_name",
         "get_block_data", "get_block_rows", "get_samples",
-        "get_intraday_samples", "get_board_stat", "get_ticks",
+        "get_intraday_samples", "get_board_stat", "get_futures_bars",
+    "get_ticks",
         "get_market_page", "get_universe", "iter_universe", "get_indicators",
         "get_price_limits", "get_finance", "get_f10", "get_xdxr",
         "get_boards", "board_page", "get_board_members", "get_capital_flow",

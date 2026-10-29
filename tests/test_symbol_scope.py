@@ -220,6 +220,7 @@ def test_zero_symbol_silenced_by_explicit_market_via_tuple():
 #: 公开方法却没进这张表，测试立刻红。
 SYMBOL_METHODS = {
     "get_bars": ("{}",),
+    "get_futures_bars": ("{}", 28, 700),
     "get_breadth": ("{}",),
     "get_minutes": ("{}",),
     "get_ticks": ("{}",),
@@ -284,7 +285,8 @@ def test_symbol_methods_are_covered():
     # 例外必须**有理由**（空字符串/占位一律不算）
     for name, why in SYMBOL_EXEMPT.items():
         assert isinstance(why, str) and len(why) >= 10, "例外 %s 没写清理由" % name
-    for must in ("get_bars", "get_minutes", "get_ticks", "get_quotes", "get_name"):
+    for must in ("get_bars", "get_futures_bars", "get_minutes",
+                 "get_ticks", "get_quotes", "get_name"):
         assert must in derived
 
 

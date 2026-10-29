@@ -2077,6 +2077,79 @@ class Client:
             notes="Strike 是 f32 行权价；名称里的数字是 行权价×1000",
         ))
 
+    def get_futures_bars(self, code: str, market: int | None = None,
+                         count: int = 700) -> Table:
+        """**期货 K 线**（经典二进制协议，命令 `0x122E`），返回 `Table`。
+
+        为什么要单独一个方法、不走 `get_bars`
+        --------------------------------------
+        `get_bars` 走的是 `HQServ:PBFXT` + protobuf，**对期货一律 0 行**
+        （60 组码形态 × 市场号实测）。期货 K 线在**另一条协议**上：
+        帧里没有命令名字符串，只有 `命令号(0x122E) + 48 字节定长体`，
+        ctl 是 `0x03`、标记位 `b4 26`（protobuf 帧是 `4b 26`）—— 抄错任何一个字节
+        都会被服务端直接断开。帧头字节取自 `raw/pcap/cap_1029_090838.pcap` 的真实帧。
+
+        列
+        --
+        `Date / Open / High / Low / Close` 是**实测校验过**的（700 根逐根满足
+        `low ≤ min(open, close) ≤ max(open, close) ≤ high`）；
+        `OpenInterest / Volume / Settle` 是按量级关系**推断**的（见 `_engine/hq_classic.py`），
+        `Settle` 在盘中未结算的那根上是 0.0。
+
+        参数
+        ----
+        code : str
+            合约码，如 `"MA2612"` / `"CU2612"` / `"IF2611"`（也接受 `"28:MA2612"`）。
+        market : int | None
+            市场号（28 郑商所 / 29 大商所 / 30 上期所·能源 / 66 广期所 / 47 中金所）。
+            `None` 时从 `"市场号:代码"` 写法里取；再没有就按品种字母猜（不保证）。
+        count : int
+            要多少根，默认 700（= 服务端单页上限，实测）。
+
+        注意
+        ----
+        * 手续费/保证金/合约乘数走 F10（`ph_qhf10_zl_v2`），不在这里
+        * 夜盘那根归属**下一个交易日**（实测：10-29 夜盘拿到 `Date=20261030`），
+          这是交易所口径，不是脏数据
+        """
+        from ._engine import hq_classic as classic
+        from .symbols import parse_quote
+
+        if market is None:
+            if ":" in str(code):
+                market, code = parse_quote(code)      # 显式写法：市场号已经给了
+            else:
+                market = classic.market_of(code)      # 按品种字母推断；猜不出就报错
+        code = str(code).upper()
+        mk = int(market)
+        if mk not in classic.FUTURES_MARKETS:
+            raise errors.OutOfScope(
+                "%s 的市场号 %s 不是期货（本方法只服务 28 郑商所 / 29 大商所 / "
+                "30 上期所·能源 / 47 中金所 / 66 广期所）。A 股/港股/期权请用 get_bars"
+                "（走 PBFXT）—— 两者是不同的协议，别混。" % (code, mk))
+        if not any(ch.isalpha() for ch in code):
+            raise errors.OutOfScope(
+                "%s 不像期货合约码：期货要写成「品种字母+年月」，如 MA2612 / CU2612 / IF2611。"
+                "纯数字代码请用 get_bars" % code)
+        self._check_quote_symbol("%d:%s" % (mk, code))   # 发请求前先校验写法
+        t0 = time.monotonic()
+        cols, rows = classic.get_bars(code, mk, count=int(count))
+        if not rows:
+            raise errors.EmptyResult(
+                "%s（市场号 %s）没取到 K 线：确认合约码带年月的写法（如 MA2612），"
+                "以及市场号是否属于期货（28/29/30/47/66）" % (code, market))
+        table = Table(cols=list(cols), rows=rows, cmd="HQServ.FXT(0x122E)")
+        # 经典协议没有 protobuf 那套信封，但**语义层照样要盖章**：
+        # as_of = 末根日期（夜盘那根归属下一交易日，这是交易所口径）
+        self._stamp_table(
+            table, "HQServ.FXT(0x122E)", classic.CTL,
+            host=self._session_host(), t0=t0,
+            status=timeliness.judge_unregistered(server_now=self._now()),
+            as_of=rows[-1][0] if rows else None,
+            status_note="经典二进制协议（0x122E）：服务端不带「现在几点」字段，"
+                        "时效按未登记通道口径保守处理；夜盘那根归属下一交易日")
+        return table
+
     def get_ticks(self, symbol: str | tuple, count: int = 200,
                   max_pages: int = 50) -> list[Tick]:
         """逐笔成交（`HQServ:PBTickEx`，2026-10-27 打通）。返回 `list[Tick]`，**按时间升序**（旧→新）。

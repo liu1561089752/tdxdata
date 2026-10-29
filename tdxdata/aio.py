@@ -169,6 +169,12 @@ class AsyncClient:
         """`await` 版 `Client.get_quotes`（批量报价；支持 `on_missing=`）。"""
         return await self._run(self._c.get_quotes, symbols_, *a, **kw)
 
+    async def get_futures_bars(self, code: str, market: int | None = None,
+                               count: int = 700):
+        """`Client.get_futures_bars` 的 await 版（期货 K 线，经典协议 0x122E）。"""
+        return await self._run(self._c.get_futures_bars, code,
+                               market=market, count=count)
+
     async def get_ticks(self, symbol, *a, **kw):
         """`await` 版 `Client.get_ticks`（逐笔成交）。"""
         return await self._run(self._c.get_ticks, symbol, *a, **kw)

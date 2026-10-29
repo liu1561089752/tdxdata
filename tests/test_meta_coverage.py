@@ -35,6 +35,7 @@ import pytest
 import tdxdata
 from tdxdata import errors
 from tdxdata._engine import datacenter as dc
+from tdxdata._engine import hq_classic
 from tdxdata._engine import hq_extra
 from tdxdata._engine import hq_pb
 from tdxdata._engine import session as sess_mod
@@ -67,6 +68,7 @@ ARGS = {
     "get_market_breadth": (),
     "get_market_stat": ("updown",),
     "get_option_chain": ("510050", 2611),   # 标的 + 月份（2026-10-29 期权链）
+    "get_futures_bars": ("MA2612", 28, 700),
     "get_samples": (["600519", "000001"],),
     "get_xdxr": ("600519",),
 }
@@ -266,6 +268,12 @@ def offline(monkeypatch):
                                           "PutCode", "PutName"),
                                          [[2.65, "10012637", "50ETF购11月2650",
                                            "10012638", "50ETF沽11月2650"]]))
+    # 期货 K 线（2026-10-29 深夜）：走**经典二进制协议**，原始取数层在 `hq_classic`，
+    # 所以桩也得打在这一层 —— 否则 meta 路径会真的去连 7615。
+    monkeypatch.setattr(hq_classic, "get_bars",
+                        lambda *a, **k: (hq_classic.BARS_COLS,
+                                         [(20261029, 3588.0, 3595.0, 3527.0, 3544.0,
+                                           224522.0, 131596.0, 3537.0)]))
     return monkeypatch
 
 
