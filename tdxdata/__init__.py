@@ -44,6 +44,7 @@
 | 证券代码表 / 板块成分 | ⚠️ 部分 | `get_universe` 只枚举「行情列表」；无完整代码表命令 |
 """
 from .client import Client
+from .client import set_default_date
 from .enums import Adjust, KlinePeriod, Market, Status
 from .errors import (
     AmbiguousSymbol,
@@ -95,6 +96,11 @@ from .capabilities import (
     describe,
 )
 from .capabilities import as_markdown_table as capabilities_markdown
+
+#: 缓存（2026-10-29 公开）：`Client(cache="auto")` 按实测新鲜度逐命令定 TTL；
+#: 也可以自带 `TTLCache(ttl=300)`。`ttl_for_cmd("hg_gdp")` 能直接查某个产品的缓存时长。
+from .caching import POLICY as CACHE_POLICY
+from .caching import TTLCache, auto_cache, default_ttl, ttl_for_cmd
 
 #: 恒等式运行时闸门（批次 E，报告 §6.5）：`invariants.validate(container)`
 #: 显式调用入口。闸门不自动开（性能取舍），详见 `tdxdata/invariants.py` 模块文档。

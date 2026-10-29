@@ -242,7 +242,7 @@ c.get_bars(("sh", "000300"))         # 沪深300 —— 与深市代码段冲突
 | 概念板块成分股 | 含入选理由与纳入日期 |
 | 数据中心 | 421 个产品、17 个域：龙虎榜 / 财报 / 资金流 / 分红 / 大盘统计… |
 | 结构化接口 | F10、财务报表、分红融资（语义化英文列名） |
-| 本地缓存 | `Client(cache=TTLCache(ttl=300))`，命中不占限流配额 |
+| 本地缓存 | `Client(cache="auto")`（按命令的**实测**新鲜度给 TTL）或 `Client(cache=TTLCache(ttl=300))`；命中不占限流配额 |
 | 同步 + 异步 | `Client` / `AsyncClient` |
 
 > 涨跌停家数（`get_market_stat("updown")`）**含北交所**。不含北交所的数量与之不同，
@@ -351,7 +351,7 @@ with tdxdata.Client() as c:
 | `get_market_page(market, offset, page_size, cols)` | `list[Quote]` | 行情一页 |
 | `get_universe(market, max_pages, page_size)` | `list[Quote]` | 翻页枚举 + 去重；`meta` 带 `truncated`/`pages`/`rows`/`estimated_cost_seconds`（**达上限就是 `truncated=True`**，不再把 1000 只当全量 —— 要全量请用 `iter_universe()`） |
 | `iter_universe(market=6, page_size=80, max_pages=None)` | 生成器 | **逐页取全**，`max_pages=None` = 翻到底；可边取边停（全量约 5577 只 / ≈158 秒） |
-| `get_quotes(symbols, batch, on_missing="raise")` | `list[Quote]` | 批量报价；缺码单发兜底。`on_missing`：`raise`（默认，抛 `EmptyResult` 点名）/ `skip`（不抛，缺失清单进 `meta["missing"]`）/ `report`（同 skip + 警告一次） |
+| `get_quotes(symbols, batch=100, on_missing="raise")` | `list[Quote]` | 批量报价；`batch` 默认 100、上限 447（实测一次能带走 447 个码）；缺码**成批**补发。`on_missing`：`raise`（默认，抛 `EmptyResult` 点名）/ `skip`（不抛，缺失清单进 `meta["missing"]`）/ `report`（同 skip + 警告一次） |
 | `get_name(symbol, market=None)` | `str` | 代码 → 名称 |
 | `get_boards(kind)` | `Table` | `all` / `industry` / `concept` / `style` / `area` / `industry1~3`；`change_pct` 是**真值**（见下） |
 | `get_board_members(board)` | `Table` | 概念板块成分股（含入选理由） |
@@ -371,9 +371,15 @@ with tdxdata.Client() as c:
 
 ```python
 # 缓存默认关闭（保持"每次都真的问服务端"的可预测语义）
-from tdxdata._engine.cache import TTLCache
+from tdxdata import TTLCache
 with tdxdata.Client(cache=TTLCache(ttl=300)) as c:
     c.get("holiday")     # 第二次命中缓存，不占用限流配额
+
+# 2026-10-29 起也可以交给库：按**每条命令的实测新鲜度**逐条定 TTL
+with tdxdata.Client(cache="auto") as c:
+    c.get("hg_gdp")      # 宏观：滞后 293 天 → 缓存 30 天
+    c.get("zdt_zdfx")    # 当日涨跌停：滞后 0 天 → **不缓存**（ttl=0）
+tdxdata.ttl_for_cmd("hg_gdp")      # 2592000（秒），可自查某个产品的缓存时长
 ```
 
 ## `get_boards` 的 `change_pct` 怎么来的（阶段 4 修正）
@@ -453,7 +459,10 @@ get_universe(20 页)    ~44s
 数据中心单次命令         ~0.4s      （缓存命中接近 0）
 ```
 
-瓶颈在**服务端限流**，不在库：实测每 0.2 秒连发 8 次就会被踢，间隔 2.2 秒可长期稳定。
+瓶颈在**服务端限流**，不在库：**库早期**实测每 0.2 秒连发 8 次就会被踢，间隔 2.2 秒可长期稳定。
+
+> ⚠️ **这条结论的边界（2026-10-29 复核）**：用 31 份手机端抓包回放时，数据中心表出现过**单秒 22 个不同查询**、2316 个回包**零限流错误**，与上面的结论存在张力。
+> 差异可能来自「同参数重复」与「不同参数并发」的区别，也可能来自服务端策略变化，**尚未做对照实验**。所以实验完成前 `BASE_GAP` 保持 2.2 秒不动：宁可慢，不拿用户 IP 去赌。
 
 因此节流闸门是**进程级单例** —— 同一进程里多个 `Client` 共享同一条时间线。
 这不是可以随便调的参数，调快只会更容易被踢。库内含自适应退避与主机冷却，

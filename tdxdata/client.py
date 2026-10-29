@@ -40,6 +40,9 @@ import os
 import threading
 import time
 import warnings
+
+from ._engine import pacer as _pacer_mod   # 只为取 BASE_GAP 这个唯一事实源
+from collections.abc import Iterable, Iterator
 from datetime import date, datetime
 from typing import Any
 
@@ -96,6 +99,77 @@ def _catalog() -> dict:
         _CATALOG["products"] = payload.get("products", {})
         _CATALOG["pb_products"] = payload.get("pb_products", {})
     return _CATALOG
+
+#: 「命令名 → 参数模板」索引（懒建一次，之后 O(1)）。
+#: 别在每次取数时线性扫 421 条产品 —— 那是每请求 40 µs 的白烧。
+_CMD_TEMPLATES: dict = {}
+
+
+def _templates() -> dict:
+    """把台账里"参数是位置数组"的产品收成 `{cmd: params}`（只读，勿改）。"""
+    if not _CMD_TEMPLATES:
+        try:
+            for _spec in _catalog()["products"].values():
+                cmd = _spec.get("cmd")
+                params = _spec.get("params")
+                if cmd and isinstance(params, list):
+                    _CMD_TEMPLATES.setdefault(cmd, params)
+        except Exception:               # noqa: BLE001  ← 台账读不出来不该挡住发请求
+            pass
+    return _CMD_TEMPLATES
+
+
+#: 空槽校验用的"标量模板"判据：模板里这一位是标量（str/int），用户却塞了空容器。
+_EMPTY_CONTAINERS = (list, dict)
+
+
+def _check_empty_slots(cmd: str, params) -> None:
+    """非空参数数组里出现 `[]` / `{}` → 服务端必然回 `-1002 请求参数错误`（本地就拦住）。
+
+    为什么这条值得单独写
+    --------------------
+    31 份抓包里「参数数组含空槽」的请求一共只出现 **2 次**，两次都是 `-1002`：
+
+    ```
+    CWServ.ph_tdxdatacenter_slb   ["zxt", [],      1, 0, 0, 0]    ← -1002
+    CWServ.ph_tdxdatacenter_aitc  ["zxgt", [],     1, 0, 0, 0, 0] ← -1002
+    ```
+
+    把 `[]` 改成 `""` 就通过。而**合法的空参数**是"整个参数数组为空"
+    （`{"Params": []}`，语料里 PASS/EMPTY_RS 都有），那不算空槽，不在本校验范围内。
+
+    判据取"够窄"：只有**产品台账里这一位是标量**时才拦 —— 台账里没这条命令、
+    或该位本来就是数组/对象时不拦（宁可放过，不可误杀）。
+    """
+    if params is None:
+        return
+    obj = params
+    if isinstance(obj, str):
+        try:
+            obj = json.loads(obj)
+        except (ValueError, TypeError):
+            return                      # 非 JSON 字符串：无法判断，交给服务端
+    arr = obj.get("Params") if isinstance(obj, dict) and "Params" in obj else obj
+    if not isinstance(arr, list) or not arr:
+        return                          # 整个数组为空 = 合法的"无参数"，不拦
+
+    template = _templates().get(cmd)
+    if not template:
+        return                          # 没模板 → 不猜
+
+    for i, val in enumerate(arr):
+        if i >= len(template):
+            break
+        slot = template[i]
+        if isinstance(val, _EMPTY_CONTAINERS) and len(val) == 0 \
+                and not isinstance(slot, _EMPTY_CONTAINERS):
+            raise errors.ParamError(
+                "%s 的第 %d 个参数是空%s %r，服务端会回 -1002「请求参数错误」。"
+                "抓包实证：31 份语料里「参数数组含空槽」的请求只出现过 2 次，"
+                "两次都是 -1002（ph_tdxdatacenter_slb / ph_tdxdatacenter_aitc）。"
+                "空槽请写成空字符串 \"\" —— 该位在台账里是标量（模板值 %r）。"
+                % (cmd, i + 1, "列表" if isinstance(val, list) else "字典", val, slot))
+
 
 # KlinePeriod 枚举 → 协议周期字符串（**不能用 name.lower()**：MIN_60 会变成 min_60）
 _PERIOD_STR = {
@@ -162,6 +236,13 @@ _CAP_FIELD = {
     "evidence": "evidence",
     "workaround": "workaround",
 }
+
+
+#: 默认节流间隔的**唯一**来源是 `_engine/pacer.BASE_GAP`。
+#: 别在这里再写一个 2.2：两个常量各写一遍的结果是"改了 pacer 没改 Client"，
+#: 而 `Client(gap=…)` 又会把它当初始值传给进程级闸门 —— 两处不一致时行为取决于谁先被读。
+_DEFAULT_GAP = _pacer_mod.BASE_GAP
+
 
 
 class Client:
@@ -240,7 +321,8 @@ class Client:
     """
 
     def __init__(self, host: str | None = None, timeout: float = 15.0,
-                 gap: float = 2.2, cache=None, *, clock_probe: bool = True,
+                 gap: float = _DEFAULT_GAP, cache=None, *,
+                 clock_probe: bool = True,
                  strict_symbols: bool = False):
         from ._engine import session as _session
 
@@ -260,7 +342,17 @@ class Client:
         self._host = host
         self._timeout = timeout
         self._gap = gap
-        self._cache = cache               # None = 不缓存（默认行为不变）
+        # 缓存三态（2026-10-29）：
+        #   None       = 不缓存（默认，行为与旧版一字不差）
+        #   "auto"     = 按命令查实测 TTL（`data/cache-ttl.json`，见 `tdxdata.caching`）
+        #   TTLCache   = 用你给的那个对象（TTL 由它自己定，语义不变）
+        if isinstance(cache, str) and cache.strip().lower() == "auto":
+            from . import caching as _caching
+            self._cache = _caching.auto_cache()
+            self._cache_auto = True
+        else:
+            self._cache = cache
+            self._cache_auto = False
         self._products: dict[str, dict] = {}
         self._pb_products: dict[str, dict] = {}
         # ── 语义层状态（阶段 1 新增；全部有默认值，不影响既有签名）────────
@@ -635,6 +727,22 @@ class Client:
                           elapsed=rec.get("elapsed") or 0.0,
                           notes=tuple(notes))
 
+    def _cache_set(self, key, cmd: str, table) -> None:
+        """写缓存：`cache="auto"` 时按命令查实测 TTL；查不到（=0）就**不写**。
+
+        TTL 的依据是抓包实测的"数据多久变一次"（`data/cache-ttl.json`），
+        不是拍脑袋的统一值 —— 宏观表滞后 293 天、当日涨跌停 0 天，差三个数量级。
+        """
+        auto = getattr(self, "_cache_auto", False)
+        if not auto:
+            self._cache.set(key, table)
+            return
+        from . import caching as _caching
+        ttl = _caching.ttl_for_cmd(cmd)
+        if ttl <= 0:
+            return                      # 当日数据：不缓存（宁可慢，不可把旧数当新数）
+        self._cache.set(key, table, ttl=ttl)
+
     def _stamp_table(self, table: Table, cmd: str, ctl, *, host, t0,
                      cached: bool = False, status=None, as_of=None,
                      status_note: str | None = None,
@@ -912,6 +1020,7 @@ class Client:
         **绝不默认 FINAL**。
         """
         t0 = time.monotonic()
+        _check_empty_slots(cmd, params)     # 空槽 → 本地报错，别浪费一个 2.2 s 往返
         args = self._session_mod.body_of(cmd, params)
 
         # ① 缓存命中：闸门都不用进（缓存不是为了绕过限流，是为了根本不发请求）
@@ -968,7 +1077,7 @@ class Client:
                 self._pacer.note_ok()
                 table = self._make_table(cmd, cols, rows, primary)
                 if ck is not None:
-                    self._cache.set(ck, table)
+                    self._cache_set(ck, cmd, table)
                 self._stamp_table(table, cmd, ctl, host=self._session_host(), t0=t0,
                                   status=timeliness.judge_unregistered(
                                       server_now=self._now()),
@@ -982,7 +1091,7 @@ class Client:
                 if allow_empty:
                     table = Table(cols=list(primary or cols), rows=[], cmd=cmd)
                     if ck is not None:
-                        self._cache.set(ck, table)
+                        self._cache_set(ck, cmd, table)
                     self._stamp_table(table, cmd, ctl, host=self._session_host(),
                                       t0=t0,
                                       status=timeliness.judge_unregistered(
@@ -1164,7 +1273,7 @@ class Client:
         return ds
 
     # ── 行情 ──────────────────────────────────────────────────────────────
-    def get_bars(self, symbol, period="day", count: int = 120,
+    def get_bars(self, symbol: str | tuple, period: str = "day", count: int = 120,
                  adjust: Adjust | str = Adjust.NONE) -> list[Bar]:
         """K 线。`period` 接受 `"day"/"week"/"60m"/"month"…` 或 `KlinePeriod`。
 
@@ -1352,7 +1461,7 @@ class Client:
         out.provenance = out.provenance.with_extra(**extra)
         return out
 
-    def get_breadth(self, code, count: int = 120,
+    def get_breadth(self, code: str | tuple, count: int = 120,
                     adjust: Adjust | str = Adjust.NONE) -> Table:
         """**广度 / 统计序列**（涨跌家数、停板家数、新低点位…），返回命名字段的 `Table`。
 
@@ -1456,7 +1565,7 @@ class Client:
                 % (s, " / ".join(sorted(set(_PERIOD_STR.values())))))
         return s
 
-    def get_minutes(self, symbol) -> list[MinutePoint]:
+    def get_minutes(self, symbol: str | tuple) -> list[MinutePoint]:
         """当日分时（240 点）。7615 固定取当日，不接受日期参数。
 
         语义层（阶段 1）：返回 `Minutes`（`list` 子类），`provenance` 带
@@ -1497,7 +1606,8 @@ class Client:
                        "（分时固定取当日）",
         ))
 
-    def get_quotes(self, symbols_, batch: int = 20, on_missing: str = "raise",
+    def get_quotes(self, symbols_: Iterable[str | tuple] | str | tuple,
+                   batch: int = 100, on_missing: str = "raise",
                    **kwargs) -> list[Quote]:
         """**按代码批量报价**（`PBCombHQ`），返回 `list[Quote]`（按你给的顺序）。
 
@@ -1529,7 +1639,11 @@ class Client:
         * 无效/不支持的代码服务端**静默不返回**（如老新三板 `430047`）；
           本方法会自动**对缺的码单独补一次**，仍无就抛 `EmptyResult` 并点名，
           绝不返回"少了几个"的表冒充完整结果。
-        * `batch`：每次请求放几个代码（抓包只验证到 6 个，上限未知，默认 20 保守）。
+        * `batch`：每次请求放几个代码。**默认 100**，上限 **447**（`hq_extra.MAX_BATCH`）。
+          依据是 31 份抓包里 945 个 `PBCombHQ` 请求的实测：最大一次带 447 个码、
+          回包同样 447 行且完整；≥20 码的 188 个请求里 180 个回包行数 ≥ 请求数。
+          全市场 5400 只：`batch=20` 要 270 次往返（@2.2 s ≈ 10 分钟），447 只要 13 次（≈29 秒）。
+          超过 447 抛 `ParamError` —— 没有证据的事不赌。
         * 每只的原始列一个不丢（多要三列后是 25 列左右），全在 `Quote.raw` 里（按服务端列名）。
 
         语义层（阶段 1）
@@ -1610,7 +1724,8 @@ class Client:
                 requested=len(pairs), returned=len(out), missing=missing)
         return out
 
-    def get_name(self, symbol, market: int | None = None, **kwargs) -> str:
+    def get_name(self, symbol: str | tuple, market: int | None = None,
+                 **kwargs) -> str:
         """**代码 → 名称**（`PBHQInfo`）。`symbol` 可给 `'880903'` 或 `('sh','600519')`。
 
         ```python
@@ -1706,7 +1821,8 @@ class Client:
             notes="c3 起的列含义未定：服务端未给列名，这里只按位置命名",
         ))
 
-    def get_samples(self, symbols_, batch: int = 15) -> Table:
+    def get_samples(self, symbols_: Iterable[str | tuple] | str | tuple,
+                    batch: int = 15) -> Table:
         """**批量抽样行情**（`PBSampleMore`）：一次几十个代码的紧凑快照。
 
         只在"要极省流量 / 大批量"时用它 —— 同样传一批代码，
@@ -1744,7 +1860,8 @@ class Client:
             notes="f0.. 的列序未锚定，别当 high/low 用：服务端未给列名",
         ))
 
-    def get_intraday_samples(self, symbols_, count: int | None = None) -> Table:
+    def get_intraday_samples(self, symbols_: Iterable[str | tuple] | str | tuple,
+                             count: int | None = None) -> Table:
         """**分时点位抽样**（`HQServ.PBSample`，ctl `0x11`）—— 逐分钟点位数组。
 
         与 `get_samples()` 的区别（名字像，命令完全不同）
@@ -1887,7 +2004,8 @@ class Client:
                   "f3 取值含义见 docs/VERIFICATION.md",
         ))
 
-    def get_ticks(self, symbol, count: int = 200, max_pages: int = 50) -> list[Tick]:
+    def get_ticks(self, symbol: str | tuple, count: int = 200,
+                  max_pages: int = 50) -> list[Tick]:
         """逐笔成交（`HQServ:PBTickEx`，2026-10-27 打通）。返回 `list[Tick]`，**按时间升序**（旧→新）。
 
         **翻页是自动的**：首页锚点 `"0"`（最新一页），之后每页锚点 = 上一页响应里的
@@ -2114,7 +2232,7 @@ class Client:
         return out
 
     def iter_universe(self, market: int = 6, page_size: int = 80,
-                      max_pages: int | None = None):
+                      max_pages: int | None = None) -> Iterator[Quote]:
         """**逐页取全的生成器**：一枚一枚 `Quote` 交出去，边取边给。
 
         ```python
@@ -2146,7 +2264,9 @@ class Client:
             key=lambda q: (q.market, q.code))
 
     # ── 指标 / 涨跌停（本地计算，契约见 API设计.md §2.7）─────────────────
-    def get_indicators(self, symbol, indicators=None, period: str = "day",
+    def get_indicators(self, symbol: str | tuple,
+                       indicators: Iterable[str] | None = None,
+                       period: str = "day",
                        count: int = 120) -> Table:
         """由 `get_bars` 派生的技术指标，**行与 K 线一一对应**。
 
@@ -2180,7 +2300,8 @@ class Client:
         table.inherit_provenance(bars, **{"period": period, "count": len(bars)})
         return table
 
-    def get_price_limits(self, symbol, prev_close: float | None = None,
+    def get_price_limits(self, symbol: str | tuple,
+                         prev_close: float | None = None,
                          is_st: bool = False) -> tuple[float, float]:
         """涨跌停价 `(limit_up, limit_down)`，按板块规则 + 交易所取整。
 
@@ -2197,7 +2318,7 @@ class Client:
         return _limits.price_limits(prev_close, code, is_st=is_st)
 
     # ── 财务 / F10 / 分红（B 组，契约见 API设计.md §2.7）──────────────────
-    def get_finance(self, symbol, kind: str = "zcfz") -> Table:
+    def get_finance(self, symbol: str | tuple, kind: str = "zcfz") -> Table:
         """财务报表（资产负债表 / 利润表 / 现金流量表 / 主要指标…）。
 
         标准字段名见 `tdxdata/sections/mapping.py`，原始列在每行 `raw` 里。
@@ -2208,14 +2329,14 @@ class Client:
         self._check_symbol(symbol)          # 位数/期货/两义：进网络之前就拦
         return _finance.get_finance(self, symbol, kind=kind)
 
-    def get_f10(self, symbol, section: str = "gsjj") -> Table:
+    def get_f10(self, symbol: str | tuple, section: str = "gsjj") -> Table:
         """F10 个股资料（公司简介 / 经营分析 / 股东 / 分红…）。"""
         from .sections import f10 as _f10
 
         self._check_symbol(symbol)          # 位数/期货/两义：进网络之前就拦
         return _f10.get_f10(self, symbol, section=section)
 
-    def get_xdxr(self, symbol) -> Table:
+    def get_xdxr(self, symbol: str | tuple) -> Table:
         """分红融资（`ph_agf10_fhrz`）。手机版 7615 无独立除权除息命令。"""
         from .sections import xdxr as _xdxr
 
@@ -2264,13 +2385,13 @@ class Client:
         ))
         return cols, box
 
-    def get_board_members(self, board) -> Table:
+    def get_board_members(self, board: str | tuple) -> Table:
         """板块成分股。`board` 可给板块名或板块代码。"""
         from .sections import boards as _boards
 
         return _boards.get_board_members(self, board)
 
-    def get_capital_flow(self, symbols=None) -> Table:
+    def get_capital_flow(self, symbols: Iterable[str | tuple] | str | tuple | None = None) -> Table:
         """资金流向。`symbols=None` 取全市场排行，也可给单代码或代码列表。"""
         from .sections import flow as _flow
 
@@ -3046,8 +3167,68 @@ def _adjust_code(adjust) -> tuple[int, str]:
 
 _PLACEHOLDERS = {
     "code": "600519",          # 股票代码占位符的默认值（茅台，各命令都用得起）
-    "date": "2026-10-23",      # 最近一个已收盘交易日
+    "date": "2026-10-23",      # 上次校准的交易日；**过期会告警**（见 _warn_if_date_stale）
 }
+
+#: 默认日期超过这个天数就告警：它是写死的常量，不跟着日历走。
+#: 为什么不禁用默认值：`c.get("lhb")` 不传 date 的写法在文档与用例里到处都是，
+#: 一刀切会让"无参依赖日期"的产品全部不可用。折中是**告警 + 可显式设置**，
+#: 让"我在查一份上个月的旧数据"这件事至少不会被静默吞掉。
+_DEFAULT_DATE_MAX_AGE_DAYS = 30
+_DATE_WARNED = False
+
+
+def set_default_date(date: str) -> None:
+    """改掉 `#date#` 占位符的默认日期（进程级）。
+
+    默认值是**写死的常量**（上次校准日），不随日历走 —— 用它取数会一直是同一天。
+    长期跑批请显式传 `date=`；确需换默认值时用本函数，例如：
+
+    ```python
+    tdxdata.set_default_date("2026-10-23")
+    ```
+    """
+    from datetime import date as _date
+
+    text = str(date).strip().replace("/", "-")
+    for fmt in ("%Y-%m-%d", "%Y%m%d"):
+        try:
+            from datetime import datetime as _dt
+            _dt.strptime(text, fmt)
+            break
+        except ValueError:
+            continue
+    else:
+        raise errors.ParamError(
+            "set_default_date 只接受 YYYY-MM-DD 或 YYYYMMDD，收到 %r" % (date,))
+    _PLACEHOLDERS["date"] = text
+
+
+def _warn_if_date_stale() -> None:
+    """默认日期距今天超过 `_DEFAULT_DATE_MAX_AGE_DAYS` 天就告警一次（每进程一次）。"""
+    global _DATE_WARNED
+    if _DATE_WARNED:
+        return
+    _DATE_WARNED = True
+    from datetime import date as _date
+    from datetime import datetime as _dt
+
+    raw = str(_PLACEHOLDERS.get("date") or "")
+    try:
+        y, m, d = (int(x) for x in raw.replace("/", "-").split("-"))
+        then = _date(y, m, d)
+    except (ValueError, TypeError):
+        warnings.warn("默认日期 %r 不是可解析的日期，请显式传 date=" % (raw,),
+                      RuntimeWarning, stacklevel=3)
+        return
+    age = (_date.today() - then).days
+    if age > _DEFAULT_DATE_MAX_AGE_DAYS:
+        warnings.warn(
+            "产品参数里的 #date# 用的是**写死的默认日期 %s**（距今 %d 天）。"
+            "这不是「最近交易日」—— 它不会自己往前走。请显式传 date=「YYYY-MM-DD」，"
+            "或用 tdxdata.set_default_date(...) 改默认值。"
+            % (_PLACEHOLDERS.get("date"), age),
+            RuntimeWarning, stacklevel=3)
 
 
 def _fill(params: Any, kwargs: dict, name: str) -> Any:
@@ -3058,6 +3239,8 @@ def _fill(params: Any, kwargs: dict, name: str) -> Any:
         `#date#`                          → kwargs["date"]
     其余 kwargs 直接按键名覆盖（若参数是 dict）。
     """
+    if "date" not in kwargs:
+        _warn_if_date_stale()
     kw = dict(_PLACEHOLDERS)
     kw.update(kwargs)
 

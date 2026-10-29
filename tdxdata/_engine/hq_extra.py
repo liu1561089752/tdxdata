@@ -43,7 +43,7 @@ __all__ = [
     "peel", "fields_raw", "strings_of",
     "parse_rowtable", "parse_name", "parse_block",
     "parse_samples", "parse_samples_more", "parse_sample_single",
-    "get_quotes", "name_of", "block_data", "block_rows", "samples", "board_stat",
+    "get_quotes", "MAX_BATCH", "name_of", "block_data", "block_rows", "samples", "board_stat",
     "ticks", "parse_ticks", "TICKEX_COLS", "_args_tickex",
 ]
 
@@ -650,6 +650,37 @@ def _call(which: str, args: bytes, tries=3) -> bytes | None:
     return None
 
 
+#: `PBCombHQ` 单请求能带的代码数**实测上限**。
+#:
+#: 不是猜的：31 份抓包里 **945 个** `PBCombHQ` 请求中，最大一次带了 **447 个码**，
+#: 回包同样是 447 行（15,276 B，完整无截断）。≥20 码的 188 个请求里，
+#: 180 个回包行数 ≥ 请求码数（其余 8 个是个别停牌/退市码，服务端静默不回，属正常）。
+#:
+#: 历史教训：库里的默认批量长期是 20，理由是"抓包只验证到 6 个，上限未知"——
+#: 那是 2026-10-27 的结论。实测一出，全市场 5400 只要 270 次往返（@2.2 s ≈ 10 分钟），
+#: 而按 447 只要 13 次（≈29 秒）。**默认值该跟着证据走。**
+MAX_BATCH = 447
+
+
+def _check_batch(batch, cmd: str = "get_quotes") -> int:
+    """校验批量大小：1 ≤ batch ≤ `MAX_BATCH`（超出实测证据就拒绝，而不是赌）。"""
+    try:
+        n = int(batch)
+    except (TypeError, ValueError):
+        raise errors.ParamError(
+            "%s 的 batch 必须是正整数，收到 %r" % (cmd, batch)) from None
+    if n < 1:
+        raise errors.ParamError(
+            "%s 的 batch 必须 ≥ 1，收到 %r" % (cmd, batch))
+    if n > MAX_BATCH:
+        raise errors.ParamError(
+            "%s 的 batch=%d 超过实测上限 %d。这不是保守估计：31 份抓包里 "
+            "945 个 PBCombHQ 请求中最大一次就是 %d 个码（回包同样 %d 行、完整）。"
+            "再往上没有证据，本库不替你赌服务端会不会截断。"
+            % (cmd, n, MAX_BATCH, MAX_BATCH, MAX_BATCH))
+    return n
+
+
 def _pairs(symbols_) -> list[tuple[int, str]]:
     """把各种写法的代码列表规范成 `[(market, code), ...]`。
 
@@ -674,10 +705,12 @@ def _pairs(symbols_) -> list[tuple[int, str]]:
 # ══════════════════════════════════════════════════════════════════════════
 # 五、对外接口
 # ══════════════════════════════════════════════════════════════════════════
-def get_quotes(symbols_, batch=20, *, retry_missing=True, on_missing="raise"):
+def get_quotes(symbols_, batch=100, *, retry_missing=True, on_missing="raise"):
     """批量报价（`PBCombHQ`）→ `(cols, rows)`；有代码彻底取不到时的行为由 `on_missing` 定。
 
-    `batch`：每次请求放几个代码（抓包只验证到 6 个；上限未测，默认 20 保守）。
+    `batch`：每次请求放几个代码。**默认 100**，上限 `MAX_BATCH=447`（实测：抓包里
+    最大一次带 447 个码且回包完整）。旧默认 20 的依据是「抓包只验证到 6 个」，
+    已被 2026-10-29 的语料推翻 —— 全市场 5400 只：20 码/批要 270 次往返，447 码/批只要 13 次。
 
     服务端对**无效/不支持的代码是静默不返回**（不报错），所以这里：
     先成批要，缺的码**单独再要一次**。
@@ -697,6 +730,7 @@ def get_quotes(symbols_, batch=20, *, retry_missing=True, on_missing="raise"):
     from .._core import check_on_missing
 
     mode = check_on_missing(on_missing)
+    batch = _check_batch(batch, "get_quotes")
     want = _pairs(symbols_)
     if not want:
         raise errors.ParamError("get_quotes 需要至少一个代码")
@@ -736,8 +770,23 @@ def get_quotes(symbols_, batch=20, *, retry_missing=True, on_missing="raise"):
 
     missing = [(mk, code) for mk, code in want if (mk, code) not in got]
     if missing and retry_missing:
-        for mk, code in list(missing):                  # 逐个单发，仍无就是真没有
-            c3, r3 = _one_batch([(mk, code)])
+        # 补发**也成批**：原来逐个单发，缺 N 个就是 N 次往返（每次 2.2 s）。
+        # 歧义码（同一 code 出现在多个市场）仍单发 —— 批量回包里只有 code 没有市场，
+        # 成批会重新引入 DEF-014 那个"两只标的重叠"的坑。
+        retry_plain: dict[str, int] = {}
+        for mk, code in missing:
+            if code not in ambiguous:
+                retry_plain.setdefault(code, mk)
+        items = list(retry_plain.items())
+        for i in range(0, len(items), batch):
+            chunk = items[i:i + batch]
+            c3, r3 = _one_batch([(mk, code) for code, mk in chunk])
+            cols = cols or c3
+            for row in r3:
+                if row and row[0] in retry_plain:       # 批内 code 唯一
+                    got.setdefault((retry_plain[row[0]], row[0]), row)
+        for mk, code in [p for p in missing if p[1] in ambiguous]:
+            c3, r3 = _one_batch([(mk, code)])           # 歧义码只能单发
             cols = cols or c3
             for row in r3:
                 if row and row[0] == code:

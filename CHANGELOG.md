@@ -6,6 +6,33 @@
 ---
 
 ## [未发布]
+### 性能与防错（2026-10-29 库体检后的六项修复）
+
+> 依据：31 份抓包的实测复核 + `notes/17` 的问题总账。**没有一项是"感觉更快"**，每项都带判据与用例。
+
+- **`get_quotes` 批量默认 20 → 100，上限 447（实测）**：945 个 `PBCombHQ` 请求中最大一次带
+  **447 个码**、回包同样 447 行且完整；≥20 码的 188 个请求里 180 个回包行数 ≥ 请求数。
+  旧默认 20 的依据「抓包只验证到 6 个」已被推翻。全市场 5400 只：270 次往返 → **13 次**。
+  超过 447 抛 `ParamError`。测试 `tests/test_batch_ceiling.py`（15 例）。
+- **缺码补发改成成批**：`1+N` → `1+ceil(N/batch)`；歧义码仍单发（`DEF-014` 不复活）。
+- **空参数槽 fail-fast**：`["zxt", [], …]` 会被服务端判 `-1002`，现在发请求前抛 `ParamError`
+  并给出改法（写 `""`）。判据：语料里「参数数组含空槽」只出现 2 次、两次都是 `-1002`；
+  整数组为空的 `{"Params": []}` 不受影响。测试 `tests/test_param_slots.py`（12 例）。
+- **`cache="auto"`：按命令的实测新鲜度逐条定 TTL**：新增 `tdxdata/caching.py` +
+  `data/cache-ttl.json`（211 命令；131 可缓存 / 80 不缓存）。`ttl = clamp(滞后中位数/2, 1h, 30d)`，
+  未登记命令 `default_ttl=0`。`TTLCache` / `auto_cache` / `ttl_for_cmd` / `default_ttl` /
+  `CACHE_POLICY` 提到包根。**默认仍不缓存**。测试 `tests/test_caching_policy.py`（14 例）。
+- **`mapping.apply` 热路径**：取值改走 `dict.get`（`Row.get` 每次多判一次 `isinstance(key,int)`），
+  映射对提到行外。实测单表 140 → **114 µs**（−19%）、5000×30 大表 44 → **29 ms**（−34%），
+  函数调用 278 万 → 136 万。
+- **默认 gap 单一来源**：`Client(gap=…)` 默认改为 `pacer.BASE_GAP`（原来两处各写 2.2）。
+- **默认日期不再闷头查旧数据**：`#date#` 默认值超 30 天未校准会 `RuntimeWarning`，
+  新增 `tdxdata.set_default_date("YYYY-MM-DD")`。
+- **公开方法类型注解 53% → 100%**（包声明 `py.typed` + `Typing :: Typed`）。
+  回归闸门 `tests/test_default_date_and_annotations.py`。
+- README 更正：`get_quotes` 的 batch 默认/上限；限流结论补「2026-10-29 复核未观察到限流」的边界（**常量未改**）。
+
+
 
 ### 修复
 
