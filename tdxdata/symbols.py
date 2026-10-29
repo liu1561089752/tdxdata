@@ -76,6 +76,157 @@ _PREFIX3 = {
 _HEAD1 = {"6": 1, "5": 1, "0": 0, "3": 0, "1": 0, "2": 0, "4": 2, "8": 2, "9": 0}
 
 
+#: `PBCombHQ` 的 `Setcode`（= 请求 `field3` 的市场号）→ 板块名。
+#:
+#: **这不是猜的**：把 `reports/eval3/corpus/pb.jsonl` 里 998 个 `PBCombHQ` 请求的
+#: 每一行按 `Setcode` 分组，再看该组的 ①代码形态 ②中文名 ③价格量级（原始产物见
+#: `notes/assets/pbcombhq-markets.json`）。同一份抓包里每个市场号都有实例：
+#:
+#: ====== ================ ==================== ==============================
+#: 号码   板块             代码形态             实测样例
+#: ====== ================ ==================== ==============================
+#: 0      深市 A 股/指数   6 位数字             399001 深证成指
+#: 1      沪市 A 股/指数   6 位数字             601519 大智慧
+#: 2      北交所           6 位数字             920285 N远大
+#: 10     外汇             6 位字母             USDCNH 美元兑离岸人民币
+#: 12     外盘指数         4–6 位               A_DJI 道琼斯 / CNY0 富时A50期指
+#: 27     恒生指数         3 位字母             HSI 恒生指数
+#: 28     郑商所期货       3–8 位字母数字        MA2701 甲醇2701
+#: 29     大商所期货       3–8 位字母数字        V2701 PVC2701
+#: 30     上期所/能源中心   4–6 位字母数字        SP2701 纸浆2701 / FUL9
+#: 31     港股主板         5 位数字             00700 腾讯控股
+#: 42     期货板块指数     4 位                 T006 石油板块
+#: 44     新三板           6 位数字             833205 博采网络
+#: 47     股指期货         6 位字母数字          IH2611 上证2611
+#: 48     港股 GEM         5 位数字             08285 森浩集团
+#: 49     港股其他(REIT)   5 位数字             00405 越秀房产信托基金
+#: 62     中证指数         6 位数字             932666 中证印制电路板指数
+#: 66     广期所期货       6 位字母数字          LC2701 碳酸锂2701
+#: 74     美股             1–6 位字母           NVDA 英伟达 / INTC 英特尔
+#: ====== ================ ==================== ==============================
+#:
+#: ⚠️ 只有 0/1/2 走 `parse()` 的**严格 6 位校验**；其余市场的代码是外部标识
+#: （字母、短码、5 位数字），校验规则各不相同，所以报价走 `parse_quote()`。
+MARKETS: dict[int, str] = {
+    0: "深市 A 股/指数",
+    1: "沪市 A 股/指数",
+    2: "北交所",
+    10: "外汇",
+    12: "外盘指数",
+    27: "恒生指数",
+    28: "郑商所期货",
+    29: "大商所期货",
+    30: "上期所/能源中心期货",
+    31: "港股主板",
+    42: "期货板块指数",
+    44: "新三板",
+    47: "股指期货",
+    48: "港股 GEM",
+    49: "港股其他(REIT 等)",
+    62: "中证指数",
+    66: "广期所期货",
+    74: "美股",
+}
+
+#: 报价用的市场简写 → 市场号（`parse_quote` 认这些前缀）。只收**不会与 A 股
+#: `sh`/`sz`/`bj` 冲突**的几个：港股主板/港股 GEM/美股/外汇。
+QUOTE_PREFIX: dict[str, int] = {"hk": 31, "hkg": 48, "us": 74, "fx": 10}
+
+#: 港股三个市场号（代码必须是 5 位数字）
+_HK_MARKETS = (31, 48, 49)
+
+
+def parse_quote(symbol) -> tuple[int, str]:
+    """报价用的宽松解析：A 股仍走 `parse()`，其余市场按 `MARKETS` 放行。
+
+    为什么不能直接用 `parse()`
+    --------------------------
+    `parse()` 的「必须正好 6 位数字」是 A 股的红线（`00700` 补零会静默命中
+    `000700` 模塑科技），但港股就是 **5 位**、期货是 `MA2701`、美股是 `NVDA` ——
+    硬套那条规定等于把 `PBCombHQ` 已经能取的 15 个市场全挡在门外。
+
+    接受写法（`>>>` 都是用例里钉住的）
+    --------------------------------
+    >>> parse_quote("600519")          # A 股：原样交给 parse()
+    (1, '600519')
+    >>> parse_quote("sh600519")
+    (1, '600519')
+    >>> parse_quote(("sh", "600519"))
+    (1, '600519')
+    >>> parse_quote("hk00700")         # 港股主板
+    (31, '00700')
+    >>> parse_quote("31:00700")        # 通用写法：市场号:代码
+    (31, '00700')
+    >>> parse_quote((31, "00700"))
+    (31, '00700')
+    >>> parse_quote("usNVDA")          # 美股
+    (74, 'NVDA')
+    >>> parse_quote("fxUSDCNH")        # 外汇
+    (10, 'USDCNH')
+    >>> parse_quote("28:MA2701")       # 期货（郑商所甲醇）
+    (28, 'MA2701')
+    """
+    # ── 二元组：市场号 / 前缀 + 代码 ──────────────────────────────────
+    if isinstance(symbol, (tuple, list)) and len(symbol) >= 2:
+        mk, code = symbol[0], str(symbol[1]).strip()
+        if isinstance(mk, str) and mk.strip().lower() in _PREFIX:
+            return parse(symbol)                     # A 股前缀：走严格校验
+        if isinstance(mk, str) and mk.strip().lower() in QUOTE_PREFIX:
+            return _quote_pair(QUOTE_PREFIX[mk.strip().lower()], code, symbol)
+        try:
+            market = int(mk)
+        except (TypeError, ValueError):
+            raise ValueError(
+                "无法识别的市场写法：%r（二元组第一位只能是 sh/sz/bj 或市场号，"
+                "也认 %s 这些前缀；见 symbols.MARKETS）"
+                % (symbol, "/".join(sorted(QUOTE_PREFIX))))
+        if market in _PREFIX.values():
+            return parse(symbol)                     # 0/1/2：A 股严格路径
+        return _quote_pair(market, code, symbol)
+
+    # ── 字符串：`市场号:代码` 或 `前缀+代码` 或 A 股 ───────────────────
+    if isinstance(symbol, (str, bytes)):
+        text = symbol.decode("utf-8", "replace") if isinstance(symbol, bytes) else symbol
+        text = text.strip()
+        head, sep, rest = text.partition(":")
+        if sep and head.strip().isdigit():
+            return _quote_pair(int(head), rest.strip(), symbol)
+        low = text.lower()
+        for pre in sorted(QUOTE_PREFIX, key=len, reverse=True):
+            if low.startswith(pre) and len(text) > len(pre):
+                return _quote_pair(QUOTE_PREFIX[pre], text[len(pre):].strip(), symbol)
+        return parse(symbol)                         # 交给 A 股那套（含各种报错）
+
+    raise ValueError("无法识别的代码写法：%r" % (symbol,))
+
+
+def _quote_pair(market: int, code: str, original) -> tuple[int, str]:
+    """按市场号校验代码形态。**港股只认 5 位**，别把 00700 补成 6 位。"""
+    if market not in MARKETS:
+        raise ValueError(
+            "市场号 %d 没有登记（%r）。已登记：%s —— 见 symbols.MARKETS，"
+            "证据是 998 个 PBCombHQ 请求的 Setcode 实测"
+            % (market, original, ", ".join("%d=%s" % kv for kv in sorted(MARKETS.items()))))
+    if not code:
+        raise ValueError("代码为空：%r" % (original,))
+    if market in _HK_MARKETS:
+        if not (len(code) == 5 and code.isdigit()):
+            raise ValueError(
+                "港股代码必须是**5 位数字**（%r 收到 %r）。港股不要补零成 6 位："
+                "00700 → 000700 会静默查到另一只股票（模塑科技），所以这里直接拒绝。"
+                % (MARKETS[market], code))
+        return market, code
+    if market in (0, 1, 2):
+        return parse((market, code))
+    # 期货/美股/外汇/外盘指数：字母数字为主，允许 `_` `.` `-`
+    # （外盘指数是 `A_DJI` / `A_IXIC` / `A_SPX` 这种带下划线的写法，实测如此）。
+    cleaned = code.strip().upper()
+    if not cleaned or len(cleaned) > 12 or not all(
+            ch.isalnum() or ch in "_.-" for ch in cleaned):
+        raise ValueError("代码形态不像 %s 的标的：%r" % (MARKETS[market], code))
+    return market, cleaned
+
+
 def market_by_code(code: str) -> int:
     """由 6 位代码推断市场码（3 位前缀优先，1 位兜底）。数据来源见 `_PREFIX3`。"""
     m = _PREFIX3.get(code[:3])

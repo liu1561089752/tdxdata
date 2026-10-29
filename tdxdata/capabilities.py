@@ -52,6 +52,7 @@ INSTRUMENTS: dict[str, str] = {
     "option": "期权",
     "cbt": "国债期货",
     "forex": "外汇",
+    "us": "美股",
     "all": "与品种无关（全局）",
 }
 
@@ -284,18 +285,23 @@ CAPABILITIES: tuple[Capability, ...] = (
         reason="PBFXT/PBZST **没有港股通道**；且本库对非 6 位数字代码**显式拒绝**、不做左补零"
                "（00700 曾被补成 000700 静默返回模塑科技的 K 线，逐条相同且无报错）",
         evidence="§12.1 / §13.1 阶段 3 / probe/Q1Q2",
-        workaround="目前无解 —— 不要指望 get_bars(\"00700\") 能拿到腾讯",
+        workaround="K 线/分时无解（不要指望 get_bars(\"00700\") 能拿到腾讯）；但**报价**已可用：get_quotes([\"hk00700\"]) 回现价/昨收/涨跌幅（15 分钟延时）",
     ),
     Capability(
         name="港股 实时报价",
         instrument="hk",
-        interface="",
-        available=False,
-        reason="**服务端有、本库未实现**：PBCombHQ + setcode=31 实测回腾讯控股 385.200、"
-               "阿里巴巴－Ｗ 97.000、汇丰控股 134.300 等 13/14 个码并带中文名，且支持批量；"
-               "本库未开公开接口（未经批量/延时/名称语义验证，不造接口）",
-        evidence="§12.1 / §12.8 第 4 条 / probe/Q1Q2",
-        workaround="call() 走 JSON 通道发不出 PBCombHQ（二进制 protobuf），暂无绕法",
+        interface="get_quotes",
+        available=True,
+        reason="**可用（2026-10-29 落地）**：PBCombHQ + 市场号 31（主板）/48（GEM）/49（REIT 等），"
+               "代码是 **5 位数字**。抓包实证：998 个 PBCombHQ 请求里 1188 行 setcode=31、"
+               "290 只不同港股（腾讯控股 00700 386.000、比亚迪股份 01211 71.600、"
+               "工商银行 01398 7.240、中芯国际 00981 47.060…），一次请求最多带 100 个码、"
+               "发多少回多少。"
+               "⚠️ 港股是**延时行情**：回包 DELAYMIN=15（15 分钟），别当实时用。",
+        evidence="reports/eval3/corpus/pb.jsonl（998 请求 / 1188 行 setcode=31 / 7 份 pcap）"
+                 "+ 原始请求字节解出 field3=31、field4=5 位码（notes/18 §1）",
+        workaround="用法：get_quotes([\"hk00700\"]) / (\"31:00700\") / (\"hkg08285\")。清单仍不可枚举（PBMultiHQ 所有域 Code 长度恒 6，5 位码 0 次）—— 代码要自己维护；"
+                   "K 线/分时仍无通道",
     ),
     Capability(
         name="港股 清单（可枚举代码表）",
@@ -304,18 +310,80 @@ CAPABILITIES: tuple[Capability, ...] = (
         available=False,
         reason="**不可枚举**：PBMultiHQ 所有域的 Code 长度恒为 6，5 位码出现 0 次；没有港股域",
         evidence="§12.1 / probe/Q1Q2",
-        workaround="自己外部维护港股代码清单，再逐只用 setcode=31 报价（该通道本库未实现）",
+        workaround="自己外部维护港股代码清单，再用 get_quotes([\"hk00700\", …]) 报价（该接口 2026-10-29 起可用；但**清单**本身仍要外部维护）",
     ),
     # ── 期货 / 期权 / 国债期货 / 外汇 ─────────────────────────────────────
+    Capability(
+        name="港股 GEM / 港股其他（REIT）",
+        instrument="hk",
+        interface="get_quotes",
+        available=True,
+        reason="市场号 48（GEM，08xxx）/ 49（REIT 等，00405 越秀房产信托基金）实测都有回包："
+               "48 回 9 列（含 AMOUNT）、49 回 10 列（含 ACTIVECAPITAL/ZSZ）",
+        evidence="pb.jsonl：setcode=48 共 7 行 / 49 共 1 行", 
+        workaround="GEM 里很多是仙股，NOW 可能为 0（停牌）—— 别把 0 当跌停",
+    ),
+    Capability(
+        name="商品期货 报价",
+        instrument="futures",
+        interface="get_quotes",
+        available=True,
+        reason="**可用**：PBCombHQ 市场号 28=郑商所、29=大商所、30=上期所/能源中心、66=广期所，"
+               "合约码是「品种字母+年月」（MA2701 甲醇2701、V2701 PVC2701、SP2701 纸浆2701、"
+               "LC2701 碳酸锂2701），连月合约是 FUL9/SCL9 这种写法。回 19 列："
+               "OPEN/CLOSE/NOW/MGJZC(昨结?)/SPECTYPE/WTB(委比)/RELAG/EXT_ZF(涨跌幅)。"
+               "⚠️ 没有成交量/持仓量列（VOL/OI 不在回包里），要量得走专题（tdxrb_qh / qhlhb_sy）",
+        evidence="pb.jsonl：setcode=28 57 行 / 29 82 行 / 30 77 行 / 66 12 行；"
+                 "请求侧 field3 与代码逐条解出（notes/18 §2）",
+        workaround="用法：get_quotes([\"28:MA2701\", \"29:V2701\", \"30:SP2701\", \"66:LC2701\"])。合约 K 线/分时/五档无通道（7727 仅笔记证据）",
+    ),
+    Capability(
+        name="股指期货 报价",
+        instrument="futures",
+        interface="get_quotes",
+        available=True,
+        reason="**可用**：市场号 47，IH2611 上证2611 实测回 8 列（CLOSE/NOW/XSFLAG/EXT_ZF…）",
+        evidence="pb.jsonl：setcode=47 共 2 行", 
+        workaround="只有报价，没有合约乘数/保证金/基差字段",
+    ),
+    Capability(
+        name="美股 报价",
+        instrument="us",
+        interface="get_quotes",
+        available=True,
+        reason="**可用**：市场号 74，代码是美股 ticker（NVDA 英伟达 / INTC 英特尔 / AMD / MU…），"
+               "回 19 列（OPEN/CLOSE/NOW/MGJZC/ZSSJL/WTB/EXT_ZF），一次可带 100 只。"
+               "另有数据中心的美股榜单产品（usa_gzb / usa_rqb / usa_bsb / tdxrb_hypm_usa，"
+               "10–16 列，含中概与行业排名）",
+        evidence="pb.jsonl：setcode=74 共 573 行；美股榜单：tdxrb_usa_gzb 10 列×100 行（NVDA 28974）"
+                 "/ usa_bsb 13 列×100 行 / tdxrb_hypm_usa 16 列",
+        workaround="美股 K 线/分时无通道",
+    ),
+    Capability(
+        name="外汇 / 外盘指数 报价",
+        instrument="forex",
+        interface="get_quotes",
+        available=True,
+        reason="**可用（品种有限）**：市场号 10=外汇（USDCNH 美元兑离岸人民币，回 21 列含 "
+               "OPEN/MAX/MIN/NOW/HqTime）、27=恒生指数（HSI）、12=外盘指数（A_DJI 道琼斯 / "
+               "A_IXIC 纳斯达克 / A_SPX 标普500 / CNY0 富时A50期指）。"
+               "抓包里只有 USDCNH 一个汇率品种，**不要推断其它货币对也存在**",
+        evidence="pb.jsonl：setcode=10 共 10 行（USDCNH）、12 共 43 行、27 共 10 行（HSI 22934.68）",
+        workaround="其他货币对（EURUSD/CNHHKD…）无实测证据；7727 侧仍是笔记证据，未接入",
+    ),
     Capability(
         name="商品期货",
         instrument="futures",
         interface="",
         available=False,
-        reason="**分两层：合约行情拿不到，期货专题数据拿得到**。(a) 行情拿不到：PBFXT/PBZST/"
-               "PBCombHQ/PBMultiHQ × 6 个 market 码（7/8/28/29/30/31）× 30 个合约代码 = 全部为空，"
-               "且 ERR_-1000 出现 0 次，合约码不在数据源证券表内；IF00 这类码在 symbols.parse 层就 "
-               "ValueError（一个字节都没发出）。(b) 拿得到（7615 数据中心侧抓包实测）：tdxrb_qh "
+        reason="**2026-10-29 复核：报价能取，K 线/分时不能**。"
+               "(a) 报价 ✅：真实 App 流量里 PBCombHQ 用市场号 28/29/30/66（郑商所/大商所/"
+               "上期所·能源/广期所）+ **带年份月份的合约码**（MA2701、V2701、SP2701、LC2701、FUL9）"
+               "实测回 19 列（OPEN/CLOSE/NOW/MGJZC/SPECTYPE/WTB/RELAG/EXT_ZF），"
+               "一次带 100 个合约、发多少回多少。旧结论「PBCombHQ 期货全空」是**探针代码写错**"
+               "（IF00 这类缺年份/缺交易所前缀的码），不是通道没有，也不是市场码被拒。"
+               "(b) K 线/分时 ❌：PBFXT/PBZST 无期货通道。"
+               "(c) 专题数据 ✅（7615 数据中心侧抓包实测）：tdxrb_qh "
                "期货合约榜（12 列×100 行，含 MA2701/V2701/FU2701 与市场码 28/29/30）、qhlhb_sy 001 "
                "全市场合约清单（5 列×318 行）与 002 会员成交量/多空持仓/增减（10 列×21 行，"
                "p3=0..4 五种榜单）、qhlhb_jcgc 002 机构持仓（8 列×336 行）、qh_hqpd_qhhy 品种主力"
@@ -351,7 +419,7 @@ CAPABILITIES: tuple[Capability, ...] = (
         workaround="无通道",
     ),
     Capability(
-        name="外汇",
+        name="外汇（7727 专用通道 / 其他货币对）",
         instrument="forex",
         interface="",
         available=False,
@@ -375,14 +443,14 @@ CAPABILITIES: tuple[Capability, ...] = (
     ),
     # ── 与品种无关 ────────────────────────────────────────────────────────
     Capability(
-        name="非 6 位数字代码（如 00700 / 02800）",
+        name="非 6 位数字代码（K 线等非报价接口）",
         instrument="all",
         interface="",
         available=False,
         reason="**显式拒绝、不做左补零**：00700 会被补成 000700 静默返回「模塑科技」的 K 线"
                "（与 get_bars(\"000700\") 逐条相同、无任何报错）；02800→002800、00005→000005 同理",
         evidence="§12.1 红线缺陷 / §13.1 阶段 3 修复",
-        workaround="要哪个标的就写 6 位现役代码；港股 5 位码本库目前无法表达",
+        workaround="**报价**已能表达：get_quotes([\"hk00700\"]) 走 symbols.parse_quote()，港股按 5 位校验、美股/期货按字母数字放行；但 get_bars/get_minutes 等 K 线接口仍只认 6 位 A 股代码 —— 那里继续显式拒绝，不做左补零",
     ),
     Capability(
         name="日线里含「盘后固定价格交易」（15:05–15:30）的量",

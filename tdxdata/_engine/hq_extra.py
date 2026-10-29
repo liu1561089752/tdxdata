@@ -684,22 +684,22 @@ def _check_batch(batch, cmd: str = "get_quotes") -> int:
 def _pairs(symbols_) -> list[tuple[int, str]]:
     """把各种写法的代码列表规范成 `[(market, code), ...]`。
 
-    接受 `"600519"` / `"sh600519"` / `("sh", "600519")` / `(1, "600519")`；
-    一律**交给 `symbols.parse()`**（本仓库唯一事实源，D1 的教训：别再维护第二份市场表）。
+    接受 `"600519"` / `"sh600519"` / `("sh","600519")` / `(1,"600519")`，
+    以及 **2026-10-29 起新增的全资产写法**（`PBCombHQ` 本来就能取，只是库没开门）：
+
+    * `"hk00700"` / `"31:00700"` / `(31, "00700")` —— 港股主板（5 位数字）
+    * `"hkg08285"` / `(48, "08285")` —— 港股 GEM
+    * `"usNVDA"` / `"74:NVDA"` —— 美股
+    * `"fxUSDCNH"` / `"10:USDCNH"` —— 外汇（离岸人民币）
+    * `"28:MA2701"` / `(29, "V2701")` / `(30, "SP2701")` / `(66, "LC2701")` —— 商品期货
+    * `"27:HSI"` / `"12:A_DJI"` / `"47:IH2611"` / `"42:T006"` —— 恒指/外盘/股指期货/期货板块
+
+    一律**交给 `symbols.parse_quote()`**（A 股仍由 `parse()` 做 6 位严格校验；
+    其余市场按 `symbols.MARKETS` 的实测市场号放行 —— 别再维护第二份市场表）。
     """
     if isinstance(symbols_, (str, bytes)):
         symbols_ = [symbols_]
-    out: list[tuple[int, str]] = []
-    for it in symbols_:
-        if isinstance(it, (tuple, list)) and len(it) == 2:
-            mk, code = it
-            code = _sym.clean(str(code))
-            if isinstance(mk, str) and not mk.strip().lstrip("+-").isdigit():
-                mk = _sym.parse("%s%s" % (mk.strip(), code))[0]   # ("sh","600519")
-            out.append((int(mk), code))
-        else:
-            out.append(_sym.parse(it))                           # "sh600519" / "600519"
-    return out
+    return [_sym.parse_quote(it) for it in symbols_]
 
 
 # ══════════════════════════════════════════════════════════════════════════

@@ -159,61 +159,75 @@ def test_select_returns_a_tuple_so_callers_cannot_mutate_the_registry():
 # ══════════════════════════════════════════════════════════════════════════
 # 二、三处最容易写错的结论（港股三态 / 期货归因 / 空筛选）
 # ══════════════════════════════════════════════════════════════════════════
-def test_hk_three_conclusions_coexist_and_quote_is_not_written_as_unsupported():
-    """港股：报价（**服务端有**、本库未实现）/ K 线分时（无通道）/ 清单（不可枚举）三行必须并存。
+def test_hk_three_conclusions_coexist_and_quote_is_now_available():
+    """港股三条结论必须并存，且**报价 2026-10-29 起已可用**（抓包实证）。
 
-    并且**严禁**把报价那条写成"服务端不支持港股" —— 那是本项目明令禁止的错措辞
-    （§12.8 第 4 条）。服务端明明回得出腾讯 385.200。
+    历史教训：这条原来断言"港股一条都不能标 available=True"，依据是"服务端有、本库未实现"。
+    现在接口落地了 —— 用例必须跟着证据走，否则它会变成"防止我们把已经能做的事实写出来"。
+    仍要守住的：K 线/分时无通道、清单不可枚举、报价是**15 分钟延时**行情。
     """
     hk = caps.describe("hk")
-    assert len(hk) >= 3, "港股应当有三条并列结论，实际 %d 条" % len(hk)
+    assert len(hk) >= 4, "港股应有报价/GEM/日线分时/清单多条并列结论，实际 %d 条" % len(hk)
 
-    quote = [c for c in hk if "报价" in c.name]
+    quote = [c for c in hk if c.name == "港股 实时报价"]
     bars = [c for c in hk if "日线" in c.name or "分时" in c.name]
     listing = [c for c in hk if "清单" in c.name]
     assert quote and bars and listing
 
-    for cap in hk:
-        assert cap.available is False, "港股目前一条都不该标 available=True"
-
     q = quote[0]
-    assert "服务端有" in q.reason, "报价那条必须写明「服务端有、本库未实现」"
-    assert "PBCombHQ" in q.reason and "setcode=31" in q.reason, \
-        "报价那条必须指出具体通道（PBCombHQ + setcode=31），否则无法复核"
-    assert "不支持" not in q.reason, \
-        "**严禁**把「本库未实现」写成「服务端不支持」（§12.8 第 4 条）"
+    assert q.available is True, "PBCombHQ + 市场号 31 已实测可批量取，必须标可用"
+    assert q.interface == "get_quotes", "可用条目必须指向真实公开方法"
+    assert "PBCombHQ" in q.reason and "31" in q.reason, "必须指出具体通道"
+    assert "1188" in q.reason or "290" in q.reason, "必须给出抓包实证的规模"
+    assert "15" in q.reason and "延时" in q.reason, "港股是 15 分钟延时，必须写明"
+    assert "不支持" not in q.reason, "严禁把「本库未实现」写成「服务端不支持」"
+
+    for cap in bars + listing:
+        assert cap.available is False, "%s 仍无通道/不可枚举，不能标可用" % cap.name
 
 
-def test_futures_blames_the_security_table_not_the_market_code():
-    """期货：必须归因到「不在数据源证券表内」，**不许**归因到「市场码被拒」。
 
-    为什么这条这么重要：`field3` 对已知代码是**宽松**的（把 600519 塞进 field3=99
-    照样回同一根 K 线）。归错因的后果是后来人继续去试 7/8/28/29/30/31 这些市场码，
-    白烧几百次请求还什么都拿不到。
+def test_futures_is_not_blamed_on_the_market_code():
+    """期货：K 线/分时仍「无通道」，但**不许**再把报价说成拿不到。
+
+    2026-10-29 复核推翻了自己：PBCombHQ + 市场号 28/29/30/66 + 带年份月份的合约码
+    （MA2701）实测能回 19 列。旧探针用 IF00 这类缺年份的码，才得出"全空"。
     """
     rows = caps.describe("futures")
     assert rows, "futures 一条都没登记"
-    joined = " ".join(c.reason + " " + c.workaround for c in rows)
-    assert "证券表" in joined, "期货必须归因到「不在数据源证券表内」"
-    assert "不支持这个市场码" not in joined, "不许写成「不支持这个市场码」（那是错的归因）"
-    assert "field3" in joined, "必须带上 field3 宽松这一反证，否则读者没法自己复核"
+    joined = " ".join(c.reason + " " + c.workaround + " " + c.evidence for c in rows)
+
+    quote = [c for c in rows if "报价" in c.name and c.available]
+    assert quote, "必须有至少一条可用的期货报价能力（抓包已实证）"
+    assert any(c.interface == "get_quotes" for c in quote)
+
+    assert "field3" in joined, "必须留下「field3 宽松」这个反证"
+    assert "不支持这个市场码" not in joined, "不许写成「不支持这个市场码」（错误归因）"
+    assert "MA2701" in joined, "必须给出实测能回的合约码"
+    assert "K 线" in joined and "无通道" in joined, "K 线/分时不存在的结论要保留"
 
 
-def test_forex_carries_both_channel_facts():
-    """外汇归因必须两层并列：7615 主通道在证券表外 + EX 7727 服务端有、本库未接入。
 
-    为什么单独立一条：这条曾被写成一句「无通道」，把「服务端没有」和「本库没接」
-    混在一起（评审 SUMMARY §3.1 的文档归因缺陷）；两种「拿不到」的处置完全不同。
+def test_forex_splits_available_usdcnh_from_unproven_pairs():
+    """外汇：USDCNH 报价**已实测可用**（PBCombHQ setcode=10），其他货币对仍无证据。
+
+    历史教训：这条原来要求"所有外汇条目 available=False"。抓包把 USDCNH 的 21 列
+    （OPEN/MAX/MIN/HqTime）摆出来了，于是拆两条：「外汇/外盘指数 报价」可用；
+    「外汇（7727 专用通道/其他货币对）」未接入。`ph_cfg_fx_*` 不是外汇这条必须继续写明。
     """
     fx = caps.describe("forex")
-    assert fx, "forex 一条都没登记"
+    assert len(fx) >= 2, "外汇应拆成「已可用」与「仍无证据」两条，实际 %d 条" % len(fx)
+
+    ready = [c for c in fx if c.available]
+    assert ready, "USDCNH 已实测，必须有一条可用"
+    assert all(c.interface == "get_quotes" for c in ready)
+
     joined = " ".join(c.reason + " " + c.workaround + " " + c.evidence for c in fx)
-    assert "7727" in joined, "必须写明 EX 7727 扩展通道（服务端有）"
-    assert "证券表" in joined, "7615 侧必须保留「不在数据源证券表内」的归因"
-    assert "USDCNY" in joined or "6.6746" in joined, "必须带实测报价锚点，否则无法复核"
-    assert "2026-10-22" in joined, "必须带快照日期警示"
-    for cap in fx:
-        assert cap.available is False, "外汇尚无公开接口，不许标 available=True"
+    assert "USDCNH" in joined, "必须点名实测到的那个品种"
+    assert "7727" in joined, "7727 侧事实不能丢"
+    assert "sczb" in joined and "jjhqpd" in joined, "ph_cfg_fx_* 不是外汇这条必须保留"
+    assert "零汇率字段" in joined
+
 
 
 def test_forex_7727_quote_is_labelled_as_note_evidence_not_capture():
@@ -239,49 +253,47 @@ def test_forex_7727_quote_is_labelled_as_note_evidence_not_capture():
     assert "sczb" in joined and "jjhqpd" in joined, \
         "必须点名 ph_cfg_fx_sczb / ph_cfg_fx_jjhqpd，免得下次又被 `fx` 字样误导"
     assert "零汇率字段" in joined, "必须写清这两个产品零汇率字段"
-    for cap in fx:
-        assert cap.available is False, "外汇仍未接入，不许标 available=True"
+    # 只要求"7727/其他货币对"那条不可用；USDCNH 报价是另一条，已实测可用。
+    unproven = [c for c in fx if not c.available]
+    assert unproven, "7727/其他货币对仍未接入，必须留一条 available=False"
+    assert any("7727" in (c.name + c.reason) for c in unproven)
 
 
-def test_futures_has_two_layers_quote_gap_and_datacenter_gain():
-    """期货必须拆成两层：**合约行情拿不到** + **专题数据拿得到**（数据中心侧实测）。
-
-    为什么单独立一条：以前只写「不在证券表内 + 无通道」，读者会得出"期货什么都没有"。
-    抓包证明 7615 数据中心侧有真数据（`qhlhb_sy` 合约清单/会员持仓增减、`tdxrb_qh`
-    合约榜、`qh_hqpd_qhhy` 主力连续最新价）。同时必须点明 `qh_cdzl` **名不副实**
-    （只回交易日列表）—— 否则又有人拿它当"持仓增量"用。
-    """
+def test_futures_has_three_layers_quote_ok_bars_gap_datacenter_ok():
+    """期货必须拆成三层：**报价可用** + **K 线/分时无通道** + **专题数据可用**。"""
     rows = caps.describe("futures")
     assert rows, "futures 一条都没登记"
     joined = " ".join(c.reason + " " + c.workaround + " " + c.evidence for c in rows)
 
-    assert "拿不到" in joined and "拿得到" in joined, "必须同时写「拿不到」与「拿得到」两层"
-    assert "证券表" in joined, "行情侧仍须保留「不在数据源证券表内」的归因"
-    assert "数据中心" in joined, "拿得到那层必须落在「数据中心侧」这条通道上"
+    assert any(c.available for c in rows), "报价那层必须标可用"
+    assert "无通道" in joined, "K 线/分时那层必须写「无通道」"
+    assert "数据中心" in joined, "专题那层必须落在「数据中心侧」这条通道上"
 
     for needle in ("qhlhb_sy", "qhlhb_jcgc", "tdxrb_qh", "qh_hqpd_qhhy"):
-        assert needle in joined, "可用的期货专题命令必须点名（否则等于没说）：%s" % needle
+        assert needle in joined, "可用的期货专题命令必须点名：%s" % needle
 
-    assert "qh_cdzl" in joined, "必须点明 qh_cdzl 名不副实，别让它继续冒充「持仓增量」"
-    assert "交易日列表" in joined, "qh_cdzl 的真实形状要写出来（交易日列表）"
+    assert "qh_cdzl" in joined, "必须点明 qh_cdzl 名不副实"
+    assert "交易日列表" in joined, "qh_cdzl 的真实形状要写出来"
 
-    for cap in rows:
-        assert cap.available is False, \
-            "本库仍未把期货专题数据封装成公开方法，不许标 available=True"
 
 
 def test_empty_selection_raises_empty_result_not_an_empty_table():
-    """空筛选 → `EmptyResult`。返回空表会被读成"这个品种确实没有能力"，那是撒谎。"""
+    """空筛选 → `EmptyResult`。返回空表会被读成"这个品种确实没有能力"，那是撒谎。
+
+    ⚠️ 样本必须是**确实一条可用都没有**的品种：`hk` 自 2026-10-29 起报价可用，
+    继续拿它当"全不可用"样本会立刻失效（这条就是这么被发现的）。
+    """
     c = _client()
     try:
         with pytest.raises(EmptyResult):
             c.capabilities(instrument="no_such_instrument")
         with pytest.raises(EmptyResult):
-            c.capabilities(instrument="hk", available_only=True)   # 港股三条全不可用
+            c.capabilities(instrument="option", available_only=True)
         with pytest.raises(EmptyResult):
-            c.capabilities(instrument="  FUTURES  ", available_only=True)
+            c.capabilities(instrument="  CBT  ", available_only=True)
     finally:
         c.close()
+
 
 
 def test_describe_rejects_unknown_instrument_and_lists_the_legal_ones():
