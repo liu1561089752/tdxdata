@@ -140,3 +140,24 @@ def test_public_methods_exist_with_documented_signatures():
     sig = inspect.signature(cls.get_option_chain)
     assert list(sig.parameters) == ["self", "underly", "month"]
     assert sig.parameters["underly"].default == "510050"
+
+# ── 7. 市场号 8 = 期权（`get_quotes(["8:10012637"])` 这条路必须通）─────────
+def test_market_eight_is_option_and_reaches_the_batch_encoder():
+    """期权行情走 `PBCombHQ` 的市场号 8 —— 这是链条的最后一环。
+
+    没有这条，`get_option_chain()` 拿到的代码**没法换成行情**：
+    `parse_quote("8:10012637")` 会因为"市场号 8 没登记"直接抛错。
+    """
+    from tdxdata import symbols as S
+
+    assert S.MARKETS[8] == "期权（合约代码如 10012637）"
+    assert S.parse_quote("8:10012637") == (8, "10012637")
+    assert S.parse_quote((8, "10012638")) == (8, "10012638")
+
+    # 混在别的资产里也要能一起编码（顺序与原样保留）
+    pairs = S.parse_quote("8:10012637"), S.parse_quote("28:MA2701"), S.parse_quote("hk00700")
+    assert pairs == ((8, "10012637"), (28, "MA2701"), (31, "00700"))
+
+    # 市场号 8 不认识的值仍然要炸（别把 8 做成"什么都收"）
+    with pytest.raises(ValueError):
+        S.parse_quote("8:")
