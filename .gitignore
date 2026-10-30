@@ -12,6 +12,7 @@ venv/
 *.log
 tmp_*.py
 probe_*.py
+tdxdata/_engine/out/
 .coverage
 
 # 编辑器
