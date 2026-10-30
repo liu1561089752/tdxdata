@@ -27,3 +27,10 @@ def test_CWServ_仍然带Params包装():
 def test_HQServ_仍然裸发():
     body = S.body_of("HQServ.PBPzxh", {"Code": ["600303"]})
     assert json.loads(body) == {"Code": ["600303"]}
+
+
+def test_CWSearch_也是裸body():
+    """抓包原文是 {"action":"hget",…}；套 {"Params":…} 会被服务端 -1002。"""
+    body = S.body_of("CWSearch.tzx_rcache",
+                     {"action": "hget", "key": "stockct", "field": "1_600303"})
+    assert json.loads(body) == {"action": "hget", "key": "stockct", "field": "1_600303"}

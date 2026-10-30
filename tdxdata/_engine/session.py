@@ -41,6 +41,10 @@ def body_of(cmd: str, params) -> bytes:
         return json.dumps(obj, ensure_ascii=False).encode()
     if cmd.startswith("HQServ"):
         return json.dumps(obj, ensure_ascii=False).encode()
+    if cmd.startswith("CWSearch."):
+        # `CWSearch.*` 也是裸 body：抓包原文 {"action":"hget","key":…,"field":…}，
+        # 套上 {"Params":…} 会被服务端判 -1002（2026-10-30 复验时实测）。
+        return json.dumps(obj, ensure_ascii=False).encode()
     if cmd.startswith("DataAggregation."):
         # `DataAggregation.*` 的 body 是**裸数组/对象**，不套 `{"Params":…}`
         # （js 原件就是这么发的：fwCallTql(cmd, [{year:…,timetype:"3"}])；
