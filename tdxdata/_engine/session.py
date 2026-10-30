@@ -41,6 +41,11 @@ def body_of(cmd: str, params) -> bytes:
         return json.dumps(obj, ensure_ascii=False).encode()
     if cmd.startswith("HQServ"):
         return json.dumps(obj, ensure_ascii=False).encode()
+    if cmd.startswith("DataAggregation."):
+        # `DataAggregation.*` 的 body 是**裸数组/对象**，不套 `{"Params":…}`
+        # （js 原件就是这么发的：fwCallTql(cmd, [{year:…,timetype:"3"}])；
+        #  套上包装服务端会回 "For input string: 数据库执行失败"）。
+        return json.dumps(obj, ensure_ascii=False).encode()
     return json.dumps({"Params": obj}, ensure_ascii=False).encode()
 
 
@@ -54,7 +59,7 @@ def parse(payload: bytes):
         `EMPTY`         空包（通道不通 / 命令无响应）
         `ERR_-1002`     参数错       `ERR_-1005` 服务端执行失败
         `ERR_-1000`     命令不存在   `RAW` 非 JSON（需按 protobuf 处理）
-        `BADJSON`       是合法 JSON、但**不是 `ResultSets` 协议形态**
+        `BADJSON`       是合法 JSON、但**不是 `ResultSets` 协议形态**（含「TQL 信封」两种之外的其它形态）
                         （顶层是数组/标量、`ResultSets` 不是列表、行不是列表…）
 
     ⚠️ **本函数永不抛异常**，所有异常形态都必须落到上面 7 个 verdict 之一。
@@ -93,6 +98,19 @@ def parse(payload: bytes):
                 and isinstance(j[0][0], int) and j[0][0] < 0):
             msg = j[0][1] if len(j[0]) > 1 and isinstance(j[0][1], str) else ""
             return "BARE_ERR:%s" % j[0][0], 0, 0, [], msg, []
+        # **TQL 信封**：`[[0,"",行数,"",""], [列名…], [], [行…], [行…], …]`
+        # 2026-10-30 实测（`JNLPSE.expandList` 12 列×100 行、
+        # `DataAggregation.queryBigDataEffect` 2 列×1 行）：
+        # 第 0 元是 [错误码, "", 行数, "", ""]，第 1 元是列名，第 2 元保留（恒空），
+        # 第 3 元起是数据行。这类回包以前一律判 BADJSON，命令看着像"解不开"。
+        # 注意 bigDataEffect 的每格是一段 JSON **文本**（不是嵌套对象）。
+        if (isinstance(j, list) and len(j) >= 3 and isinstance(j[0], list) and j[0]
+                and j[0][0] == 0 and isinstance(j[1], list) and isinstance(j[2], list)):
+            names = [str(x) for x in j[1]]
+            data = [r for r in j[3:] if isinstance(r, list) and r]   # 空行不算数据
+            if not data:
+                return "EMPTY_RS", 0, len(names), names, None, names
+            return "PASS", len(data), len(names), names, data, names
         return "BADJSON", 0, 0, [], None, []
 
     if j.get("ErrorCode") not in (0, None):
