@@ -67,3 +67,13 @@ def test_信封回包能构建成表(name):
     assert len(cols) == ncol
     assert len(rows) == nrow
     assert primary == cols
+
+
+def test_推荐关键词_96行3列():
+    """`DataAggregation.queryRecommendedKeywords` 发空数组即可（ctl=42）。"""
+    v, nrow, ncol, cols, rows, primary = _parse("tql_keywords.bin")
+    assert v == "PASS"
+    assert (nrow, ncol) == (96, 3), (nrow, ncol)
+    assert cols == ["name", "type", "keyword"]
+    assert all(len(r) == 3 for r in rows)
+    assert any(r[1] == "1" for r in rows)          # type=1 是个股问句类
