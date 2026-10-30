@@ -457,6 +457,32 @@ class Client:
         """列出有产品的域。"""
         return sorted({v.get("domain", "") for v in self._products.values()})
 
+    def _check_cmd_prefix(self, cmd: str) -> None:
+        """命令名漏了命名空间前缀时**发请求前**就报错。
+
+        2026-10-30 实测（同一时刻、同一通道）：
+
+        | 调用 | 结果 |
+        |---|---|
+        | `get("tdxrb_qh")` | 100 行（内部用的是 `CWServ.ph_tdxdatacenter_tdxrb_qh`）|
+        | `call("ph_tdxdatacenter_tdxrb_qh", 34, [])` | 连续空包 → 抛 `RateLimited`，耗 40 s |
+        | `call("CWServ.ph_tdxdatacenter_tdxrb_qh", 34, [])` | 100 行 |
+
+        也就是说：**漏前缀的后果是"空包 + 误报限流"**，最容易把人带到"是不是被限流了"
+        这条错路上（本轮之前所有 `RateLimited` 都该用这个假设重新看一遍）。
+        这里花 421 次字符串比较，换掉一次 40 秒的错方向重试。
+        """
+        if "." in cmd or ":" in cmd:          # 已带命名空间（CWServ./HQServ:/DataAggregation.）
+            return
+        for spec in self._products.values():
+            full = str(spec.get("cmd", ""))
+            if full.endswith("." + cmd):
+                raise errors.ParamError(
+                    "%s 少了命名空间前缀，应写成 %s"
+                    "（数据中心命令要带 `CWServ.`，PB 命令形如 `HQServ:PBFXT`）。"
+                    "漏前缀时服务端只回空包，会被重试逻辑误报成限流 —— 所以在这里先拦住。"
+                    % (cmd, full))
+
     # ── 底层调用 ──────────────────────────────────────────────────────────
     def _pace(self) -> None:
         """走**进程级**匀速闸门（不是本实例私有时钟）。
@@ -1041,6 +1067,7 @@ class Client:
         **绝不默认 FINAL**。
         """
         t0 = time.monotonic()
+        self._check_cmd_prefix(cmd)         # 漏命名空间前缀 → 本地报错（见方法注释）
         _check_empty_slots(cmd, params)     # 空槽 → 本地报错，别浪费一个 2.2 s 往返
         args = self._session_mod.body_of(cmd, params)
 
@@ -1138,7 +1165,8 @@ class Client:
                     continue
                 if empty_hits >= 2 and self._pacer.limited_events > limited_before:
                     raise errors.RateLimited(
-                        "%s 连续空包，疑似被限流（当前间隔 %.1fs）"
+                        "%s 连续空包，疑似被限流（当前间隔 %.1fs）；"
+                        "也可能是命令名/参数不对 —— 数据中心命令必须带 `CWServ.` 前缀"
                         % (cmd, self._pacer.gap))
                 raise errors.NotSupportedError("%s 无响应（通道不通）" % cmd)
 
