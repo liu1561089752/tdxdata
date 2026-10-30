@@ -6651,6 +6651,17 @@
    "form": "base",
    "params": [],
    "verified": true
+  },
+  "CWServ.ph_tdxdatacenter_dzjy_jjxq": {
+   "ctl": 35,
+   "form": "base",
+   "params": [
+    "001",
+    "@code@",
+    "@sc@",
+    "#type#",
+    0
+   ]
   }
  }
 }
