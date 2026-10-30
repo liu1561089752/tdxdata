@@ -121,11 +121,20 @@ def parse(payload: bytes):
         return "BADJSON", 0, 0, [], None, []
     if not all(isinstance(rs, dict) for rs in rss):
         return "BADJSON", 0, 0, [], None, []
+    def _filled(rows):
+        """非 null 单元格的个数 —— 挑表时用它，别被"整行 null 的占位表"骗。
+
+        2026-10-30 实测 `gzzc_ggxq_gzzs`（年段键传错）：一张 4 列 0 行的空序列 +
+        一张 3 列 `[[null,null,null]]` 的占位表。旧逻辑按"行×列"挑，占位表赢，
+        于是对外显示"3 列 × 1 行"、三格全 None —— 看着像"有数据但空值"。
+        """
+        return sum(1 for r in rows for c in r if c is not None and c != "")
+
     best = None
     for rs in rss:
         names = dc._colnames(rs.get("ColName")) or dc._colnames(rs.get("ColDes")) or []
         rows = [x for x in (rs.get("Content") or []) if isinstance(x, list)]
-        key = (len(rows) * max(len(names), 1), len(rows), len(names))
+        key = (_filled(rows), len(rows) * max(len(names), 1), len(rows), len(names))
         if best is None or key > best[0]:
             best = (key, rows, names)
     if not best:
@@ -138,7 +147,9 @@ def parse(payload: bytes):
             if n not in union:
                 union.append(n)
     cols = union or names
-    return ("PASS" if rows else "EMPTY_RS"), len(rows), len(cols), cols, rows, names
+    # 整行都是 null/空串 → 这就是"没有数据"，不是"有 1 行空值"。
+    rows = [r for r in rows if _filled([r])] or []
+    return ("PASS" if rows else "EMPTY_RS"), len(rows), len(cols), cols, (rows or None), names
 
 
 def _complete(payload: bytes) -> bool:
