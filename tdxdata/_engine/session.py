@@ -82,9 +82,17 @@ def parse(payload: bytes):
         return "RAW", 0, 0, [], None, []
 
     if not isinstance(j, dict):
-        # 合法 JSON 但顶层不是对象。空数组按"这一段没数据"，其余算协议形态坏。
+        # 合法 JSON 但顶层不是对象。分三种：
         if isinstance(j, list) and not j:
-            return "EMPTY_RS", 0, 0, [], None, []
+            return "EMPTY_RS", 0, 0, [], None, []      # 空数组 = 这一段没数据
+        # **裸数组错误体**：`[[code, "消息", ...], [], [], []]`。
+        # 2026-10-30 实测（DataAggregation.*）：服务端把报错文字塞在这里，
+        # 例如 [[-1,"调用TGA:…,msg:参数：queryType 为必须项",0,"",""],[],[],[]]。
+        # 以前一律判 BADJSON，用户只看到"不是 ResultSets 协议形态"，真正原因被埋掉。
+        if (isinstance(j, list) and j and isinstance(j[0], list) and j[0]
+                and isinstance(j[0][0], int) and j[0][0] < 0):
+            msg = j[0][1] if len(j[0]) > 1 and isinstance(j[0][1], str) else ""
+            return "BARE_ERR:%s" % j[0][0], 0, 0, [], msg, []
         return "BADJSON", 0, 0, [], None, []
 
     if j.get("ErrorCode") not in (0, None):

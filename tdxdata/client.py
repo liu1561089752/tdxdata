@@ -1174,6 +1174,16 @@ class Client:
                 raise errors.ProtocolError(
                     "%s 回包不是 JSON（可能是 protobuf 通道，改用 pb 接口）" % cmd)
 
+            if verdict.startswith("BARE_ERR:"):
+                # 服务端把错误说明放进裸数组（DataAggregation.* 的形态）：
+                #   [[-1,"调用TGA:…,msg:参数：queryType 为必须项",0,"",""],[],[],[]]
+                # 这类回包**不是协议坏**，而是"服务端明确告诉你缺什么/错在哪"，
+                # 所以要把原话交出去，别让调用方去猜。
+                code = verdict.split(":", 1)[1]
+                msg = rows.strip() if isinstance(rows, str) else ""
+                raise errors.ServerError(
+                    "%s 服务端报错(%s)：%s" % (cmd, code, msg or "（错误体里没有文字说明）"))
+
             if verdict == "BADJSON":
                 # 是合法 JSON，但结构不是 ResultSets 协议形态。历史行为是
                 # 裸 `AttributeError` 穿透（`'list' object has no attribute 'get'`），
