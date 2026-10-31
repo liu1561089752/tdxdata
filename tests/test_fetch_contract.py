@@ -278,10 +278,11 @@ def test_public_api_surface_unchanged_37_methods():
 
     2026-10-29 增 3 个（期权链）：`option_underlyings` / `option_months` /
     `get_option_chain`。**存量一条没动**（旧用例名里的 33 就是这个意思）。
+    2026-10-31 增 1 个：`call_cmd`（目录驱动，无需调用方给 ctl）。
     """
     public = {n for n in dir(_CLS) if not n.startswith("_")}
     expected = {
-        "products", "domains", "last_call", "call", "get", "get_bars",
+        "products", "domains", "last_call", "call", "call_cmd", "get", "get_bars",
         "get_breadth", "get_minutes", "get_quotes", "get_name",
         "get_block_data", "get_block_rows", "get_samples",
         "get_intraday_samples", "get_board_stat", "get_futures_bars",

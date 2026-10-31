@@ -152,6 +152,14 @@ class AsyncClient:
         """`await` 版 `Client.call`，参数/返回值完全不改。"""
         return await self._run(self._c.call, cmd, ctl, params, **kw)
 
+    async def call_cmd(self, cmd, **kw):
+        """`await` 版 `Client.call_cmd`（目录驱动：`ctl` / 参数模板由库查表给）。
+
+        2026-10-31 新增。与同步层**同一份实现**（`_run` 里转发给 `self._c.call_cmd`），
+        所以 `code=` / `date=` / `extra=` / `params=` / `allow_dead=` 的语义完全一致。
+        """
+        return await self._run(self._c.call_cmd, cmd, **kw)
+
     async def get(self, name, **kw):
         """`await` 版 `Client.get`（按产品名取数）。"""
         return await self._run(self._c.get, name, **kw)

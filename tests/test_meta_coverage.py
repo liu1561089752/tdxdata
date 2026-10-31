@@ -53,6 +53,10 @@ SOURCE_KEYS = ("host", "cmd", "ctl", "clock", "cached")
 ARGS = {
     "capabilities": (),          # 阶段 6：静态注册表，无参数（不联网、不建连）
     "call": ("CWServ.app_bklist_ag", 0x16, ["2"]),
+    # 2026-10-31 新增：目录驱动的入口（ctl/参数模板由库查表给，所以只传命令名）。
+    # 用 `ph_agf10_gsjj` 是因为它的目录模板是**真业务参数**（`["00101", "@code@", "0"]`），
+    # 不是抓包元数据。
+    "call_cmd": ("CWServ.ph_agf10_gsjj",),
     "get": ("holiday",),
     "get_block_data": ("MStock_ZLJX_ADDE_R",),
     "get_block_rows": ("MStock_ZLJX_ADDE_R",),

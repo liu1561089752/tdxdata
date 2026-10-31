@@ -389,6 +389,27 @@ with tdxdata.Client(cache="auto") as c:
 tdxdata.ttl_for_cmd("hg_gdp")      # 2592000（秒），可自查某个产品的缓存时长
 ```
 
+## 直接调命令目录里的任意命令（`Client.call_cmd`）
+
+产品层 `get()` 只有**421 条**封装好的产品，而命令目录里有**732 条** —— 剩下那 300 多条以前只能手抄 `ctl` 加手拼参数。`call_cmd()` 把这两件事交给目录（`tdxdata.ctlmap`）查表：
+
+```python
+import tdxdata
+
+with tdxdata.Client() as c:
+    t = c.call_cmd("HQServ.ZST")                          # ctl / 请求体形态 / 参数全自动
+    t = c.call_cmd("CWServ.ph_tdxdatacenter_tjcb_gdqk",   # 占位符用 code= / date= 填
+                   code="600519", date="2026-10-30")
+```
+
+* `code=` / `date=` / `extra=` 只填**目录模板里的占位符** —— 只对模板里**真有**占位符的命令生效（如示例二那条；`CWServ.ph_agf10_gsjj` 的模板是 `["00201","600303","0"]`，对它传 `code=` 是空操作）；`params=` 一给就完全用它（模板不参与）。
+* `{{searchText}}` 是 App 端 JS 模板语法，本库不填 —— 自己给 `extra` 或 `params`。
+* 命令不在目录：抛 `NotSupportedError`（消息里列同前缀的相近命令，不做编辑距离）。
+* `dead` 档（本地实测回 104）：**发请求之前**就抛 `NotSupportedError`，一个字节都不发；名单是 2026-10-31 的负证据快照，确实要试一次就传 `allow_dead=True`。
+* 通道通但 0 行：抛 `EmptyResult`（`probe_ok` 档的消息会写明"接口可达、不是命令坏"）；只要空表就传 `allow_empty=True`。
+
+命令清单：`tdxdata.ctlmap.names()`；某条命令的三档状态：`tdxdata.ctlmap.tier_for(cmd)`（`verified` / `probe_ok` / `dead` / `None`）。
+
 ## `get_boards` 的 `change_pct` 怎么来的（阶段 4 修正）
 
 **它不是造出来的，是算出来的**：`(now / close - 1) * 100`，单位是**百分数**（`1.18` = +1.18%）。`now` / `close` 两列也一并给出，可就地复核分子分母。
@@ -1443,7 +1464,7 @@ with tdxdata.Client() as c:
 | `qhlhb_syss` | 其他 | 36 | `CWServ.ph_tdxdatacenter_qhlhb_syss` |
 | `qsfx` | 估值 | 38 | `CWServ.ph_tdxdatacenter_gzzc_sy_qsfx` |
 | `qsjg` | 其他 | 20 | `CWServ.phzzfw_qsjg` |
-| `queryCardInfo` | 其他 | 30 | `DataAggregation.queryCardInfo` |
+| `queryCardInfo` | 其他 | 31 | `DataAggregation.queryCardInfo` |
 | `queryCardInfoStrategy` | 其他 | 39 | `DataAggregation.queryCardInfoStrategy` |
 | `queryCyl` | 资金与筹码 | 25 | `DataAggregation.queryCyl` |
 | `queryGggz` | 其他 | 26 | `DataAggregation.queryGggz` |

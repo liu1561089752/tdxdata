@@ -48,6 +48,10 @@ from typing import Any
 
 from . import _core, errors, series_kinds, symbols, timeliness
 from . import _logging as _logging_mod
+#: 命令目录查表层（`ctl` / 参数模板 / 三档状态 / 实测形态）。**只读**：
+#: 本模块只 `ctl_for` / `params_for` / `fill` / `tier_for` / `names` / `stats`，
+#: 绝不写它（那张表是 M1 的域，数据在 `_engine/catalog/ctl_map.json`）。
+from ._engine import ctlmap
 from .calendar import TradeCalendar
 from .master import SecMaster
 from .sections.macro import Macro as _Macro
@@ -169,6 +173,107 @@ def _check_empty_slots(cmd: str, params) -> None:
                 "两次都是 -1002（ph_tdxdatacenter_slb / ph_tdxdatacenter_aitc）。"
                 "空槽请写成空字符串 \"\" —— 该位在台账里是标量（模板值 %r）。"
                 % (cmd, i + 1, "列表" if isinstance(val, list) else "字典", val, slot))
+
+
+# ══════════════════════════════════════════════════════════════════════════
+# 三档状态（`ctlmap.tier_for`）：`verified` 正常 / `probe_ok` 允许发 / `dead` 前置拦
+# ══════════════════════════════════════════════════════════════════════════
+#
+# 三档**不是三个异常类**（那会破坏现有异常契约），只是**同一套异常上的不同消息**：
+#   · verified   —— 本地实测取到过 rows>0，正常走；
+#   · probe_ok   —— 接口可达但本地只见过"空列返回"，0 行时把消息补上"不是命令坏"；
+#   · dead       —— 本地实测回 104（本版本 App 未实现），**发请求之前**就拦住。
+# 优先级是 `verified > dead`（有 rows>0 正证据的一律归 verified，不会被拦）——
+# 这个判定在 `ctlmap.tier_for` 里已经落好，这里**不重判**，只消费它的结论。
+_DEAD_SNAPSHOT_DATE = "2026-10-31"
+
+#: 目录里没有参数模板 / 抓包没留参数时用的**空参数**。
+#: 写成模块常量而不是 `return []`：`tools/gate.py` 的"空值冒充不可用"扫描会把
+#: 每处 `return []` 列进人工判据清单 —— 这里本来就该是"没有参数"，不必占名额。
+_NO_PARAMS = ()
+
+#: `probe_ok` 档 0 行时追加的说明（`EmptyResult` 的类**不变**，只把话说全）。
+_PROBE_OK_HINT = (" —— 该命令接口可达（本地曾探明有空列返回）、当前条件下无数据，"
+                  "**不是命令坏**：换个参数/日期再试，别去换接口。")
+
+
+def _catalog_total():
+    """目录条数（`ctl_map.json` 的命令数）；读不到返回 `"?"`，绝不编一个数出来。"""
+    try:
+        n = ctlmap.stats().get("total")
+        return n if isinstance(n, int) else "?"
+    except Exception:                     # noqa: BLE001
+        return "?"
+
+
+def _cmd_params(cmd: str, *, code, date, extra) -> Any:
+    """命令目录 → 这次要发的参数（**唯一真相源 = `ctlmap.params_best_for`**）。
+
+    四档语义的细节在 `ctlmap.params_best_for()` 的 docstring 里，本方法**只消费**、
+    不另造一套（曾经的"25 条抓包元数据在 client 侧二次解码"已删除 —— 那是两份真相）：
+
+    1. **普通模板（707 条）** → `fill()` 填占位符（`code=` / `date=` / `extra=`）；
+    2. **`verified.json` 里的真参数 / 3. 解 `args_hex` 得到的"抓包样本参数"**
+       （共 12 条）→ 原样用。其中已经带 `CallName` / `Params` 的**整段请求体**
+       （`CWServ.ph_agf10_gzfx` / `ph_agf10_rdtc_bkztdb` / `ph_tdxdatacenter_cb_tjcb`）
+       由 `body_of` 走完整信封直通 —— 本方法**绝不拆包、也不再包一层**
+       （拆掉 `CallName` 会让服务端静默丢包；再包一层会变 `{"Params": {"Params": …}}`）。
+       ⚠️ 这一档是**抓包现场值**（代码/日期/页码），要换标的请显式给 `params=`；
+    4. **`None`（13 条：protobuf 通道等缺证据）** → **空参数**（不抛错：有些命令
+       本来就不收参数，`call(params=None)` 的历史行为也只是发空参数）。
+    """
+    tpl = ctlmap.params_best_for(cmd)
+    if tpl is None:
+        return list(_NO_PARAMS)
+    return ctlmap.fill(tpl, code=code, date=date, extra=extra)
+
+
+def _near_cmd_hint(cmd: str, limit: int = 5) -> str:
+    """同命名空间的相近命令提示（只按前缀列，**不做编辑距离** —— 猜错的建议比没有更坏）。"""
+    prefix = cmd.split(".")[0] + "." if "." in cmd else cmd
+    try:
+        near = [n for n in ctlmap.names(prefix) if n != cmd][:limit]
+    except Exception:                     # noqa: BLE001  ← 目录读不出来不该挡住这条错误路径
+        near = []
+    if not near:
+        return ""
+    return "；同前缀（`%s`）的相近命令：" % prefix + "、".join("`%s`" % n for n in near)
+
+
+def _check_dead_cmd(cmd: str, allow_dead: bool) -> None:
+    """`dead` 档（本版本 App 未实现，实测回 104）→ **发请求之前**抛 `NotSupportedError`。
+
+    为什么必须前置：这类命令服务端回的是 104 / 空包，走到发送层只会被重试逻辑
+    当成「疑似限流」—— 那是**错方向的重试**（白等 3 轮退避 + 把进程级间隔顶上去）。
+
+    ⚠️ 名单是**负证据**：随包的是 `tdxdata/_engine/catalog/dead_cmds.json`（**191 条**），
+    素材来自**仓库外**的 `F:\\TDX\\raw\\catalog\\not_in_app.json`（2026-10-31 实机快照，
+    **未随包分发** —— 想在包里找它找不到是正常的）；生成口径 = 该快照**减去**本地实测
+    `rows>0` 的命令（正向证据优先：与快照冲突的 47 条一律归 `verified`，不在这份名单里）。
+    App 升级后该命令可能已经实现了 —— 所以 `allow_dead=True` 是留给用户的逃生舱：
+    名单会过期，"一个字节都不许发"只应该是**默认**行为，不是永久判决。
+    """
+    if allow_dead:
+        return
+    if ctlmap.tier_for(cmd) != "dead":
+        return
+    try:
+        st = ctlmap.stats()
+        total, dead_n = st.get("total"), st.get("dead")
+    except Exception:                     # noqa: BLE001  ← 目录读不出来不该挡住这条错误路径
+        total, dead_n = None, None
+    scope = ("（这份名单共 %d 条）" % dead_n) if isinstance(dead_n, int) else ""
+    raise errors.NotSupportedError(
+        "%s 在当前 App 版本未实现（本地实测回 104 通讯错误）—— 请求**没有发出**，"
+        "一个字节都没发。\n"
+        "它属于本地 dead 名单%s，名单是 %s 的实测负证据快照：App 升级后该命令可能"
+        "已经实现，确实要试一次就传 `allow_dead=True`（`call()` / `call_cmd()` "
+        "都有这个关键字）。\n"
+        "替代路线：`tdxdata.ctlmap.names('%s')` 查同前缀命令"
+        "（目录共 %s 条；`verified` 档 = 本地实测取到过数据）。"
+        % (cmd, scope, _DEAD_SNAPSHOT_DATE,
+           cmd.split(".")[0] + "." if "." in cmd else cmd,
+           total if isinstance(total, int) else "732"))
 
 
 # KlinePeriod 枚举 → 协议周期字符串（**不能用 name.lower()**：MIN_60 会变成 min_60）
@@ -1039,9 +1144,127 @@ class Client:
                          clock=ClockSource.LOCAL, cmd=cmd,
                          extra=extra) if extra else None)
 
+    def call_cmd(self, cmd: str, *, code: str | None = None,
+                 date: str | None = None, params: Any = None,
+                 extra: dict | None = None,
+                 retry: int = 3, idle: float = 4.0,
+                 allow_empty: bool = False,
+                 allow_dead: bool = False) -> Table:
+        """按**命令目录**里的命令名直接取数 —— 不必自己知道 `ctl` 和参数模板。
+
+        `call()` 要求调用方自己给 `ctl`：而 `ctl` 是服务端的**命令分发键**，填错了
+        不报错、只回空包（本库最难自查的一类失败）。本方法是它的"零门槛"版本：
+        `ctl` / 参数模板 / 请求体形态全部由 `tdxdata/_engine/ctlmap` 那张**实测表**
+        查出来（目录共 732 条命令，其中 517 条带参数模板）。
+
+        ```python
+        with tdxdata.Client() as c:
+            t = c.call_cmd("HQServ.ZST")                 # 目录里有的命令都能这么叫
+            t = c.call_cmd("CWServ.ph_zt_lhb_sy_lhfp",   # 带代码 + 日期的命令
+                           code="600519", date="2026-10-30")
+        ```
+
+        为什么需要它：产品层只有 `get()` 那 421 条，命令目录有 732 条 ——
+        剩下那 300 多条以前**只能靠手抄 ctl + 手拼参数**才能用。
+
+        参数怎么来（`params=` 一给，模板**完全不参与**）
+        ----------------------------------------------
+        1. `params=` 显式给了 → **原样用它**（list / dict / JSON 字符串都行；
+           给完整信封 `{"CallName":…,"Params":…}` 也直通），目录模板一个字节都不碰；
+        2. 没给 → `ctlmap.params_for(cmd)` 取模板，再 `ctlmap.fill()` 填占位符：
+           * `code=` → 填 `@code@` / `#code#`（证券代码，`str`/`int` 都行）；
+           * `date=` → 填**整个日期族**（`#date#` `@date@` `#Date#` `#dateTime#`
+             `#endDate#` `#today#` `#stockDay#`）。⚠️ **格式由你定**，库不猜：
+             同一个"日期"，有的接口要 `20261030`、有的要 `2026-10-30 09:30:00`；
+             不给 `date` 就填空串（不保证有数据，也不报错）；
+           * `extra=` → 其余占位符，`{占位符原文: 值}`，键要带 `#`/`@`，如
+             `{"@hycode@": "010301", "#name1#": "中国平安"}`；
+           * 目录里没有这条命令的模板 → 参数就是 `[]`；
+        3. `{{searchText}}` 这类是 **App 端 JS 的模板语法**（2 条
+           `CWServ.app_keyboard_*`），本库**不填**：要么自己给
+           `extra={"{{searchText}}": "…"}`，要么直接给 `params=`；
+        4. 另有 **25 条**命令的目录 `params` 存的是**抓包元数据**而不是模板，参数全部
+           交给 `ctlmap.params_best_for(cmd)` 的四档语义（细节见 `_cmd_params`）：
+           12 条能拿到真参数 / 抓包样本参数（**抓包现场值**：代码、日期、页码），
+           13 条缺证据 → 发空参数、**不抛错**（有些命令本来就不收参数）。
+           因此 `code=` / `date=` 对它们**不起作用** —— 要换标的请显式给 `params=`；
+           其中已经带 `CallName` / `Params` 的整段请求体由 `body_of` 直通，**不会被
+           拆包、也不会再包一层**。
+
+        三档状态（`ctlmap.tier_for`；**不是三个新异常类** —— 异常契约不变）
+        ----------------------------------------------------------------
+        * `verified` —— 本地实测取到过 `rows>0`：正常走；
+        * `probe_ok` —— 接口可达、本地只见过空列返回：**照发**；0 行时抛
+          `EmptyResult`，消息里补上"接口可达 / 当前条件下无数据 / 不是命令坏"
+          （`allow_empty=True` 时这条路径返回空 `Table`，不抛）；
+        * `dead` —— 本地实测回 104（本版本 App 未实现）：**发请求之前**抛
+          `NotSupportedError`，一个字节都不发。
+
+        `allow_dead=True`
+        -----------------
+        跳过上面的 dead 闸、真的发一次。为什么要有：dead 名单**随包的是**
+        `tdxdata/_engine/catalog/dead_cmds.json`（**191 条**；素材来自**仓库外**的
+        `F:\\TDX\\raw\\catalog\\not_in_app.json` —— 2026-10-31 实机快照，**未随包分发**，
+        生成口径 = 该快照**减去**本地实测 `rows>0` 的命令，正向证据优先），
+        App 升级后那条命令可能已经实现了 —— 用户必须能自己解开这个判断。
+        跳过后一切照常（服务端说 104 还是 104，只是这次由服务端来说，
+        而不是由本地名单替它说）。
+
+        其它
+        ----
+        `retry` / `idle` / `allow_empty` 语义与 `call()` **完全一致**：本方法就是
+        `call()` 的薄壳 —— 发请求 / 缓存 / 限速 / provenance / 异常映射全部走它，
+        **没有第二份发送实现**。（自查方法：本方法体里不出现 `_ensure()` / `.ask(` /
+        `_pacer` / `_cache` / `socket` —— 这些只该在 `call()` 里；`call_cmd` 里出现
+        它们就说明有人复制了一份发送实现。）
+
+        已知限制（**有名字的限制，不是暗规则**）
+        ----------------------------------------
+        ⚠️ 少数命令（当前 **1 条**：`CWServ.tzx_filedown`）的参数已从抓包还原，
+        但请求体形态**只有单源证据**（抓包 = 裸对象、目录 `form` = `base`），
+        未达本次改造的"**双源一致**"门槛（19 条），因此仍按前缀规则包
+        `{"Params": …}`。
+        为什么宁可留着也不赌：给一条命令临时放宽门槛，会让"哪些命令按实测、
+        哪些按兜底"变成没法审计的暗规则 —— 那正是这次要消灭的东西；而且
+        `{"Params": {…}}` 在真机上会不会被判 `-1002`，离线无法证伪。
+        若真机验证为裸发，把该命令补进 `catalog/form_measured.json` 即可
+        （一行**数据**改动，不用改本模块）。
+
+        抛：`NotSupportedError`（不在目录 732 条里 / `dead` 档）、`ParamError`、
+        `ServerError`、`EmptyResult`、`RateLimited`、`ConnectionFailed`。
+        """
+        # ① dead 闸：**发请求之前**（在建连 / 缓存 / 限速任何一道闸门之前）
+        _check_dead_cmd(cmd, allow_dead)
+
+        # ② ctl：目录里没有 = 根本不知道往哪儿发。本地报错，别浪费一次 2.2 s 往返
+        ctl = ctlmap.ctl_for(cmd)
+        if ctl is None:
+            raise errors.NotSupportedError(
+                "%s 不在库的命令目录里（%s 条，`tdxdata/_engine/catalog/ctl_map.json`）。"
+                "命令必须在库的命令目录里（%s 条），可用 `tdxdata.ctlmap.names()` "
+                "查看全部、`tdxdata.ctlmap.names('%s')` 只看一个命名空间%s。"
+                % (cmd, _catalog_total(), _catalog_total(),
+                   cmd.split(".")[0] + "." if "." in cmd else cmd,
+                   _near_cmd_hint(cmd)))
+
+        # ③ 参数：显式 params 优先（模板完全不参与）；否则目录模板 + 占位符替换
+        if params is None:
+            params = _cmd_params(cmd, code=code, date=date, extra=extra)
+
+        # ④ 发送 / 缓存 / 限速 / provenance / 异常映射：**复用 call()**
+        try:
+            return self.call(cmd, ctl, params, retry=retry, idle=idle,
+                             allow_empty=allow_empty, allow_dead=allow_dead)
+        except errors.EmptyResult as exc:
+            # ⑤ `probe_ok` 档：**同一个异常类**，只把"不是命令坏"这层意思补上
+            if ctlmap.tier_for(cmd) == "probe_ok" and _PROBE_OK_HINT not in str(exc):
+                exc.args = (str(exc) + _PROBE_OK_HINT,)
+            raise
+
     def call(self, cmd: str, ctl: int, params: Any = None,
              *, retry: int = 3, idle: float = 4.0,
-             allow_empty: bool = False) -> Table:
+             allow_empty: bool = False,
+             allow_dead: bool = False) -> Table:
         """直接调一条文档里的命令（`cmd` + `ctl` + 参数按命令约定填写）。
 
         参数 `params` 给 list / dict / str 均可；包装形态由库按命令前缀自动决定
@@ -1055,6 +1278,14 @@ class Client:
         `allow_empty=True` 时，"有列无行"（当期无数据）返回空 `Table` 而不抛
         `EmptyResult` —— 批量遍历 421 个产品时用得上。
 
+        `allow_dead=True`：跳过 **dead 档前置拦截**。默认情况下，本地实测回 104
+        （本版本 App 未实现）的命令在**发请求之前**就抛 `NotSupportedError`
+        —— 因为服务端对这类命令只会回空包，走到发送层会被重试逻辑误判成"疑似限流"，
+        白等 3 轮退避还把进程级间隔顶上去。名单是 **2026-10-31 的负证据快照**
+        （`_engine/catalog/dead_cmds.json`），App 升级后可能已实现，所以要留这个
+        逃生舱；优先级是 `verified > dead`（有 `rows>0` 正证据的命令一律不拦）。
+        ⚠️ `get()` 走的就是本方法，所以 dead 档的 7 条产品命令也会被这道理拦住。
+
         `cache`（构造时注入）命中时**直接返回、不占限流闸门**；未命中才走 `wait()`。
 
         语义层（阶段 1）
@@ -1067,6 +1298,10 @@ class Client:
         **绝不默认 FINAL**。
         """
         t0 = time.monotonic()
+        # ★ 顺序是契约：dead 闸必须在**建连 / 缓存 / 限速**任何一道闸门之前
+        #   （`call_cmd` 也拦了一次 —— 那是给"参数组装之前"留的早退，这里是兜底：
+        #    用户可能绕过 `call_cmd` 直接用 `call`）。
+        _check_dead_cmd(cmd, allow_dead)
         self._check_cmd_prefix(cmd)         # 漏命名空间前缀 → 本地报错（见方法注释）
         _check_empty_slots(cmd, params)     # 空槽 → 本地报错，别浪费一个 2.2 s 往返
         args = self._session_mod.body_of(cmd, params)
@@ -1212,7 +1447,8 @@ class Client:
         raise errors.ConnectionFailed("重试 %d 次仍失败：%s" % (retry, last_err))
 
     def _get_with_params(self, name: str, params: Any,
-                         *, allow_empty: bool = False) -> Dataset:
+                         *, allow_empty: bool = False,
+                         allow_dead: bool = False) -> Dataset:
         """按**已展开的**请求参数取一个产品（`get()` 去掉占位符替换之后的那一半）。
 
         为什么单独抽出来（PROD-003）：宏观产品的**每个模式是另一张表**（列名相同、
@@ -1230,7 +1466,8 @@ class Client:
         # transport+retry/switch → codec → 建容器 → 盖 Provenance → log 全在里面），
         # `get()` 是它的语义层加厚（时效判定需要 data_date/prev_trade_date，
         # `_fetch` 的 judge(info) 形态表达不了，故留在 `_describe_product`）。
-        table = self.call(spec["cmd"], spec["ctl"], params, allow_empty=allow_empty)
+        table = self.call(spec["cmd"], spec["ctl"], params,
+                          allow_empty=allow_empty, allow_dead=allow_dead)
         table.domain = spec.get("domain", "")
         # 整列为 None 的列**保留**、只记账：数据中心产品（尤其 ztqd 涨停清单的
         # 00102 口径）整列空往往是"当日样本还不完整"，那是**数据信号**；
@@ -1242,7 +1479,7 @@ class Client:
         return ds
 
     def get(self, name: str, allow_empty: bool = False, *,
-            mapped: bool = False, **kwargs) -> Dataset:
+            mapped: bool = False, allow_dead: bool = False, **kwargs) -> Dataset:
         """按产品名取数（421 个产品之一）。
 
         ```python
@@ -1250,6 +1487,13 @@ class Client:
         c.get("holiday")
         ```
         参数按产品声明里的占位符替换（`@code@` / `#date@` 等）。
+
+        `allow_dead=True`：跳过 dead 档前置拦截。有 **7 条产品命令**
+        （`zcjj` / `xg_xgjx` / `jjs_jgxq` / `north_jg` / `bxzj_sy_bkbd` /
+        `bxzj_sy_jgbd` / `queryRandom`）落在 **2026-10-31 的 dead 名单**里（本地实测
+        回 104 的**负证据快照**，App 升级后可能已实现），默认在发请求前就抛
+        `NotSupportedError`；确实要探测就给 `allow_dead=True`（关键字原样透传给
+        `call()`，没有第二份发送逻辑）。
 
         语义层（阶段 1）
         ----------------
@@ -1272,7 +1516,8 @@ class Client:
         if spec is None:
             raise KeyError("没有这个产品：%s（用 products() 查看全部）" % name)
         ds = self._get_with_params(name, _fill(spec["params"], kwargs, name),
-                                   allow_empty=allow_empty)
+                                   allow_empty=allow_empty,
+                                   allow_dead=allow_dead)
         if mapped:
             from .sections import mapping as _mapping
             if name not in _mapping.FIELD_MAP:

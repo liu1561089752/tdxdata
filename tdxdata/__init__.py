@@ -97,6 +97,12 @@ from .capabilities import (
 )
 from .capabilities import as_markdown_table as capabilities_markdown
 
+#: 命令目录查表层（732 条：`ctl` / 请求体形态 / 参数模板 / 三档状态）。
+#: **真实 import**（不是 `__getattr__` 懒加载）：`import tdxdata` 后
+#: `sys.modules` 里就必须有 `tdxdata._engine.ctlmap`，否则"目录真的被加载了"
+#: 这件事无从验证（`tests/test_core.py::test_public_exports_complete` 会逐项 getattr）。
+from ._engine import ctlmap
+
 #: 缓存（2026-10-29 公开）：`Client(cache="auto")` 按实测新鲜度逐命令定 TTL；
 #: 也可以自带 `TTLCache(ttl=300)`。`ttl_for_cmd("hg_gdp")` 能直接查某个产品的缓存时长。
 from .caching import POLICY as CACHE_POLICY
@@ -153,6 +159,8 @@ __all__ = [
     "parse_symbol",
     # 恒等式运行时闸门（批次 E）：invariants 模块 + Violation 类型
     "invariants", "Violation",
+    # 命令目录查表层（`Client.call_cmd` 的单一真相）：732 条 ctl / 形态 / 参数模板 / 三档
+    "ctlmap",
     # 弃用与迁移（ENG-008）：装饰器 + 已生效变更的迁移表（CHANGELOG/README 的单一事实源）
     "deprecated", "MIGRATIONS", "DEPRECATED_API", "migration_table",
     "__version__", "__version_info__",
