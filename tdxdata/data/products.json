@@ -4712,7 +4712,7 @@
   },
   "hot_list_card": {
    "cmd": "JNLPSE.hotListCard",
-   "ctl": 19,
+   "ctl": 20,
    "params": [
     {
      "pageNo": "1",
