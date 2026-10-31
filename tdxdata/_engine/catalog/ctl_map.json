@@ -572,7 +572,10 @@
      "phCard": "17"
     }
    ],
-   "verified": true
+   "verified": true,
+   "probe_ok": true,
+   "probe_cols": 0,
+   "probe_shape": ""
   },
   "CWServ.ph_tdxdatacenter_tdxrb_rqb_stock": {
    "ctl": 41,
@@ -751,7 +754,8 @@
    "form": "base",
    "params": [
     "1"
-   ]
+   ],
+   "verified": true
   },
   "HQServ.hq_nlp_app_zbhc": {
    "ctl": 24,
@@ -794,7 +798,8 @@
     "00101",
     1,
     0
-   ]
+   ],
+   "verified": true
   },
   "JNLPSE.hotStrategy": {
    "ctl": 20,
@@ -845,7 +850,10 @@
     "00105",
     "1"
    ],
-   "verified": true
+   "verified": true,
+   "probe_ok": true,
+   "probe_cols": 0,
+   "probe_shape": ""
   },
   "CWServ.tdx_vote": {
    "ctl": 17,
@@ -901,7 +909,10 @@
     "920091",
     "2"
    ],
-   "verified": true
+   "verified": true,
+   "probe_ok": true,
+   "probe_cols": 5,
+   "probe_shape": "ResultSets"
   },
   "CWServ.ph_ai_sjfx_lhjy": {
    "ctl": 24,
@@ -931,7 +942,10 @@
     "2",
     ""
    ],
-   "verified": true
+   "verified": true,
+   "probe_ok": true,
+   "probe_cols": 3,
+   "probe_shape": "ResultSets"
   },
   "CWServ.ph_ai_sjfx_lnjy": {
    "ctl": 24,
@@ -940,7 +954,10 @@
     "920091",
     "2"
    ],
-   "verified": true
+   "verified": true,
+   "probe_ok": true,
+   "probe_cols": 4,
+   "probe_shape": "ResultSets"
   },
   "CWServ.ph_ai_sjfx_zhpj": {
    "ctl": 24,
@@ -1160,7 +1177,10 @@
     "00101",
     "600303"
    ],
-   "verified": true
+   "verified": true,
+   "probe_ok": true,
+   "probe_cols": 8,
+   "probe_shape": "ResultSets"
   },
   "CWServ.ph_agf10_rdtc": {
    "ctl": 22,
@@ -1170,7 +1190,10 @@
     "920091",
     "0"
    ],
-   "verified": true
+   "verified": true,
+   "probe_ok": true,
+   "probe_cols": 4,
+   "probe_shape": "ResultSets"
   },
   "CWServ.ph_agf10_zxts": {
    "ctl": 22,
@@ -1278,7 +1301,8 @@
     "00301",
     "920091",
     ""
-   ]
+   ],
+   "verified": true
   },
   "CWServ.ph_datacenter_slb_ggsy": {
    "ctl": 31,
@@ -1412,7 +1436,10 @@
    "params": [
     "600303"
    ],
-   "verified": true
+   "verified": true,
+   "probe_ok": true,
+   "probe_cols": 3,
+   "probe_shape": "ResultSets"
   },
   "CWServ.ph_zx_dstx": {
    "ctl": 19,
@@ -1562,7 +1589,10 @@
     "920091",
     ""
    ],
-   "verified": true
+   "verified": true,
+   "probe_ok": true,
+   "probe_cols": 8,
+   "probe_shape": "ResultSets"
   },
   "CWServ.ph_zt_gbgd_zjc": {
    "ctl": 23,
@@ -1600,7 +1630,8 @@
     "00102",
     "920091",
     ""
-   ]
+   ],
+   "verified": true
   },
   "CWServ.ph_agf10_cw_zyzbxqy_sy": {
    "ctl": 31,
@@ -1620,7 +1651,10 @@
     0,
     0,
     0
-   ]
+   ],
+   "probe_ok": true,
+   "probe_cols": 10,
+   "probe_shape": "ResultSets"
   },
   "CWServ.ph_zt_lrzt_ggrzrqmx": {
    "ctl": 28,
@@ -1629,7 +1663,8 @@
     "00102",
     "920091",
     "1"
-   ]
+   ],
+   "verified": true
   },
   "JJSServ.ph_zt_bxzj_ss": {
    "ctl": 23,
@@ -1670,7 +1705,8 @@
     "0",
     "",
     "0"
-   ]
+   ],
+   "verified": true
   },
   "CWServ.ph_tdxdatacenter_tfp_v2_gg": {
    "ctl": 35,
@@ -1693,7 +1729,8 @@
     "0",
     "",
     "0"
-   ]
+   ],
+   "verified": true
   },
   "CWServ.ph_tdxdatacenter_tfp_v2_tfptj": {
    "ctl": 38,
@@ -1739,7 +1776,10 @@
     1,
     20
    ],
-   "verified": true
+   "verified": true,
+   "probe_ok": true,
+   "probe_cols": 0,
+   "probe_shape": ""
   },
   "CWServ.ph_zt_lhb_sy": {
    "ctl": 21,
@@ -1798,7 +1838,8 @@
     "1",
     1,
     20
-   ]
+   ],
+   "verified": true
   },
   "CWServ.ph_jjzt_etf_tt": {
    "ctl": 23,
@@ -1814,7 +1855,8 @@
    "form": "base",
    "params": [
     "00101"
-   ]
+   ],
+   "verified": true
   },
   "CWServ.ph_jjzt_etf_ldhy": {
    "ctl": 25,
@@ -1869,7 +1911,8 @@
    "params": [
     "00101",
     0
-   ]
+   ],
+   "verified": true
   },
   "CWServ.ph_jjzt_etf_hq": {
    "ctl": 23,
@@ -1890,7 +1933,10 @@
     1,
     1
    ],
-   "verified": true
+   "verified": true,
+   "probe_ok": true,
+   "probe_cols": 21,
+   "probe_shape": "ResultSets"
   },
   "CWServ.ph_jjzt_etf_fejk": {
    "ctl": 25,
@@ -1977,7 +2023,8 @@
     "003",
     1,
     1
-   ]
+   ],
+   "verified": true
   },
   "HQServ.ZST": {
    "ctl": 12,
@@ -2018,7 +2065,10 @@
     "N004",
     1
    ],
-   "verified": true
+   "verified": true,
+   "probe_ok": true,
+   "probe_cols": 7,
+   "probe_shape": "ResultSets"
   },
   "CWServ.ph_zt_hsgtzt_v3_bsjj_gg": {
    "ctl": 32,
@@ -2111,7 +2161,10 @@
     "",
     "2"
    ],
-   "verified": true
+   "verified": true,
+   "probe_ok": true,
+   "probe_cols": 6,
+   "probe_shape": "ResultSets"
   },
   "CWServ.ph_zt_lhb_sy_lhqc": {
    "ctl": 26,
@@ -2120,7 +2173,10 @@
     "2026-10-19",
     2
    ],
-   "verified": true
+   "verified": true,
+   "probe_ok": true,
+   "probe_cols": 7,
+   "probe_shape": "ResultSets"
   },
   "CWServ.ph_zt_lhb_ss": {
    "ctl": 21,
@@ -2265,7 +2321,8 @@
     "",
     "",
     1
-   ]
+   ],
+   "verified": true
   },
   "CWServ.ph_tdxdatacenter_gscb_stms": {
    "ctl": 35,
@@ -2284,7 +2341,8 @@
     "",
     0,
     1
-   ]
+   ],
+   "verified": true
   },
   "CWServ.ph_tdxdatacenter_cb_yjgg": {
    "ctl": 33,
@@ -2296,7 +2354,8 @@
     "",
     1,
     1
-   ]
+   ],
+   "verified": true
   },
   "CWServ.ph_tdxdatacenter_cb_yjkb": {
    "ctl": 33,
@@ -2321,7 +2380,8 @@
     "",
     1,
     1
-   ]
+   ],
+   "verified": true
   },
   "CWServ.ph_tdxdatacenter_cb_yjpd": {
    "ctl": 33,
@@ -2341,7 +2401,8 @@
     "",
     1,
     "2026-06-30"
-   ]
+   ],
+   "verified": true
   },
   "CWServ.ph_tdxdatacenter_gscb_qzfx": {
    "ctl": 35,
@@ -2401,7 +2462,8 @@
     "",
     "",
     ""
-   ]
+   ],
+   "verified": true
   },
   "CWServ.ph_tdxdatacenter_tdxrb_gscb": {
    "ctl": 36,
@@ -2507,7 +2569,8 @@
    "form": "base",
    "params": [
     "001"
-   ]
+   ],
+   "verified": true
   },
   "CWServ.ph_tdxdatacenter_tdxrb_hk_zrb": {
    "ctl": 38,
@@ -2522,28 +2585,32 @@
    "form": "base",
    "params": [
     "001"
-   ]
+   ],
+   "verified": true
   },
   "CWServ.ph_tdxdatacenter_tdxrb_usa_rqb": {
    "ctl": 39,
    "form": "base",
    "params": [
     "001"
-   ]
+   ],
+   "verified": true
   },
   "CWServ.ph_tdxdatacenter_tdxrb_usa_gzb": {
    "ctl": 39,
    "form": "base",
    "params": [
     "001"
-   ]
+   ],
+   "verified": true
   },
   "CWServ.ph_tdxdatacenter_tdxrb_usa_rsb": {
    "ctl": 39,
    "form": "base",
    "params": [
     "001"
-   ]
+   ],
+   "verified": true
   },
   "CWServ.ph_tdxdatacenter_tdxrb_usa_bsb": {
    "ctl": 39,
@@ -2660,7 +2727,10 @@
     "N005",
     0
    ],
-   "verified": true
+   "verified": true,
+   "probe_ok": true,
+   "probe_cols": 13,
+   "probe_shape": "ResultSets"
   },
   "CWServ.ph_tdxdatacenter_gzzc_hyfx_hyfxsy_yjhy": {
    "ctl": 47,
@@ -2696,7 +2766,10 @@
     "#code#_#setcode#",
     "3"
    ],
-   "verified": true
+   "verified": true,
+   "probe_ok": true,
+   "probe_cols": 6,
+   "probe_shape": "ResultSets"
   },
   "CWServ.ph_tdxdatacenter_zttz_xqy_v2_qsid": {
    "ctl": 42,
@@ -2742,7 +2815,10 @@
     "0",
     ""
    ],
-   "verified": true
+   "verified": true,
+   "probe_ok": true,
+   "probe_cols": 3,
+   "probe_shape": "ResultSets"
   },
   "CWServ.ph_tdxdatacenter_zttz_xzcfg": {
    "ctl": 36,
@@ -2762,7 +2838,8 @@
     "01001",
     "",
     1
-   ]
+   ],
+   "verified": true
   },
   "CWServ.ph_cfg_gnzt_sjqd": {
    "ctl": 25,
@@ -2770,7 +2847,8 @@
    "params": [
     "002",
     ""
-   ]
+   ],
+   "verified": true
   },
   "DataAggregation.zttz_jhqz": {
    "ctl": 27,
@@ -2779,7 +2857,8 @@
     "00401",
     "",
     10
-   ]
+   ],
+   "verified": true
   },
   "CWServ.ph_tdxdatacenter_cylv2_qb_sy": {
    "ctl": 37,
@@ -2993,7 +3072,8 @@
     0,
     1,
     20
-   ]
+   ],
+   "verified": true
   },
   "CWServ.ph_zt_tlsq_xsjj": {
    "ctl": 24,
@@ -3025,7 +3105,8 @@
     "00204",
     1,
     ""
-   ]
+   ],
+   "verified": true
   },
   "CWServ.ph_tdxdatacenter_ggzx": {
    "ctl": 30,
@@ -3071,7 +3152,10 @@
      "args_hex": "7b2270616765223a2230222c2273697a65223a223230222c226e616d65223a22746478647a78736561726368222c22696d70616374223a2232222c22736f757263655f7461626c65223a2274625f67675f6162672074625f67675f626a73222c22735f69737375655f64617465223a22323032342d31302d3232222c22655f69737375655f64617465223a22323032362d31302d3233222c2274797065636f6465223a22222c2273656375726974795f74726164655f6d61726b6574223a2230313230303120303132303032203031323031352030313230323920303132303436222c22636865636b5f666c6167223a2231222c22736f7274223a2269737375655f64617465222c226b6579776f726473223a22227d",
      "pcap": "cap_1023_184200.pcap"
     }
-   ]
+   ],
+   "probe_ok": true,
+   "probe_cols": 0,
+   "probe_shape": "hits"
   },
   "CWServ.ph_tdxdatacenter_cgfx_bgq": {
    "ctl": 34,
@@ -3100,7 +3184,8 @@
     "0",
     "1",
     "1"
-   ]
+   ],
+   "verified": true
   },
   "CWServ.ph_zt_gbgd_jgcg": {
    "ctl": 24,
@@ -3208,7 +3293,10 @@
    "params": [
     "603439"
    ],
-   "verified": true
+   "verified": true,
+   "probe_ok": true,
+   "probe_cols": 3,
+   "probe_shape": "ResultSets"
   },
   "CWServ.ph_tdxdatacenter_gzzc_ggxq_ylpm": {
    "ctl": 40,
@@ -3238,7 +3326,10 @@
     "N003",
     1
    ],
-   "verified": true
+   "verified": true,
+   "probe_ok": true,
+   "probe_cols": 11,
+   "probe_shape": "ResultSets"
   },
   "CWServ.ph_tdxdatacenter_gzzc_zsxq_zxgg": {
    "ctl": 40,
@@ -3340,7 +3431,10 @@
     "@hycode@",
     ""
    ],
-   "verified": true
+   "verified": true,
+   "probe_ok": true,
+   "probe_cols": 8,
+   "probe_shape": "ResultSets"
   },
   "CWServ.ph_tdxdatacenter_tdxrb_gzb_stock": {
    "ctl": 41,
@@ -3351,7 +3445,10 @@
     "#setcode#",
     "#code#"
    ],
-   "verified": true
+   "verified": true,
+   "probe_ok": true,
+   "probe_cols": 7,
+   "probe_shape": "ResultSets"
   },
   "CWServ.ph_tdxdatacenter_tdxrb_rsb_stock": {
    "ctl": 41,
@@ -3362,7 +3459,10 @@
     "#setcode#",
     "#code#"
    ],
-   "verified": true
+   "verified": true,
+   "probe_ok": true,
+   "probe_cols": 7,
+   "probe_shape": "ResultSets"
   },
   "CWServ.ph_tdxdatacenter_tdxrb_hypm_hk": {
    "ctl": 39,
@@ -3372,7 +3472,10 @@
     "@hycode@",
     ""
    ],
-   "verified": true
+   "verified": true,
+   "probe_ok": true,
+   "probe_cols": 8,
+   "probe_shape": "ResultSets"
   },
   "CWServ.ph_tdxdatacenter_tdxrb_hypm_usa": {
    "ctl": 40,
@@ -3382,7 +3485,10 @@
     "@hycode@",
     ""
    ],
-   "verified": true
+   "verified": true,
+   "probe_ok": true,
+   "probe_cols": 8,
+   "probe_shape": "ResultSets"
   },
   "CWServ.ph_jjzt_etfjj_xfetfjj_v2": {
    "ctl": 33,
@@ -3390,7 +3496,10 @@
    "params": [
     "510300"
    ],
-   "verified": true
+   "verified": true,
+   "probe_ok": true,
+   "probe_cols": 8,
+   "probe_shape": "ResultSets"
   },
   "CWServ.ph_hkdatacenter_wlnx_xxts": {
    "ctl": 34,
@@ -3408,7 +3517,10 @@
     0,
     0
    ],
-   "verified": true
+   "verified": true,
+   "probe_ok": true,
+   "probe_cols": 10,
+   "probe_shape": "ResultSets"
   },
   "CWServ.ph_hkdatacenter_wlnx_lzzdscj": {
    "ctl": 37,
@@ -3459,7 +3571,10 @@
     "",
     ""
    ],
-   "verified": true
+   "verified": true,
+   "probe_ok": true,
+   "probe_cols": 5,
+   "probe_shape": "ResultSets"
   },
   "CWServ.ph_tdxdatacenter_qhlhb_jcgc": {
    "ctl": 36,
@@ -3470,7 +3585,8 @@
     "",
     "",
     ""
-   ]
+   ],
+   "verified": true
   },
   "HQServ.PBQQUnderly2": {
    "ctl": 21,
@@ -3538,7 +3654,8 @@
     30,
     0,
     0
-   ]
+   ],
+   "verified": true
   },
   "CWServ.ph_zt_lhb_sy_yybxq": {
    "ctl": 27,
@@ -3588,7 +3705,8 @@
     "",
     1,
     365
-   ]
+   ],
+   "verified": true
   },
   "CWServ.ph_agf10_dstx_dzjy": {
    "ctl": 27,
@@ -3604,7 +3722,10 @@
     "#type#",
     0
    ],
-   "verified": true
+   "verified": true,
+   "probe_ok": true,
+   "probe_cols": 0,
+   "probe_shape": ""
   },
   "CWServ.ph_zqf10_zx_xggg": {
    "ctl": 25,
@@ -3811,7 +3932,8 @@
     "",
     "",
     "1"
-   ]
+   ],
+   "verified": true
   },
   "CWServ.phsj_sc_xgrl": {
    "ctl": 21,
@@ -3819,7 +3941,10 @@
    "params": [
     "2"
    ],
-   "verified": true
+   "verified": true,
+   "probe_ok": true,
+   "probe_cols": 12,
+   "probe_shape": "ResultSets"
   },
   "DataAggregation.rdjd": {
    "ctl": 22,
@@ -3853,7 +3978,10 @@
      "occurTime": "2026-10-20",
      "lastDay": "1"
     }
-   ]
+   ],
+   "probe_ok": true,
+   "probe_cols": 0,
+   "probe_shape": ""
   },
   "JNLPSE.wendaQuery": {
    "ctl": 19,
@@ -3878,7 +4006,10 @@
     {
      "occurTime": "2026-10-20"
     }
-   ]
+   ],
+   "probe_ok": true,
+   "probe_cols": 0,
+   "probe_shape": ""
   },
   "CWServ.ph_tdxdatacenter_zpfxb_qsgfx": {
    "ctl": 37,
@@ -4171,7 +4302,8 @@
     "",
     "",
     "1"
-   ]
+   ],
+   "verified": true
   },
   "CWServ.ph_content_cjzx": {
    "ctl": 24,
@@ -4241,7 +4373,8 @@
      "args_hex": "7b2266696c656e616d65223a2262692f6c6973742f66756e635f726468733130315f312e6a736e227d",
      "pcap": "s2_datacenter_20func.pcap"
     }
-   ]
+   ],
+   "verified": true
   },
   "CWServ.ph_cfg_rd_rddh": {
    "ctl": 23,
@@ -4339,7 +4472,8 @@
     "00101",
     "",
     ""
-   ]
+   ],
+   "verified": true
   },
   "CWServ.ph_cfg_fx_sczb": {
    "ctl": 23,
@@ -4416,7 +4550,10 @@
     "001",
     "30"
    ],
-   "verified": true
+   "verified": true,
+   "probe_ok": true,
+   "probe_cols": 13,
+   "probe_shape": "ResultSets"
   },
   "CWServ.ph_gg_xgrl": {
    "ctl": 19,
@@ -4645,7 +4782,8 @@
    "params": [
     "00301",
     0
-   ]
+   ],
+   "verified": true
   },
   "CWServ.ph_tdxdatacenter_gqzy": {
    "ctl": 30,
@@ -4676,7 +4814,10 @@
     1,
     0
    ],
-   "verified": true
+   "verified": true,
+   "probe_ok": true,
+   "probe_cols": 9,
+   "probe_shape": "ResultSets"
   },
   "CWServ.ph_tdxdatacenter_hyfx_sy": {
    "ctl": 33,
@@ -4705,7 +4846,10 @@
     "1",
     ""
    ],
-   "verified": true
+   "verified": true,
+   "probe_ok": true,
+   "probe_cols": 0,
+   "probe_shape": ""
   },
   "CWServ.ph_AIcard_zttz_zhid": {
    "ctl": 28,
@@ -4713,7 +4857,10 @@
    "params": [
     "工业母机"
    ],
-   "verified": true
+   "verified": true,
+   "probe_ok": true,
+   "probe_cols": 3,
+   "probe_shape": "ResultSets"
   },
   "CWServ.ph_tdxdatacenter_scfx": {
    "ctl": 30,
@@ -4766,7 +4913,8 @@
     "1",
     "1",
     "20"
-   ]
+   ],
+   "verified": true
   },
   "CWServ.ph_tdxdatacenter_gz": {
    "ctl": 28,
@@ -4913,7 +5061,8 @@
     "01,02,03,04",
     "20",
     "-1"
-   ]
+   ],
+   "verified": true
   },
   "CWServ.ph_tdxdatacenter_gszl_gszl": {
    "ctl": 35,
@@ -4992,7 +5141,8 @@
     "01,02,03,04",
     "20",
     "-1"
-   ]
+   ],
+   "verified": true
   },
   "CWServ.ph_tdxdatacenter_qhlhb_syss": {
    "ctl": 36,
@@ -5091,7 +5241,8 @@
     1,
     0,
     0
-   ]
+   ],
+   "verified": true
   },
   "JJSServ.ph_datacenter_jjsph_cyqbgp_cgbh": {
    "ctl": 41,
@@ -5100,7 +5251,10 @@
     "高盛(亚洲)证券有限公司",
     "0"
    ],
-   "verified": true
+   "verified": true,
+   "probe_ok": true,
+   "probe_cols": 8,
+   "probe_shape": "ResultSets"
   },
   "CWServ.ph_jjzt_jjsc_jjhq": {
    "ctl": 26,
@@ -5122,7 +5276,8 @@
     "00201",
     "399006",
     "000001"
-   ]
+   ],
+   "verified": true
   },
   "CWServ.ph_zt_kp_sy_gppk": {
    "ctl": 25,
@@ -5249,7 +5404,8 @@
      "CylSize": "4",
      "ZlSize": "3"
     }
-   ]
+   ],
+   "verified": true
   },
   "DataAggregation.queryGggz": {
    "ctl": 26,
@@ -5295,7 +5451,8 @@
   "CWServ.ph_jjzt_etf_sx_jjgs": {
    "ctl": 28,
    "form": "base",
-   "params": []
+   "params": [],
+   "verified": true
   },
   "CWServ.ph_tdxdatacenter_dzjy_ss": {
    "ctl": 33,
@@ -5341,7 +5498,8 @@
     "",
     0,
     ""
-   ]
+   ],
+   "verified": true
   },
   "DataAggregation.queryZbsq": {
    "ctl": 27,
@@ -5361,7 +5519,8 @@
      "date": "#date#",
      "cardId": "lxfb"
     }
-   ]
+   ],
+   "verified": true
   },
   "JJSServ.ph_datacenter_jjs_hsgt_v3_jgxq": {
    "ctl": 40,
@@ -5385,7 +5544,10 @@
     5,
     1
    ],
-   "verified": true
+   "verified": true,
+   "probe_ok": true,
+   "probe_cols": 18,
+   "probe_shape": "ResultSets"
   },
   "DataAggregation.queryRandom": {
    "ctl": 29,
@@ -5396,7 +5558,10 @@
      "sumSize": "10",
      "ranSize": "2"
     }
-   ]
+   ],
+   "probe_ok": true,
+   "probe_cols": 0,
+   "probe_shape": ""
   },
   "JJSServ.ph_datacenter_jjs_hsgt_v3_agxq": {
    "ctl": 40,
@@ -5430,7 +5595,10 @@
     "",
     10
    ],
-   "verified": true
+   "verified": true,
+   "probe_ok": true,
+   "probe_cols": 8,
+   "probe_shape": "ResultSets"
   },
   "CWServ.ph_tdxdatacenter_gscb_zzms": {
    "ctl": 35,
@@ -5438,7 +5606,8 @@
    "params": [
     "00103",
     1
-   ]
+   ],
+   "verified": true
   },
   "CWServ.ph_tdxdatacenter_tdxrb_zxg": {
    "ctl": 35,
@@ -5526,7 +5695,10 @@
     "@code@",
     "#date#"
    ],
-   "verified": true
+   "verified": true,
+   "probe_ok": true,
+   "probe_cols": 16,
+   "probe_shape": "ResultSets"
   },
   "CWServ.ph_tdxdatacenter_tjcb_gdqk": {
    "ctl": 35,
@@ -5584,7 +5756,10 @@
     "@code@",
     "#date#"
    ],
-   "verified": true
+   "verified": true,
+   "probe_ok": true,
+   "probe_cols": 9,
+   "probe_shape": "ResultSets"
   },
   "CWServ.ph_tdxdatacenter_tjcb_xqydb": {
    "ctl": 35,
@@ -5634,7 +5809,10 @@
     "01,02,03,04",
     "20",
     "-1"
-   ]
+   ],
+   "probe_ok": true,
+   "probe_cols": 0,
+   "probe_shape": ""
   },
   "CWServ.ph_datacenter_slb_ggsy_scpm": {
    "ctl": 36,
@@ -5784,7 +5962,10 @@
    "ctl": 18,
    "form": "base",
    "params": [],
-   "verified": true
+   "verified": true,
+   "probe_ok": true,
+   "probe_cols": 0,
+   "probe_shape": ""
   },
   "DataAggregation.zttz_xzgn": {
    "ctl": 26,
@@ -5863,7 +6044,8 @@
     "",
     "",
     ""
-   ]
+   ],
+   "verified": true
   },
   "JNLPSE.getCommandKeys": {
    "ctl": 22,
@@ -5951,7 +6133,10 @@
     0,
     0
    ],
-   "verified": true
+   "verified": true,
+   "probe_ok": true,
+   "probe_cols": 2,
+   "probe_shape": "ResultSets"
   },
   "CWServ.ph_tdxdatacenter_ggxc_ggxczsgfy": {
    "ctl": 40,
@@ -5989,7 +6174,10 @@
     "@code@",
     "#date#"
    ],
-   "verified": true
+   "verified": true,
+   "probe_ok": true,
+   "probe_cols": 18,
+   "probe_shape": "ResultSets"
   },
   "CWServ.ph_tdxdatacenter_tjcb_zyyw": {
    "ctl": 35,
@@ -5999,7 +6187,10 @@
     "@code@",
     "#date#"
    ],
-   "verified": true
+   "verified": true,
+   "probe_ok": true,
+   "probe_cols": 9,
+   "probe_shape": "ResultSets"
   },
   "CWServ.ph_tdxdatacenter_ybzx_ss": {
    "ctl": 33,
@@ -6023,7 +6214,10 @@
     1,
     1
    ],
-   "verified": true
+   "verified": true,
+   "probe_ok": true,
+   "probe_cols": 9,
+   "probe_shape": "ResultSets"
   },
   "CWServ.ph_zt_lrzt_hyrzrqmx": {
    "ctl": 28,
@@ -6322,7 +6516,10 @@
     "",
     ""
    ],
-   "verified": true
+   "verified": true,
+   "probe_ok": true,
+   "probe_cols": 3,
+   "probe_shape": "ResultSets"
   },
   "CWServ.ph_zx_cjrl": {
    "ctl": 19,
@@ -6396,7 +6593,10 @@
     "",
     "",
     ""
-   ]
+   ],
+   "probe_ok": true,
+   "probe_cols": 2,
+   "probe_shape": "ResultSets"
   },
   "JNLPSE.getCardHotQues": {
    "ctl": 22,
@@ -6447,7 +6647,10 @@
     "1",
     "20"
    ],
-   "verified": true
+   "verified": true,
+   "probe_ok": true,
+   "probe_cols": 7,
+   "probe_shape": "ResultSets"
   },
   "CWServ.ph_tdxdatacenter_tdxrb_kshrsb": {
    "ctl": 38,
@@ -6466,7 +6669,10 @@
     "#name1#",
     "#name2#"
    ],
-   "verified": true
+   "verified": true,
+   "probe_ok": true,
+   "probe_cols": 11,
+   "probe_shape": "ResultSets"
   },
   "DataAggregation.queryBigDataEffect": {
    "ctl": 35,
@@ -6701,7 +6907,10 @@
     "0",
     "0",
     "0"
-   ]
+   ],
+   "probe_ok": true,
+   "probe_cols": 0,
+   "probe_shape": ""
   },
   "CWServ.sys_fn_jyr_sfjyr": {
    "ctl": 25,
@@ -6725,7 +6934,10 @@
     "@sc@",
     "#type#",
     0
-   ]
+   ],
+   "probe_ok": true,
+   "probe_cols": 0,
+   "probe_shape": ""
   }
  }
 }
