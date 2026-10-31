@@ -1,0 +1,766 @@
+{
+ "CWSearch.search": {
+  "checked_at": "2026-10-31",
+  "reason": "本版本 App 未实现（实测 104 通讯错误）"
+ },
+ "CWServ.app_keyboard_ag_v2": {
+  "checked_at": "2026-10-31",
+  "reason": "本版本 App 未实现（实测 104 通讯错误）"
+ },
+ "CWServ.app_keyboard_xsb": {
+  "checked_at": "2026-10-31",
+  "reason": "本版本 App 未实现（实测 104 通讯错误）"
+ },
+ "CWServ.app_zq_tdxdatacenter_gksccz": {
+  "checked_at": "2026-10-31",
+  "reason": "本版本 App 未实现（实测 104 通讯错误）"
+ },
+ "CWServ.mzx_zxgwb": {
+  "checked_at": "2026-10-31",
+  "reason": "本版本 App 未实现（实测 104 通讯错误）"
+ },
+ "CWServ.mzx_zxzx_gmgzx": {
+  "checked_at": "2026-10-31",
+  "reason": "本版本 App 未实现（实测 104 通讯错误）"
+ },
+ "CWServ.mzx_zxzx_jhzx": {
+  "checked_at": "2026-10-31",
+  "reason": "本版本 App 未实现（实测 104 通讯错误）"
+ },
+ "CWServ.mzx_zxzx_kx": {
+  "checked_at": "2026-10-31",
+  "reason": "本版本 App 未实现（实测 104 通讯错误）"
+ },
+ "CWServ.mzx_zxzx_lmzx": {
+  "checked_at": "2026-10-31",
+  "reason": "本版本 App 未实现（实测 104 通讯错误）"
+ },
+ "CWServ.mzx_zxzx_yb": {
+  "checked_at": "2026-10-31",
+  "reason": "本版本 App 未实现（实测 104 通讯错误）"
+ },
+ "CWServ.mzx_zxzx_zt": {
+  "checked_at": "2026-10-31",
+  "reason": "本版本 App 未实现（实测 104 通讯错误）"
+ },
+ "CWServ.ph_agf10_dstx_dzjy": {
+  "checked_at": "2026-10-31",
+  "reason": "本版本 App 未实现（实测 104 通讯错误）"
+ },
+ "CWServ.ph_agf10_gbgd_jgcc": {
+  "checked_at": "2026-10-31",
+  "reason": "本版本 App 未实现（实测 104 通讯错误）"
+ },
+ "CWServ.ph_bigdata_xtld_zdsl_v2": {
+  "checked_at": "2026-10-31",
+  "reason": "本版本 App 未实现（实测 104 通讯错误）"
+ },
+ "CWServ.ph_cfg_fx_lbtt": {
+  "checked_at": "2026-10-31",
+  "reason": "本版本 App 未实现（实测 104 通讯错误）"
+ },
+ "CWServ.ph_datacenter_dghg_hgjq": {
+  "checked_at": "2026-10-31",
+  "reason": "本版本 App 未实现（实测 104 通讯错误）"
+ },
+ "CWServ.ph_datacenter_slb_ggsy_scpm": {
+  "checked_at": "2026-10-31",
+  "reason": "本版本 App 未实现（实测 104 通讯错误）"
+ },
+ "CWServ.ph_ggf10_fx": {
+  "checked_at": "2026-10-31",
+  "reason": "本版本 App 未实现（实测 104 通讯错误）"
+ },
+ "CWServ.ph_hkdatacenter_wlnx_bdhq": {
+  "checked_at": "2026-10-31",
+  "reason": "本版本 App 未实现（实测 104 通讯错误）"
+ },
+ "CWServ.ph_hkdatacenter_wlnx_jhfb": {
+  "checked_at": "2026-10-31",
+  "reason": "本版本 App 未实现（实测 104 通讯错误）"
+ },
+ "CWServ.ph_hkdatacenter_wlnx_lzcj": {
+  "checked_at": "2026-10-31",
+  "reason": "本版本 App 未实现（实测 104 通讯错误）"
+ },
+ "CWServ.ph_hkdatacenter_wlnx_lzhq_flb": {
+  "checked_at": "2026-10-31",
+  "reason": "本版本 App 未实现（实测 104 通讯错误）"
+ },
+ "CWServ.ph_hkdatacenter_wlnx_lzhq_sxX": {
+  "checked_at": "2026-10-31",
+  "reason": "本版本 App 未实现（实测 104 通讯错误）"
+ },
+ "CWServ.ph_jjf10_agf10_lr": {
+  "checked_at": "2026-10-31",
+  "reason": "本版本 App 未实现（实测 104 通讯错误）"
+ },
+ "CWServ.ph_jjtdxdatacenter_keyborad_jj": {
+  "checked_at": "2026-10-31",
+  "reason": "本版本 App 未实现（实测 104 通讯错误）"
+ },
+ "CWServ.ph_jjtdxdatacenter_keyborad_jj_v2": {
+  "checked_at": "2026-10-31",
+  "reason": "本版本 App 未实现（实测 104 通讯错误）"
+ },
+ "CWServ.ph_jjzt_hyxj": {
+  "checked_at": "2026-10-31",
+  "reason": "本版本 App 未实现（实测 104 通讯错误）"
+ },
+ "CWServ.ph_jjzt_jxgs": {
+  "checked_at": "2026-10-31",
+  "reason": "本版本 App 未实现（实测 104 通讯错误）"
+ },
+ "CWServ.ph_jjzt_jxjj": {
+  "checked_at": "2026-10-31",
+  "reason": "本版本 App 未实现（实测 104 通讯错误）"
+ },
+ "CWServ.ph_jjzt_jxjl": {
+  "checked_at": "2026-10-31",
+  "reason": "本版本 App 未实现（实测 104 通讯错误）"
+ },
+ "CWServ.ph_jjzt_zcjj": {
+  "checked_at": "2026-10-31",
+  "reason": "本版本 App 未实现（实测 104 通讯错误）"
+ },
+ "CWServ.ph_mgdatacenter_ydsd": {
+  "checked_at": "2026-10-31",
+  "reason": "本版本 App 未实现（实测 104 通讯错误）"
+ },
+ "CWServ.ph_pcwebcall_tcld_bkzqb": {
+  "checked_at": "2026-10-31",
+  "reason": "本版本 App 未实现（实测 104 通讯错误）"
+ },
+ "CWServ.ph_pcwebcall_tcld_bkzttj": {
+  "checked_at": "2026-10-31",
+  "reason": "本版本 App 未实现（实测 104 通讯错误）"
+ },
+ "CWServ.ph_qhf10_sj_cctj": {
+  "checked_at": "2026-10-31",
+  "reason": "本版本 App 未实现（实测 104 通讯错误）"
+ },
+ "CWServ.ph_qhf10_sj_cdrb": {
+  "checked_at": "2026-10-31",
+  "reason": "本版本 App 未实现（实测 104 通讯错误）"
+ },
+ "CWServ.ph_qhf10_sj_cjrq": {
+  "checked_at": "2026-10-31",
+  "reason": "本版本 App 未实现（实测 104 通讯错误）"
+ },
+ "CWServ.ph_qhf10_sj_kctj": {
+  "checked_at": "2026-10-31",
+  "reason": "本版本 App 未实现（实测 104 通讯错误）"
+ },
+ "CWServ.ph_qhf10_zj": {
+  "checked_at": "2026-10-31",
+  "reason": "本版本 App 未实现（实测 104 通讯错误）"
+ },
+ "CWServ.ph_qhf10_zl_v2": {
+  "checked_at": "2026-10-31",
+  "reason": "本版本 App 未实现（实测 104 通讯错误）"
+ },
+ "CWServ.ph_tclt_ztmx": {
+  "checked_at": "2026-10-31",
+  "reason": "本版本 App 未实现（实测 104 通讯错误）"
+ },
+ "CWServ.ph_tdxdatacenter_cfg_fx_etfjhb": {
+  "checked_at": "2026-10-31",
+  "reason": "本版本 App 未实现（实测 104 通讯错误）"
+ },
+ "CWServ.ph_tdxdatacenter_cgfx_gdzz_djgdgg": {
+  "checked_at": "2026-10-31",
+  "reason": "本版本 App 未实现（实测 104 通讯错误）"
+ },
+ "CWServ.ph_tdxdatacenter_cgfx_jgzc_ggzc": {
+  "checked_at": "2026-10-31",
+  "reason": "本版本 App 未实现（实测 104 通讯错误）"
+ },
+ "CWServ.ph_tdxdatacenter_cgfx_jgzc_gn_ggzcmx": {
+  "checked_at": "2026-10-31",
+  "reason": "本版本 App 未实现（实测 104 通讯错误）"
+ },
+ "CWServ.ph_tdxdatacenter_cgfx_jgzc_gn_xxq": {
+  "checked_at": "2026-10-31",
+  "reason": "本版本 App 未实现（实测 104 通讯错误）"
+ },
+ "CWServ.ph_tdxdatacenter_cgfx_jgzc_gnzc": {
+  "checked_at": "2026-10-31",
+  "reason": "本版本 App 未实现（实测 104 通讯错误）"
+ },
+ "CWServ.ph_tdxdatacenter_cgfx_ss": {
+  "checked_at": "2026-10-31",
+  "reason": "本版本 App 未实现（实测 104 通讯错误）"
+ },
+ "CWServ.ph_tdxdatacenter_cmfb_cmjz": {
+  "checked_at": "2026-10-31",
+  "reason": "本版本 App 未实现（实测 104 通讯错误）"
+ },
+ "CWServ.ph_tdxdatacenter_cyl_clyss": {
+  "checked_at": "2026-10-31",
+  "reason": "本版本 App 未实现（实测 104 通讯错误）"
+ },
+ "CWServ.ph_tdxdatacenter_cylv2_ag_sy": {
+  "checked_at": "2026-10-31",
+  "reason": "本版本 App 未实现（实测 104 通讯错误）"
+ },
+ "CWServ.ph_tdxdatacenter_cylv2_hk_cyljs": {
+  "checked_at": "2026-10-31",
+  "reason": "本版本 App 未实现（实测 104 通讯错误）"
+ },
+ "CWServ.ph_tdxdatacenter_cylv2_hk_cysj": {
+  "checked_at": "2026-10-31",
+  "reason": "本版本 App 未实现（实测 104 通讯错误）"
+ },
+ "CWServ.ph_tdxdatacenter_cylv2_hk_qjt": {
+  "checked_at": "2026-10-31",
+  "reason": "本版本 App 未实现（实测 104 通讯错误）"
+ },
+ "CWServ.ph_tdxdatacenter_cylv2_hk_sy": {
+  "checked_at": "2026-10-31",
+  "reason": "本版本 App 未实现（实测 104 通讯错误）"
+ },
+ "CWServ.ph_tdxdatacenter_cylv2_mg_cyljs": {
+  "checked_at": "2026-10-31",
+  "reason": "本版本 App 未实现（实测 104 通讯错误）"
+ },
+ "CWServ.ph_tdxdatacenter_cylv2_mg_cysj": {
+  "checked_at": "2026-10-31",
+  "reason": "本版本 App 未实现（实测 104 通讯错误）"
+ },
+ "CWServ.ph_tdxdatacenter_cylv2_mg_qjt": {
+  "checked_at": "2026-10-31",
+  "reason": "本版本 App 未实现（实测 104 通讯错误）"
+ },
+ "CWServ.ph_tdxdatacenter_cylv2_mg_sy": {
+  "checked_at": "2026-10-31",
+  "reason": "本版本 App 未实现（实测 104 通讯错误）"
+ },
+ "CWServ.ph_tdxdatacenter_cylv2_ss": {
+  "checked_at": "2026-10-31",
+  "reason": "本版本 App 未实现（实测 104 通讯错误）"
+ },
+ "CWServ.ph_tdxdatacenter_dzjy_jjxq": {
+  "checked_at": "2026-10-31",
+  "reason": "本版本 App 未实现（实测 104 通讯错误）"
+ },
+ "CWServ.ph_tdxdatacenter_ggxc_ggxczglfy": {
+  "checked_at": "2026-10-31",
+  "reason": "本版本 App 未实现（实测 104 通讯错误）"
+ },
+ "CWServ.ph_tdxdatacenter_ggxc_ggxczjyxjl": {
+  "checked_at": "2026-10-31",
+  "reason": "本版本 App 未实现（实测 104 通讯错误）"
+ },
+ "CWServ.ph_tdxdatacenter_ggxc_ggxczsgfy": {
+  "checked_at": "2026-10-31",
+  "reason": "本版本 App 未实现（实测 104 通讯错误）"
+ },
+ "CWServ.ph_tdxdatacenter_ggxc_ggxczzfxc": {
+  "checked_at": "2026-10-31",
+  "reason": "本版本 App 未实现（实测 104 通讯错误）"
+ },
+ "CWServ.ph_tdxdatacenter_gscb_yjpd": {
+  "checked_at": "2026-10-31",
+  "reason": "本版本 App 未实现（实测 104 通讯错误）"
+ },
+ "CWServ.ph_tdxdatacenter_gzqh_cxpz": {
+  "checked_at": "2026-10-31",
+  "reason": "本版本 App 未实现（实测 104 通讯错误）"
+ },
+ "CWServ.ph_tdxdatacenter_gzqh_sy": {
+  "checked_at": "2026-10-31",
+  "reason": "本版本 App 未实现（实测 104 通讯错误）"
+ },
+ "CWServ.ph_tdxdatacenter_gzzc_ggxq_gzzs": {
+  "checked_at": "2026-10-31",
+  "reason": "本版本 App 未实现（实测 104 通讯错误）"
+ },
+ "CWServ.ph_tdxdatacenter_gzzc_hyxq_hygs": {
+  "checked_at": "2026-10-31",
+  "reason": "本版本 App 未实现（实测 104 通讯错误）"
+ },
+ "CWServ.ph_tdxdatacenter_gzzc_hyxq_hynggbx": {
+  "checked_at": "2026-10-31",
+  "reason": "本版本 App 未实现（实测 104 通讯错误）"
+ },
+ "CWServ.ph_tdxdatacenter_gzzc_ss": {
+  "checked_at": "2026-10-31",
+  "reason": "本版本 App 未实现（实测 104 通讯错误）"
+ },
+ "CWServ.ph_tdxdatacenter_gzzc_zsxq_hq_": {
+  "checked_at": "2026-10-31",
+  "reason": "本版本 App 未实现（实测 104 通讯错误）"
+ },
+ "CWServ.ph_tdxdatacenter_gzzc_zsxq_zsjj": {
+  "checked_at": "2026-10-31",
+  "reason": "本版本 App 未实现（实测 104 通讯错误）"
+ },
+ "CWServ.ph_tdxdatacenter_hsgt_v2_bkzjlx_aggn": {
+  "checked_at": "2026-10-31",
+  "reason": "本版本 App 未实现（实测 104 通讯错误）"
+ },
+ "CWServ.ph_tdxdatacenter_hsgt_v2_bkzjlx_aghy": {
+  "checked_at": "2026-10-31",
+  "reason": "本版本 App 未实现（实测 104 通讯错误）"
+ },
+ "CWServ.ph_tdxdatacenter_hsgt_v2_bkzjlx_hkgn": {
+  "checked_at": "2026-10-31",
+  "reason": "本版本 App 未实现（实测 104 通讯错误）"
+ },
+ "CWServ.ph_tdxdatacenter_hsgt_v2_bkzjlx_hkhy": {
+  "checked_at": "2026-10-31",
+  "reason": "本版本 App 未实现（实测 104 通讯错误）"
+ },
+ "CWServ.ph_tdxdatacenter_jgdy_dyxq": {
+  "checked_at": "2026-10-31",
+  "reason": "本版本 App 未实现（实测 104 通讯错误）"
+ },
+ "CWServ.ph_tdxdatacenter_jgpj_fhzs": {
+  "checked_at": "2026-10-31",
+  "reason": "本版本 App 未实现（实测 104 通讯错误）"
+ },
+ "CWServ.ph_tdxdatacenter_jgpj_hypj": {
+  "checked_at": "2026-10-31",
+  "reason": "本版本 App 未实现（实测 104 通讯错误）"
+ },
+ "CWServ.ph_tdxdatacenter_jgpj_pjyc": {
+  "checked_at": "2026-10-31",
+  "reason": "本版本 App 未实现（实测 104 通讯错误）"
+ },
+ "CWServ.ph_tdxdatacenter_jgpj_ycfz": {
+  "checked_at": "2026-10-31",
+  "reason": "本版本 App 未实现（实测 104 通讯错误）"
+ },
+ "CWServ.ph_tdxdatacenter_kshsj_fwt": {
+  "checked_at": "2026-10-31",
+  "reason": "本版本 App 未实现（实测 104 通讯错误）"
+ },
+ "CWServ.ph_tdxdatacenter_lhb_lhbcjfxss": {
+  "checked_at": "2026-10-31",
+  "reason": "本版本 App 未实现（实测 104 通讯错误）"
+ },
+ "CWServ.ph_tdxdatacenter_mtcsm_xggg": {
+  "checked_at": "2026-10-31",
+  "reason": "本版本 App 未实现（实测 104 通讯错误）"
+ },
+ "CWServ.ph_tdxdatacenter_mzs": {
+  "checked_at": "2026-10-31",
+  "reason": "本版本 App 未实现（实测 104 通讯错误）"
+ },
+ "CWServ.ph_tdxdatacenter_nametoztid": {
+  "checked_at": "2026-10-31",
+  "reason": "本版本 App 未实现（实测 104 通讯错误）"
+ },
+ "CWServ.ph_tdxdatacenter_qhlhb_ccjg": {
+  "checked_at": "2026-10-31",
+  "reason": "本版本 App 未实现（实测 104 通讯错误）"
+ },
+ "CWServ.ph_tdxdatacenter_qhlhb_ykfx": {
+  "checked_at": "2026-10-31",
+  "reason": "本版本 App 未实现（实测 104 通讯错误）"
+ },
+ "CWServ.ph_tdxdatacenter_tdxrb_bkf10_sy": {
+  "checked_at": "2026-10-31",
+  "reason": "本版本 App 未实现（实测 104 通讯错误）"
+ },
+ "CWServ.ph_tdxdatacenter_tdxrb_kshgnbk": {
+  "checked_at": "2026-10-31",
+  "reason": "本版本 App 未实现（实测 104 通讯错误）"
+ },
+ "CWServ.ph_tdxdatacenter_tdxrb_kshgzb": {
+  "checked_at": "2026-10-31",
+  "reason": "本版本 App 未实现（实测 104 通讯错误）"
+ },
+ "CWServ.ph_tdxdatacenter_tdxrb_kshhybk": {
+  "checked_at": "2026-10-31",
+  "reason": "本版本 App 未实现（实测 104 通讯错误）"
+ },
+ "CWServ.ph_tdxdatacenter_tdxrb_kshrqb": {
+  "checked_at": "2026-10-31",
+  "reason": "本版本 App 未实现（实测 104 通讯错误）"
+ },
+ "CWServ.ph_tdxdatacenter_tdxrb_kshrsb": {
+  "checked_at": "2026-10-31",
+  "reason": "本版本 App 未实现（实测 104 通讯错误）"
+ },
+ "CWServ.ph_tdxdatacenter_tdxrb_tjcb_scbx": {
+  "checked_at": "2026-10-31",
+  "reason": "本版本 App 未实现（实测 104 通讯错误）"
+ },
+ "CWServ.ph_tdxdatacenter_tjcb_sy": {
+  "checked_at": "2026-10-31",
+  "reason": "本版本 App 未实现（实测 104 通讯错误）"
+ },
+ "CWServ.ph_tdxdatacenter_xtld_xsbj": {
+  "checked_at": "2026-10-31",
+  "reason": "本版本 App 未实现（实测 104 通讯错误）"
+ },
+ "CWServ.ph_tdxdatacenter_ybzx_ph": {
+  "checked_at": "2026-10-31",
+  "reason": "本版本 App 未实现（实测 104 通讯错误）"
+ },
+ "CWServ.ph_tdxdatacenter_ybzx_ss": {
+  "checked_at": "2026-10-31",
+  "reason": "本版本 App 未实现（实测 104 通讯错误）"
+ },
+ "CWServ.ph_tdxdatacenter_ybzx_xq": {
+  "checked_at": "2026-10-31",
+  "reason": "本版本 App 未实现（实测 104 通讯错误）"
+ },
+ "CWServ.ph_tdxdatacenter_ybzx_xq_hy": {
+  "checked_at": "2026-10-31",
+  "reason": "本版本 App 未实现（实测 104 通讯错误）"
+ },
+ "CWServ.ph_tdxdatacenter_ybzx_xq_jg": {
+  "checked_at": "2026-10-31",
+  "reason": "本版本 App 未实现（实测 104 通讯错误）"
+ },
+ "CWServ.ph_tdxdatacenter_ybzxybk": {
+  "checked_at": "2026-10-31",
+  "reason": "本版本 App 未实现（实测 104 通讯错误）"
+ },
+ "CWServ.ph_tdxdatacenter_ybzxybk_zx": {
+  "checked_at": "2026-10-31",
+  "reason": "本版本 App 未实现（实测 104 通讯错误）"
+ },
+ "CWServ.ph_tdxdatacenter_zttz_xqy2": {
+  "checked_at": "2026-10-31",
+  "reason": "本版本 App 未实现（实测 104 通讯错误）"
+ },
+ "CWServ.ph_tdxdatacenter_zttz_xqy_qsid": {
+  "checked_at": "2026-10-31",
+  "reason": "本版本 App 未实现（实测 104 通讯错误）"
+ },
+ "CWServ.ph_xgb_clss": {
+  "checked_at": "2026-10-31",
+  "reason": "本版本 App 未实现（实测 104 通讯错误）"
+ },
+ "CWServ.ph_zqf10_zx_xggg": {
+  "checked_at": "2026-10-31",
+  "reason": "本版本 App 未实现（实测 104 通讯错误）"
+ },
+ "CWServ.ph_zt_gbgd_gdfx_cgxq": {
+  "checked_at": "2026-10-31",
+  "reason": "本版本 App 未实现（实测 104 通讯错误）"
+ },
+ "CWServ.ph_zt_kp_bxjj": {
+  "checked_at": "2026-10-31",
+  "reason": "本版本 App 未实现（实测 104 通讯错误）"
+ },
+ "CWServ.ph_zt_lrzt_ggdbqmx": {
+  "checked_at": "2026-10-31",
+  "reason": "本版本 App 未实现（实测 104 通讯错误）"
+ },
+ "CWServ.ph_zt_lrzt_hyrzrqmx": {
+  "checked_at": "2026-10-31",
+  "reason": "本版本 App 未实现（实测 104 通讯错误）"
+ },
+ "CWServ.ph_zt_xg_xgjx": {
+  "checked_at": "2026-10-31",
+  "reason": "本版本 App 未实现（实测 104 通讯错误）"
+ },
+ "CWServ.ph_zx_cjrl": {
+  "checked_at": "2026-10-31",
+  "reason": "本版本 App 未实现（实测 104 通讯错误）"
+ },
+ "CWServ.phbkf10_cpbd": {
+  "checked_at": "2026-10-31",
+  "reason": "本版本 App 未实现（实测 104 通讯错误）"
+ },
+ "CWServ.phbkf10_f10_cylcyt": {
+  "checked_at": "2026-10-31",
+  "reason": "本版本 App 未实现（实测 104 通讯错误）"
+ },
+ "CWServ.phbkf10_lhgjtf": {
+  "checked_at": "2026-10-31",
+  "reason": "本版本 App 未实现（实测 104 通讯错误）"
+ },
+ "CWServ.phbkf10_tcld_bkzqb": {
+  "checked_at": "2026-10-31",
+  "reason": "本版本 App 未实现（实测 104 通讯错误）"
+ },
+ "CWServ.phsj_sc_hkxgrl": {
+  "checked_at": "2026-10-31",
+  "reason": "本版本 App 未实现（实测 104 通讯错误）"
+ },
+ "CWServ.sys_fn_gzlhgjyr": {
+  "checked_at": "2026-10-31",
+  "reason": "本版本 App 未实现（实测 104 通讯错误）"
+ },
+ "CWServ.sys_fn_jyr_sfjyr": {
+  "checked_at": "2026-10-31",
+  "reason": "本版本 App 未实现（实测 104 通讯错误）"
+ },
+ "DataAggregation.gz_lzg": {
+  "checked_at": "2026-10-31",
+  "reason": "本版本 App 未实现（实测 104 通讯错误）"
+ },
+ "DataAggregation.jh_rqz": {
+  "checked_at": "2026-10-31",
+  "reason": "本版本 App 未实现（实测 104 通讯错误）"
+ },
+ "DataAggregation.queryBigDataEffect": {
+  "checked_at": "2026-10-31",
+  "reason": "本版本 App 未实现（实测 104 通讯错误）"
+ },
+ "DataAggregation.queryRandom": {
+  "checked_at": "2026-10-31",
+  "reason": "本版本 App 未实现（实测 104 通讯错误）"
+ },
+ "DataAggregation.queryRecommendedKeywords": {
+  "checked_at": "2026-10-31",
+  "reason": "本版本 App 未实现（实测 104 通讯错误）"
+ },
+ "DataAggregation.zttz_xzgn": {
+  "checked_at": "2026-10-31",
+  "reason": "本版本 App 未实现（实测 104 通讯错误）"
+ },
+ "JJSServ.ph_datacenter_jjs_hsgt_v3_agbkxq": {
+  "checked_at": "2026-10-31",
+  "reason": "本版本 App 未实现（实测 104 通讯错误）"
+ },
+ "JJSServ.ph_datacenter_jjs_hsgt_v3_jgxq": {
+  "checked_at": "2026-10-31",
+  "reason": "本版本 App 未实现（实测 104 通讯错误）"
+ },
+ "JJSServ.ph_datacenter_jjs_hsgtzt_v3_bsjj_jg": {
+  "checked_at": "2026-10-31",
+  "reason": "本版本 App 未实现（实测 104 通讯错误）"
+ },
+ "JJSServ.ph_zt_bxzj_ss": {
+  "checked_at": "2026-10-31",
+  "reason": "本版本 App 未实现（实测 104 通讯错误）"
+ },
+ "JJSServ.ph_zt_bxzj_sy_bkbd": {
+  "checked_at": "2026-10-31",
+  "reason": "本版本 App 未实现（实测 104 通讯错误）"
+ },
+ "JJSServ.ph_zt_bxzj_sy_jgbd": {
+  "checked_at": "2026-10-31",
+  "reason": "本版本 App 未实现（实测 104 通讯错误）"
+ },
+ "JJSServ.ph_zt_bxzj_xq": {
+  "checked_at": "2026-10-31",
+  "reason": "本版本 App 未实现（实测 104 通讯错误）"
+ },
+ "JNLPSE.bkList": {
+  "checked_at": "2026-10-31",
+  "reason": "本版本 App 未实现（实测 104 通讯错误）"
+ },
+ "JNLPSE.hotStockDetailNow": {
+  "checked_at": "2026-10-31",
+  "reason": "本版本 App 未实现（实测 104 通讯错误）"
+ },
+ "JNLPSE.hotStockList": {
+  "checked_at": "2026-10-31",
+  "reason": "本版本 App 未实现（实测 104 通讯错误）"
+ },
+ "JNLPSE.yesterdayList": {
+  "checked_at": "2026-10-31",
+  "reason": "本版本 App 未实现（实测 104 通讯错误）"
+ },
+ "JNLPSE.zxwbBkbx": {
+  "checked_at": "2026-10-31",
+  "reason": "本版本 App 未实现（实测 104 通讯错误）"
+ },
+ "NLPSE.QuestionImagine": {
+  "checked_at": "2026-10-31",
+  "reason": "本版本 App 未实现（实测 104 通讯错误）"
+ },
+ "PRP.getOprpAdvInfo": {
+  "checked_at": "2026-10-31",
+  "reason": "本版本 App 未实现（实测 104 通讯错误）"
+ },
+ "SNS.addComments": {
+  "checked_at": "2026-10-31",
+  "reason": "本版本 App 未实现（实测 104 通讯错误）"
+ },
+ "SNS.checkFollowedStatus": {
+  "checked_at": "2026-10-31",
+  "reason": "本版本 App 未实现（实测 104 通讯错误）"
+ },
+ "SNS.checkLikeOrDisLike": {
+  "checked_at": "2026-10-31",
+  "reason": "本版本 App 未实现（实测 104 通讯错误）"
+ },
+ "SNS.checkTotalDialogue": {
+  "checked_at": "2026-10-31",
+  "reason": "本版本 App 未实现（实测 104 通讯错误）"
+ },
+ "SNS.checkUserProductLimit": {
+  "checked_at": "2026-10-31",
+  "reason": "本版本 App 未实现（实测 104 通讯错误）"
+ },
+ "SNS.checkedFollowedTagsByUrls": {
+  "checked_at": "2026-10-31",
+  "reason": "本版本 App 未实现（实测 104 通讯错误）"
+ },
+ "SNS.createCollection": {
+  "checked_at": "2026-10-31",
+  "reason": "本版本 App 未实现（实测 104 通讯错误）"
+ },
+ "SNS.createPost": {
+  "checked_at": "2026-10-31",
+  "reason": "本版本 App 未实现（实测 104 通讯错误）"
+ },
+ "SNS.deleteCollection": {
+  "checked_at": "2026-10-31",
+  "reason": "本版本 App 未实现（实测 104 通讯错误）"
+ },
+ "SNS.deleteComments": {
+  "checked_at": "2026-10-31",
+  "reason": "本版本 App 未实现（实测 104 通讯错误）"
+ },
+ "SNS.dicData": {
+  "checked_at": "2026-10-31",
+  "reason": "本版本 App 未实现（实测 104 通讯错误）"
+ },
+ "SNS.disFollowTag": {
+  "checked_at": "2026-10-31",
+  "reason": "本版本 App 未实现（实测 104 通讯错误）"
+ },
+ "SNS.followTag": {
+  "checked_at": "2026-10-31",
+  "reason": "本版本 App 未实现（实测 104 通讯错误）"
+ },
+ "SNS.getCollectStatus": {
+  "checked_at": "2026-10-31",
+  "reason": "本版本 App 未实现（实测 104 通讯错误）"
+ },
+ "SNS.insertFeedback": {
+  "checked_at": "2026-10-31",
+  "reason": "本版本 App 未实现（实测 104 通讯错误）"
+ },
+ "SNS.markResource": {
+  "checked_at": "2026-10-31",
+  "reason": "本版本 App 未实现（实测 104 通讯错误）"
+ },
+ "SNS.queryAllViewpointStatistics": {
+  "checked_at": "2026-10-31",
+  "reason": "本版本 App 未实现（实测 104 通讯错误）"
+ },
+ "SNS.queryArticleDetailForCustomer": {
+  "checked_at": "2026-10-31",
+  "reason": "本版本 App 未实现（实测 104 通讯错误）"
+ },
+ "SNS.queryArticleListForCustomer": {
+  "checked_at": "2026-10-31",
+  "reason": "本版本 App 未实现（实测 104 通讯错误）"
+ },
+ "SNS.queryBarrages": {
+  "checked_at": "2026-10-31",
+  "reason": "本版本 App 未实现（实测 104 通讯错误）"
+ },
+ "SNS.queryCacheCount": {
+  "checked_at": "2026-10-31",
+  "reason": "本版本 App 未实现（实测 104 通讯错误）"
+ },
+ "SNS.queryComments": {
+  "checked_at": "2026-10-31",
+  "reason": "本版本 App 未实现（实测 104 通讯错误）"
+ },
+ "SNS.queryDynamicDetail": {
+  "checked_at": "2026-10-31",
+  "reason": "本版本 App 未实现（实测 104 通讯错误）"
+ },
+ "SNS.queryDynamicListWithRetransmission": {
+  "checked_at": "2026-10-31",
+  "reason": "本版本 App 未实现（实测 104 通讯错误）"
+ },
+ "SNS.queryLiveListForCustomerByUserId": {
+  "checked_at": "2026-10-31",
+  "reason": "本版本 App 未实现（实测 104 通讯错误）"
+ },
+ "SNS.queryMyTargetList": {
+  "checked_at": "2026-10-31",
+  "reason": "本版本 App 未实现（实测 104 通讯错误）"
+ },
+ "SNS.queryPostDetail": {
+  "checked_at": "2026-10-31",
+  "reason": "本版本 App 未实现（实测 104 通讯错误）"
+ },
+ "SNS.queryPostsForUser": {
+  "checked_at": "2026-10-31",
+  "reason": "本版本 App 未实现（实测 104 通讯错误）"
+ },
+ "SNS.queryProductListForCustomer": {
+  "checked_at": "2026-10-31",
+  "reason": "本版本 App 未实现（实测 104 通讯错误）"
+ },
+ "SNS.queryRecommendTargetList": {
+  "checked_at": "2026-10-31",
+  "reason": "本版本 App 未实现（实测 104 通讯错误）"
+ },
+ "SNS.queryResourceBasicInfo": {
+  "checked_at": "2026-10-31",
+  "reason": "本版本 App 未实现（实测 104 通讯错误）"
+ },
+ "SNS.queryTagList": {
+  "checked_at": "2026-10-31",
+  "reason": "本版本 App 未实现（实测 104 通讯错误）"
+ },
+ "SNS.queryTargetListForUser": {
+  "checked_at": "2026-10-31",
+  "reason": "本版本 App 未实现（实测 104 通讯错误）"
+ },
+ "SNS.queryTargetRankingList": {
+  "checked_at": "2026-10-31",
+  "reason": "本版本 App 未实现（实测 104 通讯错误）"
+ },
+ "SNS.queryUserTypeBatch": {
+  "checked_at": "2026-10-31",
+  "reason": "本版本 App 未实现（实测 104 通讯错误）"
+ },
+ "SNS.queryUserViewpointPKStatistics": {
+  "checked_at": "2026-10-31",
+  "reason": "本版本 App 未实现（实测 104 通讯错误）"
+ },
+ "SNS.query_detail_user": {
+  "checked_at": "2026-10-31",
+  "reason": "本版本 App 未实现（实测 104 通讯错误）"
+ },
+ "SNS.query_live_list": {
+  "checked_at": "2026-10-31",
+  "reason": "本版本 App 未实现（实测 104 通讯错误）"
+ },
+ "SNS.reprot": {
+  "checked_at": "2026-10-31",
+  "reason": "本版本 App 未实现（实测 104 通讯错误）"
+ },
+ "SNS.retransmission": {
+  "checked_at": "2026-10-31",
+  "reason": "本版本 App 未实现（实测 104 通讯错误）"
+ },
+ "SNS.search": {
+  "checked_at": "2026-10-31",
+  "reason": "本版本 App 未实现（实测 104 通讯错误）"
+ },
+ "SNS.searchES": {
+  "checked_at": "2026-10-31",
+  "reason": "本版本 App 未实现（实测 104 通讯错误）"
+ },
+ "SNS.unloadTarget": {
+  "checked_at": "2026-10-31",
+  "reason": "本版本 App 未实现（实测 104 通讯错误）"
+ },
+ "SNS.updateResourceState": {
+  "checked_at": "2026-10-31",
+  "reason": "本版本 App 未实现（实测 104 通讯错误）"
+ },
+ "SNS.update_userRelation": {
+  "checked_at": "2026-10-31",
+  "reason": "本版本 App 未实现（实测 104 通讯错误）"
+ },
+ "XG.CLOUD_COLLECT_ADD": {
+  "checked_at": "2026-10-31",
+  "reason": "本版本 App 未实现（实测 104 通讯错误）"
+ },
+ "XG.CLOUD_COLLECT_DELETE": {
+  "checked_at": "2026-10-31",
+  "reason": "本版本 App 未实现（实测 104 通讯错误）"
+ },
+ "XG.CLOUD_COLLECT_QUERY": {
+  "checked_at": "2026-10-31",
+  "reason": "本版本 App 未实现（实测 104 通讯错误）"
+ }
+}

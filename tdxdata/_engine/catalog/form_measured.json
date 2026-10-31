@@ -1,0 +1,21 @@
+{
+ "AppUpdateInfo.queryAppUpdateInfo": "bare",
+ "CWServ.ph_datacenter_hg_jybz": "base",
+ "CWServ.ph_datacenter_mghg_hbzc": "base",
+ "CWServ.ph_tdxdatacenter_bgcz_gsbg": "base",
+ "CWServ.ph_tdxdatacenter_gqzy": "base",
+ "CWServ.ph_tdxdatacenter_gszl_ryxl": "base",
+ "CWServ.ph_tdxdatacenter_qhlhb_sy": "base",
+ "CWServ.ph_tdxdatacenter_tdxrb_rsb_stock": "base",
+ "CWServ.ph_tdxdatacenter_tfp_v2_agxq": "base",
+ "CWServ.ph_tdxdatacenter_zpfxb_qsgfx": "base",
+ "CWServ.ph_tdxdatacenter_zttz_xqy_v2_qsid": "base",
+ "CWServ.ph_tdxdatacenter_zttz_zy": "base",
+ "CWServ.ph_zt_lhb_sy_lhqc": "base",
+ "CWServ.ph_zt_lrzt_lrbd": "base",
+ "CWServ.ph_zt_tlsq_lryd": "base",
+ "CWServ.ph_zt_tlsq_sy": "base",
+ "CWServ.ph_zt_tlsq_tplq": "base",
+ "CWServ.tdx_vote": "bare",
+ "HQServ.hq_nlp_misc": "bare"
+}
