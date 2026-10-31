@@ -60,6 +60,31 @@
     `tests/test_ragged_table.py`（20 例）。证据：`reports/eval3/findings/M8-错位表与NLP家族.md`、
     `notes/12-错位表与NLP家族.md`。
 
+### 命令目录与登记（catalog）
+
+- **两条港股命令的参数改成可用的具体值（`4157196`）**：`HSI` → `00700`、`#dateTime#` → `#date#`。
+  原来这两个值在请求里不成立（`#dateTime#` 没有任何代码替它填值，`HSI` 也不是可查询的标的码），
+  改成具体可用的值后按现有参数模板发就能出数据。
+- **54 条命令补上可用参数并验证出数据，新增 `probe_ok` 分档（`b7845cd`）**：这些命令的模板参数
+  取不到数据，逐条换成实测能出数的值；同时在 `ctl_map.json` 里新增 `probe_ok` 标记
+  （`probe_ok=true`），供「已实测 / 探针可用 / 实机未实现」的三档状态判定使用。
+- **20 条 ctl 按实机 7.29 线上值修正，66 条标记已验证（`aeeed0d`）**：这 20 条的 `ctl`
+  与实机 7.29 线上抓到的值不一致，按线上值改正（ctl 错一个字节服务端就回空包，必须取实测值）；
+  另有 66 条补上 `verified` 标记，以实测回包为据。
+- **修正 `DataAggregation.queryCardInfo` 的 `ctl`（30 → 31，与 `ctl_map.json` 一致，2026-10-31）**：
+  产品表 `tdxdata/data/products.json` 写的是 30、命令目录 `tdxdata/_engine/catalog/ctl_map.json`
+  写的是 31，两表冲突 1 条。以实测为准取 31 —— `F:\TDX\raw\catalog\b2_0.jsonl` 第 210 行是
+  正响应 `{"name": "DataAggregation.queryCardInfo", "ctl": 31, "kind": "POS_BIN", "len": 2334}`，
+  `ctl_unified.json` 该命令记为 `{"ctl": 31, "src": "capture"}`；`README.md` 的 `product_index`
+  生成块按 `_docgen.product_index_table()` 重渲染同步（只有这一格变）。
+  `products.json` 与 `tools/catalog/05-接口目录.md` 同步由 30 改为 31（判据：
+  `raw/catalog/b2_0.jsonl:210` 抓包正响应 ctl=31、`ctl_unified.json` src=capture）；
+  该 md 的上游 `raw/catalog/iface_catalog.json` 仍为 30，重新生成会回退，已上报 Lead。
+  ⚠️ 顺带说明 `tools/gate.py` 第 5 条改前绿的原因：它比的就是这份 md，
+  **products.json 与 md 一起错**，两个错值互相印证 —— 这类“只比半张表”的盲区由下面的用例补上。
+  新增 `tests/test_registry_consistency.py`：断言产品表与命令目录的 `ctl` **逐条一致**、
+  且每条产品的 `cmd` 都能在目录里查到。
+
 ---
 
 ## [0.3.0] — 2026-10-28

@@ -363,7 +363,24 @@ def _looks_json(blob: bytes) -> bool:
 
 
 def decode_json(raw: bytes):
-    """按「像中文」得分择优解码，返回 (obj, text)。"""
+    """解码**一段**包体并解 JSON，返回 `(obj, text)`；择优依据是"哪个编码更像中文"。
+
+    入参是 `call_raw()` 返回值的**一个元素**（即 `raw[i]`），
+    **不要再 unwrap / 不要再解包** —— 传整个 `list[bytes]` 会直接解失败。
+
+    为什么不能盲试 UTF-8
+    --------------------
+    GBK 的 `元` = `0xD2AA` 恰好是**合法**的 UTF-8 字节序列，盲解会得到 `աԪ` 这种
+    乱码但"没有报错"的文本。所以这里对 `utf-8` / `gbk` / `gb18030` 逐个尝试，
+    取 `_cjk_score(text)` **最高**的那个结果（CJK 字符占比）—— 名叫"按像中文得分择优"。
+
+    返回
+    ----
+    `(obj, text)` : `tuple[Any, str | None]`
+        `obj`  = `json.loads` 的结果（dict / list / 标量皆可能）；
+        `text` = 被选中的那版解码文本，便于排查原始形态。
+        三种编码**全都**解不出时返回 `(None, None)`（不抛异常，由调用方判空）。
+    """
     best = (None, None, None)
     for enc in ("utf-8", "gbk", "gb18030"):
         try:
@@ -618,8 +635,58 @@ def call(cmd, ctl, params, mid=0x7000, wait=22.0, idle=4.0, host=None):
                  host=host, wait=wait, idle=idle)
 
 
-def call_raw(cmd, ctl, body: bytes, host=None, wait=8.0, idle=2.5):
-    """发裸 JSON 参数（DataAggregation 用裸数组，如 b"[{}]"）。"""
+def call_raw(cmd: str | bytes, ctl: int, body: bytes,
+             host: str | None = None, wait: float = 8.0,
+             idle: float = 2.5) -> list[bytes]:
+    """发裸 JSON 参数（DataAggregation 用裸数组，如 `b"[{}]"`），返回**已切好的 blob 列表**。
+
+    返回契约（**这是本库最容易误读的一处**）
+    ----------------------------------------
+    `-> list[bytes]`：每个元素是**一段包体正文**（明文 JSON，或 zlib 压缩过的 JSON）。
+    切帧/`unwrap`/解压**都已经在这里做完了**。
+
+    ★ **不要再 unwrap / 不要再切帧 / 不要再解包**。
+      `raw` 直接喂给下面的解析函数即可；`raw[0]` 才是"一段"，
+      `decode_json` 收的也是"一段"，不是整个 `raw`。
+
+    正例（照抄这一段的形态就够了）:
+
+    .. code-block:: python
+
+        raw = call_raw("DataAggregation.queryCardInfo", 31, body)
+        rows  = parse_resultset(raw)      # 拉平成 [{列名: 值}]
+        tabs  = parse_tables(raw)         # 保留多表：[(key, 列名, [行])]
+        obj, text = decode_json(raw[0])   # 单段解 JSON：(obj, text)
+
+    错误用法会造成什么
+    ------------------
+    历史事故：调用方以为 `call_raw` 返回的是**原始帧字节**或**单段 bytes**，
+    于是自己又写了一遍 unwrap/切帧/解包。结果是在已经切好的 blob 上做二次解包，
+    必然解不出东西 —— 于是一批**本来能出数据的好命令**被误判成"取不到数据"
+    （当时误判了 57 条）。这不是服务端没数据，是解析层自己把数据丢了。
+    症状特征：命令在"实测能出数据"的清单里，但本地跑出来永远是空；换成
+    `parse_resultset(raw)` 立刻就有行。
+
+    参数
+    ----
+    cmd : `str | bytes`
+        命令名（ASCII）；`str` 会按 ASCII 编码。
+    ctl : `int`
+        服务端命令分发键。⚠️ 见 `docs/ERROR-CODES.md`：**空请求体时填错 ctl
+        服务器也不报 -1002**，所以不能靠"没报 -1002"反证 ctl 填对了。
+    body : `bytes`
+        裸请求体。形态必须与命令的实测形态一致（`base` / `call` / `bare`），
+        否则服务端可能只回空包。
+    host : `str | None`
+        指定主机；`None` = 内置轮询。
+    wait, idle : `float`
+        收包超时/静默超时（秒）。
+
+    失败
+    ----
+    传输层失败上抛 `ConnectionFailed` / `Timeout`（已换机重试 2 轮）；
+    空回包**不返回 `[]`**，而是当连接被掐处理 —— "合法但 0 行"与"没收到"必须分得开。
+    """
     if isinstance(cmd, str):
         cmd = cmd.encode("ascii")
     return _send(build_frame(0x7000, ctl, TYPE_QUERY, cmd, body),
@@ -644,9 +711,23 @@ def _colnames(raw) -> list[str]:
 
 
 def parse_resultset(blobs) -> list[dict]:
-    """标准 ResultSets 响应拉平成 [{列名: 值}]。
+    """把标准 ResultSets 响应拉平成 `[{列名: 值}]`（单表/多表全混在一起）。
 
-    ColDes 可能为空（如北向 bxxj 序列），此时回退到 ColName。
+    入参是 `call_raw()` 的**返回值本身**（`list[bytes]`）：
+        `parse_resultset(call_raw(cmd, ctl, body))`
+    **不要再 unwrap / 不要再逐段解包** —— 本函数内部已经对每个 blob 调 `decode_json`。
+    传单段 `bytes` 进去会被当成"没有 blob"而返回 `[]`（不会报错，静默丢数据）。
+
+    列名取法
+    --------
+    优先 `ColDes`（真实的业务列名，形如 `[{"Name":"N018"}, ...]`），
+    但只有**与 `ColName` 等长**时才采信；`ColDes` 为空或长度对不上时
+    **回退到 `ColName`**（如北向 `bxxj` 序列就是 ColDes 为空的情形）。
+    两者都空 → 该表的行全部丢弃（没有列名就没法给字段命名）。
+
+    行的取舍：`Content` 里长度与列数**不等**的行被跳过（防止错位配列）。
+
+    需要区分"哪张表"或要跳过元数据小表时，用 `parse_tables` / `parse_main` 代替。
     """
     rows: list[dict] = []
     for blob in blobs or []:
@@ -668,12 +749,24 @@ def parse_resultset(blobs) -> list[dict]:
 
 
 def parse_tables(blobs) -> list[tuple]:
-    """按 ResultSets 分组返回 [(key, 列名, [行])]，保留每张表。
+    """按 ResultSets **分组**返回 `[(key, 列名, [行])]`，每张表各占一项。
 
-    有些接口（如 ph_agf10_cw_lyb 利润表）一次返回多张表：
-        table0: 1 行 1 列 {isjr: 0}      ← 元数据
-        table1: 24 行 38 列              ← 真实数据
-    `parse_resultset` 会把它们拉平混在一起，需要区分时用这个。
+    入参是 `call_raw()` 的**返回值本身**（`list[bytes]`）：
+        `parse_tables(call_raw(cmd, ctl, body))`
+    **不要再 unwrap / 不要再逐段解包** —— 内部已对每个 blob 调 `decode_json`。
+
+    与 `parse_resultset` 的唯一区别：那个把多张表**拉平混在一起**，
+    这个**保留每张表的边界**（元素是三元组：`ResultSetKey`、列名列表、行列表）。
+    元组里的 `key` 取 `rs["ResultSetKey"]`，缺省为空串 `""`；列名取法与
+    `parse_resultset` 相同（`ColDes` 等长则优先，否则回退 `ColName`）。
+
+    典型场景（`ph_agf10_cw_lyb` 利润表）一次返回多张表：
+        table0: 1 行 1 列 `{isjr: 0}`   ← 元数据
+        table1: 24 行 38 列             ← 真实数据
+    只要最大那张表时用 `parse_main(blobs)`。
+
+    ⚠️ 返回的**元素数** = 表数，不是行数；"`Content` 为空的表"也会占一项
+    （`[行]` 为空列表），所以判"有没有数据"要看 `len(t[2])`，不能只看 `len(out)`。
     """
     out: list[tuple] = []
     for blob in blobs or []:
