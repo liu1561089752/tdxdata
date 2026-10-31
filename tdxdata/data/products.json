@@ -3740,7 +3740,7 @@
   },
   "queryCardInfo": {
    "cmd": "DataAggregation.queryCardInfo",
-   "ctl": 30,
+   "ctl": 31,
    "params": [
     {
      "stockCode": "920091",
