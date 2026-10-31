@@ -32,6 +32,12 @@
 * `catalog/dead_cmds.json` —— 191 条「本版本 App 未实现（回 104）」 → `tier_for()`
 * `catalog/form_measured.json` —— 19 条**双源一致**的实测请求体形态 → `form_measured_for()`
 
+**包内只有 7 个 json**：`ctl_map` / `verified` / `dead_cmds` / `form_measured` /
+`page_cmd_params` / `pb_specs` / `raw_args`。**原始素材不在包里** ——
+`not_in_app.json` / `verified_working.json` / `api_catalog_usable.json` /
+`pcap_req_args.json` 都是**仓库外** `F:\TDX\raw\catalog\` 的一次性实机快照
+（2026-10-31，未随包分发）。**排障请查包内的生成物**，别去找那些素材，否则会扑空。
+
 `ctl_map.json` 自己的 `verified: true`（537 条）与 `probe_ok`（55 条）是**历史布尔
 标记**，和上面三份证据文件口径不同，别混（详见 `stats()` docstring）。
 
@@ -67,8 +73,9 @@ _PATH = os.path.join(_CATALOG_DIR, "ctl_map.json")
 #: 三档状态的**证据文件**（与 `ctl_map.json` 的布尔标记分开，别混口径）。
 _VERIFIED_PATH = os.path.join(_CATALOG_DIR, "verified.json")
 _DEAD_PATH = os.path.join(_CATALOG_DIR, "dead_cmds.json")
-#: 只有**两个独立证据源一致**的命令才进这张表（**19 条**）：
-#: 源 A = 线上抓包 `pcap_req_args.json` / `raw_args.json` 的 body 解码判定，
+#: 只有**两个独立证据源一致**的命令才进这张表（**19 条**）。
+#: 两个源的素材都在**仓库外** `F:\TDX\raw\catalog\`（2026-10-31 快照，未随包分发）：
+#: 源 A = 线上抓包 `pcap_req_args.json` 的 `args_hex` 解码 + 包内的 `raw_args.json`，
 #: 源 B = `api_catalog_usable.json[cmd]["body_form"]`，两者相等才收。
 #: 不是 732 条的缺省填充，也不是那 63 条单源 `body_form`（它与抓包有 12 条冲突）。
 _FORM_MEASURED_PATH = os.path.join(_CATALOG_DIR, "form_measured.json")
@@ -190,7 +197,8 @@ def form_for(cmd):
     * 单源的 `api_catalog_usable.json["body_form"]`（63 条）也**不是可信证据**：
       它与线上抓包原文有 12 条自相矛盾（如 `CWSearch.tzx_rcache` 记 `base`、
       抓包却是裸 JSON；`CWServ.ph_tdxdatacenter_jgpj_sy` 记 `call`、
-      抓包却是 `{"Params": […]}`）。
+      抓包却是 `{"Params": […]}`）。该文件在**仓库外** `F:\TDX\raw\catalog\`
+      （2026-10-31 快照），包里没有，别去翻。
 
     所以要**证据**请用 `form_measured_for(cmd)`（没双源实测就返回 `None`，
     不回退 `"base"`）；本函数只适合「没有实测时的兜底」，行为对未知命令仍是 `base`。
@@ -202,9 +210,11 @@ def form_for(cmd):
 def form_measured_for(cmd):
     """命令 → **双源实测**的请求体形态（`base` / `call` / `bare` / `obj`）。
 
-    只有**两个独立证据源结论一致**才算实测（当前共 19 条）：
-    源 A = 线上抓包正文（`pcap_req_args.json` 的 `args_hex` 解码 + `raw_args.json`）
-    按首键判定（`{"CallName"` → `call`，`{"Params"` → `base`，其余可解析 JSON → `bare`）；
+    只有**两个独立证据源结论一致**才算实测（当前共 19 条，落在包内
+    `catalog/form_measured.json`）。两个源的素材都在**仓库外** `F:\TDX\raw\catalog\`
+    （2026-10-31 快照，未随包分发）：源 A = 线上抓包正文
+    （`pcap_req_args.json` 的 `args_hex` 解码 + 包内的 `raw_args.json`）按首键判定
+    （`{"CallName"` → `call`，`{"Params"` → `base`，其余可解析 JSON → `bare`）；
     源 B = `api_catalog_usable.json[cmd]["body_form"]`；两源相等且唯一才收。
     同一条命令抓到多种形态（说明服务端都收）、解码不出 JSON（protobuf 体）的都不作判据。
 
@@ -218,10 +228,17 @@ def form_measured_for(cmd):
 
 
 def params_for(cmd):
-    """命令 → 参数模板（可能含占位符）；没有模板返回 `None`。
+    """命令 → **目录里的**参数模板（可能含占位符）；没有模板返回 `None`。
 
     ⚠️ 少数命令（含 `args_hex` 的 25 条）这里返回的是**抓包元数据**，
     发请求请用 `params_best_for()`。本函数行为（含返回原对象）保持不变。
+
+    两个模板函数的差别：本函数管「**目录模板**」（原样、可能带占位符或元数据），
+    `params_best_for()` 管「**实际发出去的参数**」（会换掉元数据、收敛多次抓包）。
+    护栏分工：本函数由 `tests/test_placeholder_guard.py` 的前 3 条用例守
+    （全表 `#xxx#`/`@xxx@` 残留 = 0），`params_best_for` 由同文件
+    `test_real_send_path_has_no_placeholder_residue` 守 —— **两条路径都要守**，
+    只守前者会漏掉那 25 条元数据命令在真实发送路径上的表现。
     """
     rec = _load().get(cmd)
     if not rec:
@@ -341,6 +358,12 @@ def params_best_for(cmd):
     会原样发出、不会再包一层。**不要**把信封拆开只留 `Params`：对 `call` 形态的
     命令，去掉 `CallName` 会让服务端**静默丢包**（不报错、只回空包）。
     所以本函数**不替调用方拆信封**，这也是它按原样返回抓包样本的原因。
+
+    两个模板函数的差别：`params_for()` 管「**目录模板**」（原样），本函数管
+    「**实际发出去的参数**」。护栏分工：本函数由
+    `tests/test_placeholder_guard.py::test_real_send_path_has_no_placeholder_residue`
+    守（真实发送路径 = 本函数 + `fill()`，残留必须 0），
+    `tests/test_ctlmap.py` 另守四档分布与「多次抓包收敛」。
     """
     rec = _load().get(cmd)
     if rec is None:
@@ -505,10 +528,17 @@ def tier_for(cmd):
     4. `None`       —— 其余（含不在 732 条表里的命令）。**不造第四档。**
 
     为什么 `dead` 排在 `verified` 前、但两者在数据层已经互斥：两份素材原有 47 条
-    冲突（`not_in_app` 说「未实现」、`verified_working` 又有 `rows>0`），
-    按**正向证据优先**全部归 `verified`，并从 `dead_cmds.json` 里剔掉
-    —— 否则会拦掉 46 个真能出数据的产品命令。所以这里 `dead` 命中即 `dead`，
-    不会把能出数据的命令判死。
+    冲突（`rows>0` 却在 `not_in_app` 名单里），按**正向证据优先**全部归 `verified`，
+    并从 `dead_cmds.json` 里剔掉 —— 否则会拦掉 46 个真能出数据的产品命令。
+    所以这里 `dead` 命中即 `dead`，不会把能出数据的命令判死。
+
+    📍 名单从哪来（**排障只看包内生成物**）：死名单的素材是**仓库外**的
+    `F:\TDX\raw\catalog\not_in_app.json`（2026-10-31 实机快照，**未随包分发**，
+    包里 `catalog/` 下没有这个文件）；随包的是**生成物**
+    `tdxdata/_engine/catalog/dead_cmds.json`（191 条 = 该快照减去本地实测
+    `rows>0` 的命令）。同理 `verified.json` 的素材 `verified_working.json` 也在仓库外。
+    所以：**`dead_cmds.json` / `verified.json` 才是包内可查的真相源**，
+    别按 `not_in_app.json` 去包内找。
     """
     if not isinstance(cmd, str) or not cmd:
         return None

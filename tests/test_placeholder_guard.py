@@ -99,3 +99,47 @@ def test_fill_does_not_mutate_template():
             changed.append(cmd)
     assert checked == ctlmap.stats()["with_params"], checked
     assert not changed, "fill() 改动了原模板：%s" % changed
+
+
+def test_real_send_path_has_no_placeholder_residue():
+    """真实发送路径 = `ctlmap.params_best_for()` + `fill()`；护栏必须盯这条路。
+
+    上面 3 条用例守的是 `ctlmap.params_for()`（**目录模板**，517 条非 None），
+    但 `call_cmd()` 实际**发出去**的参数来自 `ctlmap.params_best_for()`
+    （**发送路径**，504 条非 None / 228 条 None）—— 两者对那 25 条抓包元数据命令
+    取值不同（`params_for` 给的是含 `args_hex` 的元数据，`params_best_for` 换成
+    解码后的真参数）。只守前者会漏掉这 25 条在真实发送路径上的表现，所以：
+    `params_for` 管「目录模板」、`params_best_for` 管「实际发出去的参数」，
+    **两条路径都要守**（前 3 条守前者，本条守后者）。
+
+    判据与前 3 条同口径：`#xxx#`/`@xxx@` 残留必须为 0；`{{...}}` 残留集合仍须
+    恰好是那 2 条 App 端 JS 模板命令（多一条都不放行）。
+    """
+    residue = {}
+    braces = set()
+    checked = 0
+    skipped = 0
+    names = ctlmap.names()
+    for cmd in names:
+        tpl = ctlmap.params_best_for(cmd)
+        if tpl is None:
+            skipped += 1
+            continue
+        checked += 1
+        out = ctlmap.fill(tpl, code="600519", date="2026-10-30")
+        text = _as_text(out)
+        toks = sorted(set(_TOKEN.findall(text)))
+        if toks:
+            residue[cmd] = toks
+        if _BRACE.search(text):
+            braces.add(cmd)
+
+    # 覆盖度下界：504 条有模板、228 条 None（防"读空 → 空满足"）
+    assert len(names) == ctlmap.stats()["total"], len(names)
+    assert checked >= 500, "真实发送路径只检查了 %d 条，覆盖面不足" % checked
+    assert checked == 504 and skipped == 228, (checked, skipped)
+    assert not residue, "真实发送路径 fill() 后仍残留 %d 条命令的占位符：%s" % (
+        len(residue), json.dumps(residue, ensure_ascii=False, sort_keys=True))
+    assert braces == _APP_JS_TEMPLATE, (
+        "真实发送路径残留 {{...}} 的命令集合与白名单不符：多出 %s，缺少 %s" % (
+            sorted(braces - _APP_JS_TEMPLATE), sorted(_APP_JS_TEMPLATE - braces)))
