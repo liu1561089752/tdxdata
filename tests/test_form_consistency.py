@@ -18,10 +18,17 @@
 **2026-10-31**，抓包 `pcap_req_args.json`（`args_hex` 解码）+ `raw_args.json`
 ∩ `api_catalog_usable.json` 的 `body_form` 字段。判定规则（Lead 拍板）：
 
-* **双源一致**（抓包形态 == `body_form`）才算实测 → 恰好 **19 条**，进
+* **硬证据 ①：双源一致**（抓包形态 == `body_form`）→ **19 条**，进
   `form_measured.json`，`body_of` 按它编；
-* **单源冲突**（抓包有形态、但 `body_form` 与之矛盾）→ **不覆盖**（只有一份证据，
-  改行为等于赌），仍走前缀规则 → 恰好 **12 条**，本文件冻结其"未被覆盖"状态；
+* **硬证据 ②：抓包原文重放命中 `rows>0`** → **1 条**（`CWServ.tzx_filedown`：
+  抓包体是裸对象，原样重放拿到 **47 行 × 8 列**）。这类命令的 `body_form` 是
+  **同义反复**（`merge_fills.py` 的 `body_form = w.get("form")`，而 `w["form"]`
+  就取自 `ctl_map` 的 `form` 字段），所以不能拿"`body_form` 与抓包矛盾"去否定它 ——
+  它是**另一种独立证据**，等级高于①。
+  ①+② 合计 **20 条**进 `form_measured.json`；
+* **单源冲突**（抓包有形态、但 `body_form` 与之矛盾，且**没有**重放命中证据）→
+  **不覆盖**（只有一份证据，改行为等于赌），仍走前缀规则 → 恰好 **12 条**，
+  本文件冻结其"未被覆盖"状态；
 * 抓包拍到**两种形态**的命令（服务端两形态都收）不作判据；
 * 只拍到 protobuf 体的不作判据 —— 见下。
 
@@ -46,11 +53,12 @@ import pytest
 from tdxdata._engine import ctlmap
 from tdxdata._engine import session as S
 
-# ── 冻结名单 1：19 条双源实测 ──────────────────────────────────────────────
-#: `bare` —— 裸 JSON（不包 `Params`）。3 条。
+# ── 冻结名单 1：20 条硬证据形态（① 双源一致 19 + ② 重放命中 1）────────────
+#: `bare` —— 裸 JSON（不包 `Params`）。4 条（其中 `CWServ.tzx_filedown` 属证据 ②）。
 MEASURED_BARE = frozenset({
     "AppUpdateInfo.queryAppUpdateInfo",
     "CWServ.tdx_vote",
+    "CWServ.tzx_filedown",
     "HQServ.hq_nlp_misc",
 })
 
@@ -74,7 +82,7 @@ MEASURED_BASE = frozenset({
     "CWServ.ph_zt_tlsq_tplq",
 })
 
-#: 命令 → 期望形态。**19 条之外一律不许有值**（第 1 条用例会断言这一点）。
+#: 命令 → 期望形态。**20 条之外一律不许有值**（第 1 条用例会断言这一点）。
 MEASURED = {c: "bare" for c in MEASURED_BARE}
 MEASURED.update({c: "base" for c in MEASURED_BASE})
 
@@ -86,7 +94,7 @@ MEASURED.update({c: "base" for c in MEASURED_BASE})
 #:
 #: 为什么是 12 条而不是当初派单写的 11 条：初版清单漏了
 #: `CWSearch.tdx_pv`（capture=`bare` vs body_form=`base`），Lead 已确认更正。
-#: 注意它和 `CWSearch.tzx_rcache` **都不在** 19 条实测集里 —— 所以
+#: 注意它和 `CWSearch.tzx_rcache` **都不在** 20 条实测集里 —— 所以
 #: `tests/test_da_body.py::test_CWSearch_也是裸body`（用 tzx_rcache 断言裸发）
 #: 仍然由**前缀规则**满足，必须是绿的。
 SINGLE_SOURCE_CONFLICT = frozenset({
@@ -144,18 +152,19 @@ def _expected(cmd: str, sample):
 
 
 # ── 1. 冻结实测集 ─────────────────────────────────────────────────────────
-def test_measured_form_set_is_frozen_at_19():
+def test_measured_form_set_is_frozen_at_20():
     """为什么这么断言：实测集是**证据**，不是配置。
 
-    允许它悄悄长大/缩小就等于允许别人把"没双源支撑的猜测"塞进 `body_of` 的
+    允许它悄悄长大/缩小就等于允许别人把"没证据的猜测"塞进 `body_of` 的
     决策路径 —— 那正是 T6 要消灭的东西。所以命中的命令集合必须**恰好等于**
-    下面这 19 条字面量（证据来源：2026-10-31 抓包 `pcap_req_args.json` /
-    `raw_args.json` ∩ `api_catalog_usable.json` 的 `body_form`，两源一致才收）；
+    下面这 20 条字面量（证据来源：2026-10-31 抓包 `pcap_req_args.json` /
+    `raw_args.json` ∩ `api_catalog_usable.json` 的 `body_form`，两源一致才收 = 19 条；
+    另加 1 条**抓包原文重放命中**的 `CWServ.tzx_filedown`，见 `MEASURED_BARE` 注释）；
     多一条、少一条、或某条形态从 bare 变 base，都必须红。
     """
     hits = {c for c in ctlmap.names() if ctlmap.form_measured_for(c) is not None}
     assert hits == set(MEASURED), (
-        "双源实测集与冻结名单不一致：多出 %s，缺少 %s"
+        "硬证据形态集与冻结名单不一致：多出 %s，缺少 %s"
         % (sorted(hits - set(MEASURED)), sorted(set(MEASURED) - hits))
     )
     # 逐条形态也要钉死（只对集合相等不够 —— 形态被换掉同样危险）
@@ -164,7 +173,7 @@ def test_measured_form_set_is_frozen_at_19():
             "%s 的实测形态应为 %r，实际 %r"
             % (cmd, form, ctlmap.form_measured_for(cmd))
         )
-    assert len(hits) == 19
+    assert len(hits) == 20
 
 
 # ── 2. 逐条形态断言（732 条 × 两种 sample）───────────────────────────────
@@ -172,7 +181,7 @@ def test_measured_form_set_is_frozen_at_19():
 def test_body_of_matches_measured_then_prefix(sample):
     """为什么这么断言：这是 T6 的**主护栏**。
 
-    对 `ctl_map.json` 全部命令逐条验证「实测形态（若在 19 条里）否则前缀规则」
+    对 `ctl_map.json` 全部命令逐条验证「实测形态（若在 20 条里）否则前缀规则」
     与 `body_of` 的实际输出一致。**一条都不许跳过**（无 `params` 模板的命令
     也照样用固定 sample 跑）—— 跳过就是给"以后新加的命令悄悄违反规则"留后门。
     list / dict 两种 sample 各跑一遍，是因为 `obj` 形态对两者语义不同，
@@ -221,6 +230,46 @@ def test_two_commands_flipped_to_bare():
         assert _prefix_form(cmd) == "base", "%s 不属于前缀裸发族，才会被纠正" % cmd
 
 
+# ── 3b. 证据 ②：抓包原文重放命中 → 裸发（`CWServ.tzx_filedown`）──────────
+#: 抓包原文（`verified_working.json` 里 `params[0].args_hex` 解码所得，2026-10-31）：
+#: `{"filename":"bi/list/func_zdht101_1.jsn","format":"1"}` —— **裸对象，没有 `Params`**。
+TZX_FILEDOWN_CAPTURE = '{"filename":"bi/list/func_zdht101_1.jsn","format":"1"}'
+
+
+def test_tzx_filedown_sends_bare_capture_body():
+    """为什么这么断言：这条命令的形态证据**不是**"双源一致"，而是"原文重放命中"。
+
+    证据链（已逐条核对）：
+
+    1. `fill_params.py` 里候选体若标 `args_hex`，发出去的就是
+       `bytes.fromhex(entry["args_hex"])` —— **抓包原文原样发送**；
+       且 `score()` 只在 `rows>0` 时才记录命中。
+    2. `verified_working.json["CWServ.tzx_filedown"]` 记
+       `{"ctl":21,"rows":47,"cols":8,"via":"args_hex"}` —— 原文发出去拿到
+       **47 行 × 8 列**，不是空包。
+    3. 原文解码 = `{"filename":…,"format":"1"}`，**裸对象**。
+    4. 它的 `body_form` 记 `base` 属**同义反复**（`merge_fills.py` 的
+       `body_form = w.get("form")`，而 `w["form"]` 取自 `ctl_map` 的 `form` 字段）
+       —— 拿目录的猜测"印证"目录，不是观测值。所以这条命令的形态由 3+2 定为裸发。
+
+    因此这里断死三件事：输出**以 `{` 开头**、**不含 `Params`**、且与抓包原文
+    `json.loads` 后**相等**。若有人把它改回包信封（或改成别的形态），立刻红。
+    """
+    cmd = "CWServ.tzx_filedown"
+    body = S.body_of(cmd, json.loads(TZX_FILEDOWN_CAPTURE))
+
+    assert body.startswith(b"{"), "应以对象开头（不是数组），实际 %r" % (body[:32],)
+    assert b'"Params"' not in body, "裸发不该出现 `Params` 信封，实际 %r" % (body,)
+    assert json.loads(body) == json.loads(TZX_FILEDOWN_CAPTURE), (
+        "发出的体应与抓包原文相等，实际 %r" % (body,)
+    )
+    # 反证：前缀规则（CWServ.* → base）会把它包成 `{"Params":…}`，说明这条**被纠正**了
+    assert _prefix_form(cmd) == "base"
+    # 真实发送路径（client → ctlmap.params_best_for）拿到的也正是同一份原文
+    assert json.loads(json.dumps(ctlmap.params_best_for(cmd))) == \
+        json.loads(TZX_FILEDOWN_CAPTURE)
+
+
 # ── 4. 冻结"不作覆盖"的单源冲突 ───────────────────────────────────────────
 def test_single_source_conflicts_are_not_overridden():
     """为什么这么断言：**只有一份证据时不许改行为**。
@@ -239,7 +288,7 @@ def test_single_source_conflicts_are_not_overridden():
             "%s 是单源冲突，不该被覆盖成实测形态（当前 %r）"
             % (cmd, ctlmap.form_measured_for(cmd))
         )
-        # 与 19 条实测集必须互斥：一条命令不可能既"双源一致"又"单源冲突"
+        # 与 20 条实测集必须互斥：一条命令不可能既"双源一致"又"单源冲突"
         assert cmd not in MEASURED
         # 未覆盖 = 实际输出仍由前缀规则决定
         assert json.loads(S.body_of(cmd, ["S1"])) == _expected(cmd, ["S1"])

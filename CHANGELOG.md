@@ -84,6 +84,17 @@
   **products.json 与 md 一起错**，两个错值互相印证 —— 这类“只比半张表”的盲区由下面的用例补上。
   新增 `tests/test_registry_consistency.py`：断言产品表与命令目录的 `ctl` **逐条一致**、
   且每条产品的 `cmd` 都能在目录里查到。
+- **`CWServ.tzx_filedown` 请求体改为裸发（抓包原文重放命中 47 行 × 8 列，2026-10-31）**：
+  抓包体 `{"filename":"bi/list/func_zdht101_1.jsn","format":"1"}` 是**裸对象**（没有 `Params`
+  包裹），按原文重放实测拿到 **47 行 × 8 列**（`verified_working.json` 记
+  `{"rows":47,"cols":8,"via":"args_hex"}`；`via="args_hex"` 的含义是
+  `bytes.fromhex(entry["args_hex"])` **原样发出**，且只有 `rows>0` 才记账）。
+  它的 `body_form` 字段记的是 `base`，但那是**同义反复、不算观测**：
+  `merge_fills.py` 里 `body_form = w.get("form")`，而 `w["form"]` 取自 `ctl_map` 的
+  `form` 字段 —— 等于拿目录的猜测去"印证"目录。随之 `catalog/form_measured.json`
+  **19 → 20 条**，收录门槛新增"**抓包原文重放命中**"这一等价证据
+  （① 双源一致 19 条 + ② 重放命中 1 条），`session.body_of` 对这条命令的行为由
+  `{"Params": …}` 改为裸发（`tests/test_form_consistency.py` 冻结）。
 
 ---
 

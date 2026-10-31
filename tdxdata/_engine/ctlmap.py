@@ -30,12 +30,15 @@
 --------------------------------------------------
 * `catalog/verified.json` —— 414 条实测 `rows>0` 的「已验证有数据」证据 → `tier_for()`
 * `catalog/dead_cmds.json` —— 191 条「本版本 App 未实现（回 104）」 → `tier_for()`
-* `catalog/form_measured.json` —— 19 条**双源一致**的实测请求体形态 → `form_measured_for()`
+* `catalog/form_measured.json` —— 20 条**有硬证据**的实测请求体形态 → `form_measured_for()`
+  （门槛是"两种等价硬证据之一"，见 `form_measured_for()` docstring：
+  ① 抓包 ∩ `api_catalog_usable.body_form` 双源一致 = 19 条；
+  ② 抓包原文重放命中 `rows>0` = 1 条，即 `CWServ.tzx_filedown`，重放拿到 47 行 × 8 列）
 
 **包内只有 7 个 json**：`ctl_map` / `verified` / `dead_cmds` / `form_measured` /
 `page_cmd_params` / `pb_specs` / `raw_args`。**原始素材不在包里** ——
 `not_in_app.json` / `verified_working.json` / `api_catalog_usable.json` /
-`pcap_req_args.json` 都是**仓库外** `F:\TDX\raw\catalog\` 的一次性实机快照
+`pcap_req_args.json` 都是**仓库外** `F:/TDX/raw/catalog/` 的一次性实机快照
 （2026-10-31，未随包分发）。**排障请查包内的生成物**，别去找那些素材，否则会扑空。
 
 `ctl_map.json` 自己的 `verified: true`（537 条）与 `probe_ok`（55 条）是**历史布尔
@@ -73,10 +76,18 @@ _PATH = os.path.join(_CATALOG_DIR, "ctl_map.json")
 #: 三档状态的**证据文件**（与 `ctl_map.json` 的布尔标记分开，别混口径）。
 _VERIFIED_PATH = os.path.join(_CATALOG_DIR, "verified.json")
 _DEAD_PATH = os.path.join(_CATALOG_DIR, "dead_cmds.json")
-#: 只有**两个独立证据源一致**的命令才进这张表（**19 条**）。
-#: 两个源的素材都在**仓库外** `F:\TDX\raw\catalog\`（2026-10-31 快照，未随包分发）：
-#: 源 A = 线上抓包 `pcap_req_args.json` 的 `args_hex` 解码 + 包内的 `raw_args.json`，
-#: 源 B = `api_catalog_usable.json[cmd]["body_form"]`，两者相等才收。
+#: 进这张表要满足**两种等价硬证据之一**（合计 **20 条**）：
+#: ① **双源一致**（19 条）：源 A = 线上抓包 `pcap_req_args.json` 的 `args_hex` 解码
+#:    + 包内的 `raw_args.json`，源 B = `api_catalog_usable.json[cmd]["body_form"]`，
+#:    两者相等且唯一才收；
+#: ② **抓包原文重放命中**（1 条：`CWServ.tzx_filedown` = `bare`）：
+#:    抓包体 `{"filename":…,"format":"1"}` 被**原样**发出后拿到 47 行 × 8 列
+#:    （`verified_working.json` 记 `{"rows":47,"cols":8,"via":"args_hex"}`）。
+#:    为什么这条不算"单源"：`body_form` 对它是**同义反复** ——
+#:    `merge_fills.py` 的 `body_form = w.get("form")`，而 `w["form"]` 来自
+#:    `ctl_map` 的 `form` 字段（`fill_params.py` 记录时取 `e.get("form")`），
+#:    等于拿目录的猜测去"印证"目录，不是观测值。重放命中行数才是观测。
+#: 素材都在**仓库外** `F:/TDX/raw/catalog/`（2026-10-31 快照，未随包分发）。
 #: 不是 732 条的缺省填充，也不是那 63 条单源 `body_form`（它与抓包有 12 条冲突）。
 _FORM_MEASURED_PATH = os.path.join(_CATALOG_DIR, "form_measured.json")
 
@@ -189,7 +200,7 @@ def form_for(cmd):
 
     ⚠️ **这不是实测证据，只是兜底编码。** `ctl_map.json` 里 732 条都有 `form`
     字段，但其中 **669 条的 `form` 是生成时的缺省填充**（几乎全填成 `base`），
-    只有 19 条有双源实测支撑（见 `form_measured_for()`）。
+    只有 20 条有硬证据支撑（见 `form_measured_for()`）。
 
     反证（别按前缀猜、也别按缺省值猜）：
     * `DataAggregation.*` 共 23 条在表里是 `base`，但实测必须**裸发**；
@@ -197,10 +208,10 @@ def form_for(cmd):
     * 单源的 `api_catalog_usable.json["body_form"]`（63 条）也**不是可信证据**：
       它与线上抓包原文有 12 条自相矛盾（如 `CWSearch.tzx_rcache` 记 `base`、
       抓包却是裸 JSON；`CWServ.ph_tdxdatacenter_jgpj_sy` 记 `call`、
-      抓包却是 `{"Params": […]}`）。该文件在**仓库外** `F:\TDX\raw\catalog\`
+      抓包却是 `{"Params": […]}`）。该文件在**仓库外** `F:/TDX/raw/catalog/`
       （2026-10-31 快照），包里没有，别去翻。
 
-    所以要**证据**请用 `form_measured_for(cmd)`（没双源实测就返回 `None`，
+    所以要**证据**请用 `form_measured_for(cmd)`（没实测就返回 `None`，
     不回退 `"base"`）；本函数只适合「没有实测时的兜底」，行为对未知命令仍是 `base`。
     """
     rec = _load().get(cmd)
@@ -208,21 +219,32 @@ def form_for(cmd):
 
 
 def form_measured_for(cmd):
-    """命令 → **双源实测**的请求体形态（`base` / `call` / `bare` / `obj`）。
+    """命令 → **有硬证据**的请求体形态（`base` / `call` / `bare` / `obj`）。
 
-    只有**两个独立证据源结论一致**才算实测（当前共 19 条，落在包内
-    `catalog/form_measured.json`）。两个源的素材都在**仓库外** `F:\TDX\raw\catalog\`
-    （2026-10-31 快照，未随包分发）：源 A = 线上抓包正文
-    （`pcap_req_args.json` 的 `args_hex` 解码 + 包内的 `raw_args.json`）按首键判定
-    （`{"CallName"` → `call`，`{"Params"` → `base`，其余可解析 JSON → `bare`）；
-    源 B = `api_catalog_usable.json[cmd]["body_form"]`；两源相等且唯一才收。
+    **收录门槛 = 两种等价硬证据之一**（当前共 20 条，落在包内
+    `catalog/form_measured.json`）：
+
+    ① **双源一致**（19 条）—— 两个独立证据源结论相等且唯一：
+       源 A = 线上抓包正文（`pcap_req_args.json` 的 `args_hex` 解码 + 包内的
+       `raw_args.json`）按首键判定（`{"CallName"` → `call`，`{"Params"` → `base`，
+       其余可解析 JSON → `bare`）；源 B = `api_catalog_usable.json[cmd]["body_form"]`。
+    ② **抓包原文重放命中**（1 条：`CWServ.tzx_filedown` = `bare`）——
+       把抓包体 `{"filename":…,"format":"1"}` **原样**发出去，拿到
+       **47 行 × 8 列**（`verified_working.json` 记 `via="args_hex"`，
+       即 `bytes.fromhex(entry["args_hex"])` 直发；`score()` 只在 `rows>0`
+       时才记录命中）。这条的 `body_form` 记 `base` 属于**同义反复**，不算观测：
+       `merge_fills.py` 里 `body_form = w.get("form")`，而 `w["form"]` 来自
+       `ctl_map` 的 `form` 字段 → 拿目录的猜测去"印证"目录。
+       所以它是"两份不同性质证据（重放命中 vs 目录缺省）"，证据等级**高于**①。
+
     同一条命令抓到多种形态（说明服务端都收）、解码不出 JSON（protobuf 体）的都不作判据。
+    素材都在**仓库外** `F:/TDX/raw/catalog/`（2026-10-31 快照，未随包分发）。
 
-    没双源实测就返回 `None` —— **不许回退成 `"base"`**：缺省填充的 `base` 用在
+    没命中就返回 `None` —— **不许回退成 `"base"`**：缺省填充的 `base` 用在
     `DataAggregation.*` 这类必须裸发的接口上会静默丢包（不报错、只回空包）。
 
     调用方（如 `session.body_of`）的正确用法是「有实测用实测，`None` 才走
-    自己的前缀规则」：这样其余 713 条的行为一字不变，19 条按双源实测校正。
+    自己的前缀规则」：这样其余 712 条的行为一字不变，20 条按硬证据校正。
     """
     return _form_measured().get(cmd)
 
@@ -533,7 +555,7 @@ def tier_for(cmd):
     所以这里 `dead` 命中即 `dead`，不会把能出数据的命令判死。
 
     📍 名单从哪来（**排障只看包内生成物**）：死名单的素材是**仓库外**的
-    `F:\TDX\raw\catalog\not_in_app.json`（2026-10-31 实机快照，**未随包分发**，
+    `F:/TDX/raw/catalog/not_in_app.json`（2026-10-31 实机快照，**未随包分发**，
     包里 `catalog/` 下没有这个文件）；随包的是**生成物**
     `tdxdata/_engine/catalog/dead_cmds.json`（191 条 = 该快照减去本地实测
     `rows>0` 的命令）。同理 `verified.json` 的素材 `verified_working.json` 也在仓库外。

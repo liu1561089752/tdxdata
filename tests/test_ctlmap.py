@@ -177,7 +177,7 @@ def test_tier_positive_evidence_beats_dead():
 
 
 def test_form_measured_for_has_no_fallback():
-    """19 条双源实测有值；其余一律 None —— **绝不回退 "base"**。"""
+    """20 条双源实测有值；其余一律 None —— **绝不回退 "base"**。"""
     assert ctlmap.form_measured_for("HQServ.hq_nlp_misc") == "bare"
     assert ctlmap.form_measured_for("AppUpdateInfo.queryAppUpdateInfo") == "bare"
     assert ctlmap.form_measured_for("CWServ.tdx_vote") == "bare"
@@ -202,18 +202,18 @@ def test_stats_keeps_flag_semantics_and_adds_evidence_counts():
     # 新增两个证据计数，与布尔标记分开口径
     assert s["verified_rows"] == 414
     assert s["dead"] == 191
-    assert s["form_measured"] == 19
+    assert s["form_measured"] == 20
 
 
 def test_catalog_evidence_files_shape():
-    """三份证据文件的条数与字段形状（交付判据：414 / 191 / 19）。"""
+    """三份证据文件的条数与字段形状（交付判据：414 / 191 / 20）。"""
     verified = _sidecar("verified.json")
     dead = _sidecar("dead_cmds.json")
     measured = _sidecar("form_measured.json")
 
     assert len(verified) == 414
     assert len(dead) == 191
-    assert len(measured) == 19
+    assert len(measured) == 20
 
     for cmd, rec in verified.items():
         assert set(rec) == {"rows", "cols", "params", "checked_at"}, (cmd, sorted(rec))

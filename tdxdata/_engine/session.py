@@ -11,8 +11,8 @@
 体形态规则（2026-10-31 起：**实测形态优先，前缀规则兜底**）
 ------------------------------------------------------------
 1. dict 里已带 `CallName` 或 `Params` 键 → **完整请求体，直接发**，不再包信封
-2. 否则查 `ctlmap.form_measured_for(cmd)`（**双源实测**：线上抓包 ∩
-   `api_catalog_usable.json` 的 `body_form`，当前 19 条）—— 命中就按它编
+2. 否则查 `ctlmap.form_measured_for(cmd)`（**实测形态**：线上抓包 ∩
+   `api_catalog_usable.json` 的 `body_form`，当前 20 条 = 19 条双源 + 1 条抓包重放）—— 命中就按它编
    （`bare` / `base` / `call` / `obj`，语义与 `ctlmap.build_body` 一致）
 3. 未命中实测（`None`）→ 原样走下面的**前缀规则**（一行未改）：
    `HQServ.*` / `CWSearch.*` / `DataAggregation.*` 裸 JSON，其余包 `{"Params": obj}`
@@ -53,7 +53,7 @@ def body_of(cmd: str, params) -> bytes:
 
     1. `str` 先 `json.loads`；已是 dict 且带 `CallName`/`Params` 键 →
        **原样发出**（允许调用方直接给完整信封，不二次包装）；
-    2. 查 `ctlmap.form_measured_for(cmd)`（19 条双源实测）：
+    2. 查 `ctlmap.form_measured_for(cmd)`（20 条实测：19 条双源 + 1 条抓包重放）：
        `bare` 裸发 / `base` 包 `{"Params": obj}` /
        `call` 包 `{"CallName": <短名>, "Params": obj}` /
        `obj` list 先按位置映射成 `{"p1": …}` 再包 `{"Params": …}`

@@ -156,7 +156,7 @@ def test_bare_form_sends_raw_json_without_envelope():
 def test_call_form_matches_ctlmap_build_body():
     """`call` 形态：目录（单一真相）声明的是 `{"CallName": …, "Params": …}`。
 
-    ⚠️ 帧里的包装由 **session 层**决定，不是本层：对**不在 19 条双源实测**里的
+    ⚠️ 帧里的包装由 **session 层**决定，不是本层：对**不在 20 条实测（19 条双源 + 1 条抓包重放）**里的
     命令，`body_of` 走的是**前缀规则兜底**（SPEC §1.3 冻结的既有行为），所以
     `SNS.query_Recommend` 今天实际发出去的是 `{"Params": []}`。这里把两边都钉住：
     · 目录口径 = `call`（`form_for` / `build_body`）；
@@ -171,7 +171,7 @@ def test_call_form_matches_ctlmap_build_body():
     # ① 目录口径：`call` 形态（`build_body` 与 `form_for` 是同一张表）
     assert ctlmap.form_for(cmd) == "call"
     assert ctlmap.build_body(cmd, []) == b'{"CallName": "query_Recommend", "Params": []}'
-    assert ctlmap.form_measured_for(cmd) is None      # 不在 19 条双源实测里
+    assert ctlmap.form_measured_for(cmd) is None      # 不在 20 条实测（19 条双源 + 1 条抓包重放）里
     # ② 实际帧：前缀规则兜底（未实测命令的行为一字未改）
     assert args == b'{"Params": []}'
 
