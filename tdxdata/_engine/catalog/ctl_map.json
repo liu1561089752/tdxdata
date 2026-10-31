@@ -3512,8 +3512,8 @@
    "form": "call",
    "params": [
     "00103",
-    "HSI",
-    "#dateTime#",
+    "00700",
+    "#date#",
     0,
     0
    ],
@@ -5540,7 +5540,7 @@
    "form": "base",
    "params": [
     "00101",
-    "#dateTime#",
+    "#date#",
     5,
     1
    ],
