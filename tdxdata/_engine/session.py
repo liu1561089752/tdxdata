@@ -8,11 +8,22 @@
 （PASS / EMPTY_RS / EMPTY / ERR_-1002 …）必须由这一层统一决定，
 否则每个调用点都要重复判断 —— 这正是历史上出错最多的地方。
 
-体形态规则（`spec/11 §〇`，2026-10-24 定论）
--------------------------------------------
+体形态规则（2026-10-31 起：**实测形态优先，前缀规则兜底**）
+------------------------------------------------------------
 1. dict 里已带 `CallName` 或 `Params` 键 → **完整请求体，直接发**，不再包信封
-2. `HQServ.*` → 裸 JSON（**不包 Params**）
-3. 其余（`CWServ.*` / `JJSServ.*` / `DataAggregation.*`）→ 包 `{"Params": obj}`
+2. 否则查 `ctlmap.form_measured_for(cmd)`（**双源实测**：线上抓包 ∩
+   `api_catalog_usable.json` 的 `body_form`，当前 19 条）—— 命中就按它编
+   （`bare` / `base` / `call` / `obj`，语义与 `ctlmap.build_body` 一致）
+3. 未命中实测（`None`）→ 原样走下面的**前缀规则**（一行未改）：
+   `HQServ.*` / `CWSearch.*` / `DataAggregation.*` 裸 JSON，其余包 `{"Params": obj}`
+
+为什么不是"前缀规则优先"：前缀规则是**猜**，实测是**证据**。两套规则并存时
+以前没有任何机制会发现不一致 —— 这正是 T6。实测优先后，只有 2 条命令变了
+（`AppUpdateInfo.queryAppUpdateInfo`、`CWServ.tdx_vote` 由 `{"Params":…}` 改裸发），
+其余 730 条逐字节不变；回归护栏见 `tests/test_form_consistency.py`。
+
+⚠️ `HQServ.PB*` 一族要 protobuf 二进制体，走 `pb_api` 通路，本模块与 `ctlmap`
+本就不覆盖（见 `ctlmap` 模块 docstring）。
 """
 from __future__ import annotations
 
@@ -22,6 +33,7 @@ import struct
 import threading
 import time
 
+from . import ctlmap
 from . import datacenter as dc
 from .._logging import logger
 
@@ -35,10 +47,44 @@ IDLE_RECONNECT = 90.0
 
 # ── 体形态 ────────────────────────────────────────────────────────────────
 def body_of(cmd: str, params) -> bytes:
-    """按命令前缀/参数形态决定请求体字节。"""
+    """决定请求体字节：**完整信封直通 → 双源实测形态 → 前缀规则兜底**。
+
+    顺序是硬约定，别调换：
+
+    1. `str` 先 `json.loads`；已是 dict 且带 `CallName`/`Params` 键 →
+       **原样发出**（允许调用方直接给完整信封，不二次包装）；
+    2. 查 `ctlmap.form_measured_for(cmd)`（19 条双源实测）：
+       `bare` 裸发 / `base` 包 `{"Params": obj}` /
+       `call` 包 `{"CallName": <短名>, "Params": obj}` /
+       `obj` list 先按位置映射成 `{"p1": …}` 再包 `{"Params": …}`
+       （四个分支的语义与 `ctlmap.build_body` 完全一致，别自己发明）；
+    3. 实测为 `None` → **原样走下面的前缀规则**（一字未改）。
+
+    「实测优先」的净效果：732 条里只有 2 条变了（`AppUpdateInfo.queryAppUpdateInfo`、
+    `CWServ.tdx_vote` 由 `{"Params":…}` 改为裸发），其余 730 条逐字节不变。
+    """
     obj = json.loads(params) if isinstance(params, str) else params
     if isinstance(obj, dict) and ("CallName" in obj or "Params" in obj):
         return json.dumps(obj, ensure_ascii=False).encode()
+
+    form = ctlmap.form_measured_for(cmd)
+    if form == "bare":
+        return json.dumps(obj, ensure_ascii=False).encode()
+    if form == "base":
+        return json.dumps({"Params": obj}, ensure_ascii=False).encode()
+    if form == "call":
+        short = cmd.split(".", 1)[1] if "." in cmd else cmd
+        return json.dumps({"CallName": short, "Params": obj},
+                          ensure_ascii=False).encode()
+    if form == "obj":
+        # 与 `ctlmap.build_body` 的 obj 语义一致：list 按位置映射成 p1/p2/…
+        # 当前 19 条双源实测里**没有** obj 命令，这条分支是为 `form_measured.json`
+        # 将来收录 obj 类实测预留的；今天走不到它（未命中就是 `None`）。
+        if isinstance(obj, list):
+            obj = {"p%d" % (i + 1): v for i, v in enumerate(obj)}
+        return json.dumps({"Params": obj}, ensure_ascii=False).encode()
+
+    # ── 以下为「无实测」时的前缀规则兜底：2026-10-24 定论，语义不许改 ──
     if cmd.startswith("HQServ"):
         return json.dumps(obj, ensure_ascii=False).encode()
     if cmd.startswith("CWSearch."):
