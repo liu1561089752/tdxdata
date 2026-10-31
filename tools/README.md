@@ -1,9 +1,11 @@
 # tools/ —— 质量门禁与生成工具
 
-本目录只有两类东西：
+本目录有三类东西：
 
 * `gate.py`：**11 条质量门禁**的唯一入仓实现（`python tools/gate.py`）；
-* `catalog/`：第 4/5 条门禁的证据源（接口目录的留档副本）。
+* `catalog/`：第 4/5 条门禁的证据源（接口目录的留档副本）；
+* `verify_pending.py`：把「只能真机才能定」的几类遗留项列成清单的核对工具
+  （**默认 dry-run 不联网**，加 `--run` 才真连；只报告、不改任何数据文件）。
 
 门禁的判据一律**带基数**（"421/421 个产品"这种），不许写"全部通过"——
 一个不带基数的绿，等于一句无法被复核的话。
@@ -115,3 +117,19 @@ README 里由代码派生的表分两处：老的 4 个块（`models.Tick.as_mar
 **不要用 PowerShell `-replace` / `@()` 管道批量改 README**：本项目有过一次
 3 文件字符级污染事故；改写 README 只许用 Python 脚本，`open(..., newline="")`
 读写、逐块替换，写完必须复核 `CRLF == LF` 且前 3 字节不是 `EF BB BF`。
+
+## 四、联网核对工具 `verify_pending.py`
+
+离线能定的都定完之后，剩下几类只有真机能答（`call` 形态到底要不要 `CallName`、
+`not_in_app ∧ rows>0` 的 47 条冲突、`dead` 档是否已过期）。本工具把它们变成一条命令：
+
+```
+python tools\verify_pending.py           # dry-run：只打印清单与条数，**不联网**，退出码 0
+python tools\verify_pending.py --run     # 真连：逐条发一次，打印 命令|类别|行数|判定
+python tools\verify_pending.py --run --only A --limit 3 --json out.json
+```
+
+判据口径：A 类同一条命令发两遍（带 `CallName` / 不带）比行数；B/C 类看还能不能出行。
+**只报告不改数据**：跑完只打印「下一步该改哪个文件的哪一行」，`--json` 默认落 `%TEMP%`、
+写进仓库会被拒绝。B 类的素材（`raw/catalog/not_in_app.json`）不随包分发，缺了会跳过并提示
+`--conflicts PATH`。
