@@ -8,7 +8,8 @@
  "commands": {
   "ACL.checkuser": {
    "ctl": 15,
-   "form": "base"
+   "form": "base",
+   "verified": true
   },
   "AppUpdateInfo.queryAppUpdateInfo": {
    "ctl": 34,
@@ -29,7 +30,8 @@
   },
   "VersionAdm2.QueryUpgradeInfo": {
    "ctl": 30,
-   "form": "base"
+   "form": "base",
+   "verified": true
   },
   "HQServ.PBCombHQ": {
    "ctl": 17,
@@ -65,7 +67,8 @@
      "args_hex": "4261736536343a4367496f41424944546b3958456756445445395452524948566b46534d4451784d684949516b564d5430354853466b59414349474d4441794d6a6b7a",
      "pcap": "PCAPdroid_23_10月_13_18_52(2).pcap"
     }
-   ]
+   ],
+   "verified": true
   },
   "HQServ.PBHQInfo": {
    "ctl": 17,
@@ -101,7 +104,8 @@
      "args_hex": "0a02280010001a06333030353631200128013001380140014805",
      "pcap": "PCAPdroid_23_10月_13_18_52(2).pcap"
     }
-   ]
+   ],
+   "verified": true
   },
   "HQServ.PBSdstat": {
    "ctl": 17,
@@ -137,7 +141,8 @@
      "args_hex": "4261736536343a43676b4b41544561414349414b41415141773d3d",
      "pcap": "s3_other_20func.pcap"
     }
-   ]
+   ],
+   "verified": true
   },
   "HQServ.PBSample": {
    "ctl": 17,
@@ -173,11 +178,13 @@
      "args_hex": "0a02280010001a063330313130312001280a30003801",
      "pcap": "PCAPdroid_23_10月_13_18_52(2).pcap"
     }
-   ]
+   ],
+   "verified": true
   },
   "HQServ.PBTipinfo": {
    "ctl": 18,
-   "form": "base"
+   "form": "base",
+   "verified": true
   },
   "HQServ.PBMultiHQ": {
    "ctl": 18,
@@ -188,7 +195,8 @@
      "args_hex": "4261736536343a4367496f41424944546b3958456756445445395452524945546b464e52524948566b46534d4451774e424945526b784252784949516b564d5430354853466b61414341474b4134772f2f2f2f2f2f2f2f2f2f2f2f4154675551414649415741426141413d",
      "pcap": "s1_lhb_5func.pcap"
     }
-   ]
+   ],
+   "verified": true
   },
   "HQServ.PBXmlBlock": {
    "ctl": 19,
@@ -224,7 +232,8 @@
      "args_hex": "4261736536343a4367496f4142446e42786f47556b34734d4377794941416f4144495054564e3062324e7258307044574568665155784d",
      "pcap": "cap_hs_20261022.pcap"
     }
-   ]
+   ],
+   "verified": true
   },
   "HQServ.PBZST": {
    "ctl": 14,
@@ -260,11 +269,13 @@
      "args_hex": "4261736536343a4367674b42465655526a676f414249474f4467774d6a413047414567414367414d41413d",
      "pcap": "cap_fx_20261022.pcap"
     }
-   ]
+   ],
+   "verified": true
   },
   "HQServ.PBSampleMore": {
    "ctl": 21,
-   "form": "base"
+   "form": "base",
+   "verified": true
   },
   "CWServ.ph_tdxdatacenter_tdxrb_ag_rqb": {
    "ctl": 38,
@@ -319,7 +330,8 @@
    "params": [
     "00103",
     "-1"
-   ]
+   ],
+   "verified": true
   },
   "JNLPSE.getCardType": {
    "ctl": 20,
@@ -361,7 +373,8 @@
     "00101",
     "",
     1
-   ]
+   ],
+   "verified": true
   },
   "CWServ.ph_tdxdatacenter_hsgt": {
    "ctl": 30,
@@ -521,7 +534,8 @@
      "args_hex": "7b2248656164223a7b22546172676574223a307d2c22436f6465223a22383830303031222c22536574636f6465223a2231222c2254797065223a307d",
      "pcap": "cap_hs_20261022.pcap"
     }
-   ]
+   ],
+   "verified": true
   },
   "CWServ.ph_zt_kp_xgb_bfx": {
    "ctl": 25,
@@ -632,7 +646,8 @@
      "args_hex": "49582c535045433d323833342c5354525543543d4661737448512e5375627363726962650d0a312c53437c322c434f44457c332c4c587c342c506b67547970657c352c50757368547970657c362c4f706572547970657c372c4261746368507573687c0d0a317c3939393939397c307c317c317c307c317c0d0a307c3339393030317c307c317c317c307c317c0d0a327c3839393035307c307c317c317c307c317c0d0a317c3030303638307c307c317c317c307c317c0d0a307c3339393030367c307c317c317c307c317c0d0a317c3030303638387c307c317c317c307c317c0d0a317c3838303030387c307c317c317c307c317c0d0a32377c4853497c327c317c317c307c317c0d0a31327c415f444a497c327c317c317c307c317c0d0a31327c415f495849437c327c317c317c307c317c0d0a31327c415f5350587c327c317c317c307c317c0d0a31327c434e59307c327c317c317c307c317c0d0a31307c555344434e487c327c317c317c307c317c0d0a",
      "pcap": "PCAPdroid_23_10月_13_18_52(2).pcap"
     }
-   ]
+   ],
+   "verified": true
   },
   "HQServ.PBHYStat": {
    "ctl": 17,
@@ -647,7 +662,8 @@
      "Pos": "0",
      "Needtotalnum": "2"
     }
-   ]
+   ],
+   "verified": true
   },
   "HQServ.PBSYSINFO": {
    "ctl": 18,
@@ -683,7 +699,8 @@
      "args_hex": "0a050a0347424b1a06333031363939",
      "pcap": "PCAPdroid_23_10月_13_38_27.pcap"
     }
-   ]
+   ],
+   "verified": true
   },
   "HQServ.PBGPTips": {
    "ctl": 17,
@@ -709,11 +726,13 @@
      "args_hex": "0a050a0347424b10011a06363031363838",
      "pcap": "s2_datacenter_20func.pcap"
     }
-   ]
+   ],
+   "verified": true
   },
   "HQServ.PBMoreGPData": {
    "ctl": 21,
-   "form": "base"
+   "form": "base",
+   "verified": true
   },
   "CWServ.phbkf10_cpbd": {
    "ctl": 21,
@@ -816,7 +835,8 @@
   },
   "HQServ.PBPzxh": {
    "ctl": 15,
-   "form": "base"
+   "form": "base",
+   "verified": true
   },
   "CWServ.phzzfw_tsyb": {
    "ctl": 20,
@@ -955,7 +975,8 @@
      "args_hex": "7b2248656164223a7b22546172676574223a307d2c22506f73223a302c224c656e223a31323030302c225061746846696c65223a22616979782f3630303330332e6a736f6e227d",
      "pcap": "cap_1023_173229.pcap"
     }
-   ]
+   ],
+   "verified": true
   },
   "CWServ.ph_pcwebcall_dbl_qsxt": {
    "ctl": 30,
@@ -998,7 +1019,8 @@
      "dataDate": "2",
      "modname": "mod_copilot.dll"
     }
-   ]
+   ],
+   "verified": true
   },
   "CWServ.ph_datacenter_tztp_ssk": {
    "ctl": 31,
@@ -1078,7 +1100,8 @@
     "00301",
     "600303",
     ""
-   ]
+   ],
+   "verified": true
   },
   "CWServ.ph_agf10_cw_xjllb": {
    "ctl": 26,
@@ -1208,7 +1231,8 @@
      "Setcode": "#setCode#",
      "modname": "module_misc.dll"
     }
-   ]
+   ],
+   "verified": true
   },
   "HQServ.PBONEZJLX": {
    "ctl": 18,
@@ -1244,7 +1268,8 @@
      "args_hex": "4261736536343a4367496f41424142476759344f4445794f54676741436746",
      "pcap": "cap_1023_174801.pcap"
     }
-   ]
+   ],
+   "verified": true
   },
   "CWServ.ph_agf10_hypm": {
    "ctl": 22,
@@ -1308,7 +1333,8 @@
      "args_hex": "0a022800100118ffffffffffffffffff0120ac0228023200",
      "pcap": "cap_1023_173229.pcap"
     }
-   ]
+   ],
+   "verified": true
   },
   "CWServ.ph_agf10_jj_cgtj": {
    "ctl": 25,
@@ -3403,7 +3429,8 @@
   },
   "HQServ.PBSymbolFinder": {
    "ctl": 23,
-   "form": "base"
+   "form": "base",
+   "verified": true
   },
   "NLPSE.QuestionImagine": {
    "ctl": 23,
@@ -3447,15 +3474,18 @@
   },
   "HQServ.PBQQUnderly2": {
    "ctl": 21,
-   "form": "base"
+   "form": "base",
+   "verified": true
   },
   "HQServ.PBQQMonth": {
    "ctl": 18,
-   "form": "base"
+   "form": "base",
+   "verified": true
   },
   "HQServ.PBQQTXCode2": {
    "ctl": 20,
-   "form": "base"
+   "form": "base",
+   "verified": true
   },
   "CWServ.ph_qhf10_zl_v2": {
    "ctl": 23,
@@ -3479,7 +3509,8 @@
   },
   "HQServ.hq_nlp_ds_tcihq": {
    "ctl": 24,
-   "form": "base"
+   "form": "base",
+   "verified": true
   },
   "CWServ.ph_qhf10_zj": {
    "ctl": 20,
@@ -3487,7 +3518,8 @@
   },
   "HQServ.PBEXTick": {
    "ctl": 17,
-   "form": "base"
+   "form": "base",
+   "verified": true
   },
   "CWServ.ph_tdxdatacenter_qhlhb_ccjg": {
    "ctl": 36,
@@ -3592,11 +3624,13 @@
   },
   "HQServ.PBTickEx": {
    "ctl": 17,
-   "form": "base"
+   "form": "base",
+   "verified": true
   },
   "HQServ.PBFJB": {
    "ctl": 14,
-   "form": "base"
+   "form": "base",
+   "verified": true
   },
   "HQServ.hq_nlp_app_misc": {
    "ctl": 24,
@@ -3944,7 +3978,8 @@
      "args_hex": "4261736536343a4367734b42565655526930344967416f414249474e6a67344d7a453447414567424367414d414134654541425341425941474141",
      "pcap": "s1_lhb_5func.pcap"
     }
-   ]
+   ],
+   "verified": true
   },
   "CWServ.ph_tdxdatacenter_cylv2_ag_cysj": {
    "ctl": 39,
@@ -3968,7 +4003,8 @@
      "TypeTwo": "0",
      "modname": "mod_cyq64.dll"
     }
-   ]
+   ],
+   "verified": true
   },
   "CWServ.app_bklist_ag": {
    "ctl": 22,
@@ -5756,42 +5792,51 @@
   },
   "HQServ.HQInfo": {
    "ctl": 15,
-   "form": "base"
+   "form": "base",
+   "verified": true
   },
   "HQServ.PBBdDataReq": {
-   "ctl": 19,
-   "form": "base"
+   "ctl": 20,
+   "form": "base",
+   "verified": true
   },
   "HQServ.PBGetSeat": {
-   "ctl": 17,
-   "form": "base"
+   "ctl": 18,
+   "form": "base",
+   "verified": true
   },
   "HQServ.PBMultiH": {
    "ctl": 17,
-   "form": "base"
+   "form": "base",
+   "verified": true
   },
   "HQServ.PBMySearch3": {
-   "ctl": 19,
-   "form": "base"
+   "ctl": 20,
+   "form": "base",
+   "verified": true
   },
   "HQServ.PBXgsg": {
-   "ctl": 14,
-   "form": "base"
+   "ctl": 15,
+   "form": "base",
+   "verified": true
   },
   "HQServ.SymbolFinder": {
-   "ctl": 20,
-   "form": "base"
+   "ctl": 21,
+   "form": "base",
+   "verified": true
   },
   "HQServ.hq_nlp_app_copilot": {
-   "ctl": 26,
-   "form": "base"
+   "ctl": 27,
+   "form": "base",
+   "verified": true
   },
   "HQServ.hq_nlp_app_peg": {
-   "ctl": 22,
-   "form": "base"
+   "ctl": 23,
+   "form": "base",
+   "verified": true
   },
   "HQServ.hq_nlp_jjqc": {
-   "ctl": 19,
+   "ctl": 20,
    "form": "base",
    "params": [
     {
@@ -5804,7 +5849,8 @@
      "modname": "JJQC",
      "period": 0
     }
-   ]
+   ],
+   "verified": true
   },
   "JJSServ.ph_datacenter_jjs_hsgtzt_v3_bsjj_gg": {
    "ctl": 45,
@@ -6007,23 +6053,28 @@
   },
   "HQServ.CalcDate": {
    "ctl": 17,
-   "form": "base"
+   "form": "base",
+   "verified": true
   },
   "HQServ.PBAuction2": {
-   "ctl": 18,
-   "form": "base"
+   "ctl": 19,
+   "form": "base",
+   "verified": true
   },
   "HQServ.PBBdDataSearchReq": {
-   "ctl": 25,
-   "form": "base"
+   "ctl": 26,
+   "form": "base",
+   "verified": true
   },
   "HQServ.PBGetSeatQuery": {
    "ctl": 23,
-   "form": "base"
+   "form": "base",
+   "verified": true
   },
   "HQServ.PBMultiHQe": {
-   "ctl": 18,
-   "form": "base"
+   "ctl": 19,
+   "form": "base",
+   "verified": true
   },
   "HQServ.PBOrder": {
    "ctl": 15,
@@ -6035,18 +6086,21 @@
   },
   "HQServ.XmlBlock": {
    "ctl": 17,
-   "form": "base"
+   "form": "base",
+   "verified": true
   },
   "HQServ.hq_nlp_app_gxd": {
-   "ctl": 22,
+   "ctl": 23,
    "form": "base",
    "params": [
     ""
-   ]
+   ],
+   "verified": true
   },
   "HQServ.hq_nlp_outer_live": {
-   "ctl": 25,
-   "form": "base"
+   "ctl": 26,
+   "form": "base",
+   "verified": true
   },
   "JNLPSE.getQuestionByName": {
    "ctl": 26,
@@ -6289,20 +6343,24 @@
    "form": "base"
   },
   "HQServ.PBBatchZS": {
-   "ctl": 17,
-   "form": "base"
+   "ctl": 18,
+   "form": "base",
+   "verified": true
   },
   "HQServ.PBGbbq": {
-   "ctl": 14,
-   "form": "base"
+   "ctl": 15,
+   "form": "base",
+   "verified": true
   },
   "HQServ.PBMiscStr": {
-   "ctl": 17,
-   "form": "base"
+   "ctl": 18,
+   "form": "base",
+   "verified": true
   },
   "HQServ.PBMySearch2": {
-   "ctl": 19,
-   "form": "base"
+   "ctl": 20,
+   "form": "base",
+   "verified": true
   },
   "HQServ.PBPhfbb": {
    "ctl": 15,
@@ -6313,16 +6371,19 @@
    "form": "base"
   },
   "HQServ.PBZstMMLD": {
-   "ctl": 17,
-   "form": "base"
+   "ctl": 18,
+   "form": "base",
+   "verified": true
   },
   "HQServ.hq_nlp_abnormal_gold": {
-   "ctl": 28,
-   "form": "base"
+   "ctl": 29,
+   "form": "base",
+   "verified": true
   },
   "HQServ.hq_nlp_hqdz": {
    "ctl": 20,
-   "form": "base"
+   "form": "base",
+   "verified": true
   },
   "JJSServ.ph_datacenter_jjs_hsgt_v3_agbkxq": {
    "ctl": 42,
@@ -6501,11 +6562,13 @@
   },
   "HQServ.PBZBCJ": {
    "ctl": 15,
-   "form": "base"
+   "form": "base",
+   "verified": true
   },
   "HQServ.hq_nlp_db": {
-   "ctl": 17,
-   "form": "base"
+   "ctl": 18,
+   "form": "base",
+   "verified": true
   },
   "JNLPSE.hotStockList": {
    "ctl": 20,
@@ -6565,7 +6628,8 @@
   },
   "HQServ.FXT": {
    "ctl": 12,
-   "form": "base"
+   "form": "base",
+   "verified": true
   },
   "JNLPSE.zxfxCard": {
    "ctl": 17,
