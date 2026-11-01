@@ -28,8 +28,9 @@
 
 三档状态与形态证据（边车文件，缺了也照常 import）
 --------------------------------------------------
-* `catalog/verified.json` —— 414 条实测 `rows>0` 的「已验证有数据」证据 → `tier_for()`
-* `catalog/dead_cmds.json` —— 191 条「本版本 App 未实现（回 104）」 → `tier_for()`
+* `catalog/verified.json` —— 421 条实测 `rows>0` 的「已验证有数据」证据 → `tier_for()`
+* `catalog/dead_cmds.json` —— 184 条「本版本 App 未实现（回 104）」 → `tier_for()`
+  （2026-11-01 真机复验后由 191 降到 184：7 条产品命令实测有数据，已移入 `verified.json`）
 * `catalog/form_measured.json` —— 20 条**有硬证据**的实测请求体形态 → `form_measured_for()`
   （门槛是"两种等价硬证据之一"，见 `form_measured_for()` docstring：
   ① 抓包 ∩ `api_catalog_usable.body_form` 双源一致 = 19 条；
@@ -516,10 +517,12 @@ def stats():
 
     * `"verified"` —— `ctl_map.json` 里的**布尔标记** `verified: true`（537 条）。
       历史口径：当时确认 ctl 打对了并且实测取到过数据。
-    * `"verified_rows"` —— `verified.json` 的条数（**414** 条）：带 `rows`/`cols`
+    * `"verified_rows"` —— `verified.json` 的条数（**421** 条）：带 `rows`/`cols`
       实际数值的「已验证有数据」证据，比布尔标记严（要能指到行数）。
-    * `"dead"` —— `dead_cmds.json` 的条数（**191** 条）：实机确认本版本 App
+    * `"dead"` —— `dead_cmds.json` 的条数（**184** 条）：实机确认本版本 App
       未实现（回 104 通讯错误），且没有 `rows>0` 的正向证据。
+      （2026-11-01 真机复验：7 条原 dead 的产品命令实测有数据 → 移入
+      `verified.json`、同时从本表删除，所以是 184 而不是旧的 191。）
 
     条数对不上时不要「凑」：差一条就该去查生成脚本，而不是改断言。
     """
@@ -544,8 +547,8 @@ def tier_for(cmd):
 
     判定顺序是**硬约定**（正向证据优先）：
 
-    1. `"dead"`     —— 在 `dead_cmds.json` 里（191 条：本版本 App 未实现 + 回 104）；
-    2. `"verified"` —— 在 `verified.json` 里（414 条：实测 `rows>0`，有具体行数证据）；
+    1. `"dead"`     —— 在 `dead_cmds.json` 里（184 条：本版本 App 未实现 + 回 104）；
+    2. `"verified"` —— 在 `verified.json` 里（421 条：实测 `rows>0`，有具体行数证据）；
     3. `"probe_ok"` —— `ctl_map.json` 的 `probe_ok` 为真，且上面两档都没占（44 条）；
     4. `None`       —— 其余（含不在 732 条表里的命令）。**不造第四档。**
 
@@ -554,10 +557,17 @@ def tier_for(cmd):
     并从 `dead_cmds.json` 里剔掉 —— 否则会拦掉 46 个真能出数据的产品命令。
     所以这里 `dead` 命中即 `dead`，不会把能出数据的命令判死。
 
+    ⚠️ 负证据会**过期**：2026-11-01 真机复验发现再 7 条原 dead 的产品命令
+    （`CWServ.ph_jjzt_zcjj` 4310 行、`CWServ.ph_zt_xg_xgjx`、`DataAggregation.queryRandom`、
+    `JJSServ.ph_datacenter_jjs_hsgt_v3_jgxq`、`JJSServ.ph_datacenter_jjs_hsgtzt_v3_bsjj_jg`、
+    `JJSServ.ph_zt_bxzj_sy_bkbd`、`JJSServ.ph_zt_bxzj_sy_jgbd`）实测都能出数据，
+    已移入 `verified.json` 并从 `dead_cmds.json` 删除（191 → 184）。
+    判死前**先真机跑一次**，别只信历史名单。
+
     📍 名单从哪来（**排障只看包内生成物**）：死名单的素材是**仓库外**的
     `F:/TDX/raw/catalog/not_in_app.json`（2026-10-31 实机快照，**未随包分发**，
     包里 `catalog/` 下没有这个文件）；随包的是**生成物**
-    `tdxdata/_engine/catalog/dead_cmds.json`（191 条 = 该快照减去本地实测
+    `tdxdata/_engine/catalog/dead_cmds.json`（184 条 = 该快照 238 条减去本地实测
     `rows>0` 的命令）。同理 `verified.json` 的素材 `verified_working.json` 也在仓库外。
     所以：**`dead_cmds.json` / `verified.json` 才是包内可查的真相源**，
     别按 `not_in_app.json` 去包内找。

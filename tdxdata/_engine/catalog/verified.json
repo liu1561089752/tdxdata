@@ -1222,6 +1222,19 @@
   ],
   "rows": 598
  },
+ "CWServ.ph_jjzt_zcjj": {
+  "checked_at": "2026-11-01",
+  "cols": 7,
+  "params": [
+   "00101",
+   "",
+   "",
+   0,
+   0,
+   0
+  ],
+  "rows": 4310
+ },
  "CWServ.ph_pcwebcall_dbl_qsxt": {
   "checked_at": "2026-10-31",
   "cols": 1,
@@ -3536,6 +3549,15 @@
   ],
   "rows": 12
  },
+ "CWServ.ph_zt_xg_xgjx": {
+  "checked_at": "2026-11-01",
+  "cols": 8,
+  "params": [
+   "001",
+   "n002"
+  ],
+  "rows": 10
+ },
  "CWServ.ph_zt_xg_xgmz": {
   "checked_at": "2026-10-31",
   "cols": 2,
@@ -3792,6 +3814,18 @@
    }
   ],
   "rows": 1
+ },
+ "DataAggregation.queryRandom": {
+  "checked_at": "2026-11-01",
+  "cols": 20,
+  "params": [
+   {
+    "cardId": "1",
+    "ranSize": "2",
+    "sumSize": "10"
+   }
+  ],
+  "rows": 2
  },
  "DataAggregation.queryTechInfo": {
   "checked_at": "2026-10-31",
@@ -4124,6 +4158,20 @@
   ],
   "rows": 8
  },
+ "JJSServ.ph_datacenter_jjs_hsgt_v3_jgxq": {
+  "checked_at": "2026-11-01",
+  "cols": 2,
+  "params": [
+   "001",
+   "@jgid@",
+   "",
+   "",
+   "",
+   "",
+   ""
+  ],
+  "rows": 1
+ },
  "JJSServ.ph_datacenter_jjs_hsgt_v3_ss": {
   "checked_at": "2026-10-31",
   "cols": 2,
@@ -4162,6 +4210,32 @@
   ],
   "rows": 8
  },
+ "JJSServ.ph_datacenter_jjs_hsgtzt_v3_bsjj_jg": {
+  "checked_at": "2026-11-01",
+  "cols": 2,
+  "params": [
+   "001",
+   "",
+   "",
+   "",
+   "",
+   ""
+  ],
+  "rows": 8
+ },
+ "JJSServ.ph_zt_bxzj_sy_bkbd": {
+  "checked_at": "2026-11-01",
+  "cols": 1,
+  "params": [
+   "00100",
+   "",
+   "",
+   0,
+   0,
+   0
+  ],
+  "rows": 1
+ },
  "JJSServ.ph_zt_bxzj_sy_ggbd": {
   "checked_at": "2026-10-31",
   "cols": 7,
@@ -4174,6 +4248,18 @@
    0
   ],
   "rows": 30
+ },
+ "JJSServ.ph_zt_bxzj_sy_jgbd": {
+  "checked_at": "2026-11-01",
+  "cols": 1,
+  "params": [
+   "00100",
+   "",
+   0,
+   0,
+   0
+  ],
+  "rows": 1
  },
  "JNLPSE.expandList": {
   "checked_at": "2026-10-31",

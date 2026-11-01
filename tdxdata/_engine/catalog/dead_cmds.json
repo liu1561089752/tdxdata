@@ -119,10 +119,6 @@
   "checked_at": "2026-10-31",
   "reason": "本版本 App 未实现（实测 104 通讯错误）"
  },
- "CWServ.ph_jjzt_zcjj": {
-  "checked_at": "2026-10-31",
-  "reason": "本版本 App 未实现（实测 104 通讯错误）"
- },
  "CWServ.ph_mgdatacenter_ydsd": {
   "checked_at": "2026-10-31",
   "reason": "本版本 App 未实现（实测 104 通讯错误）"
@@ -455,10 +451,6 @@
   "checked_at": "2026-10-31",
   "reason": "本版本 App 未实现（实测 104 通讯错误）"
  },
- "CWServ.ph_zt_xg_xgjx": {
-  "checked_at": "2026-10-31",
-  "reason": "本版本 App 未实现（实测 104 通讯错误）"
- },
  "CWServ.ph_zx_cjrl": {
   "checked_at": "2026-10-31",
   "reason": "本版本 App 未实现（实测 104 通讯错误）"
@@ -503,10 +495,6 @@
   "checked_at": "2026-10-31",
   "reason": "本版本 App 未实现（实测 104 通讯错误）"
  },
- "DataAggregation.queryRandom": {
-  "checked_at": "2026-10-31",
-  "reason": "本版本 App 未实现（实测 104 通讯错误）"
- },
  "DataAggregation.queryRecommendedKeywords": {
   "checked_at": "2026-10-31",
   "reason": "本版本 App 未实现（实测 104 通讯错误）"
@@ -519,23 +507,7 @@
   "checked_at": "2026-10-31",
   "reason": "本版本 App 未实现（实测 104 通讯错误）"
  },
- "JJSServ.ph_datacenter_jjs_hsgt_v3_jgxq": {
-  "checked_at": "2026-10-31",
-  "reason": "本版本 App 未实现（实测 104 通讯错误）"
- },
- "JJSServ.ph_datacenter_jjs_hsgtzt_v3_bsjj_jg": {
-  "checked_at": "2026-10-31",
-  "reason": "本版本 App 未实现（实测 104 通讯错误）"
- },
  "JJSServ.ph_zt_bxzj_ss": {
-  "checked_at": "2026-10-31",
-  "reason": "本版本 App 未实现（实测 104 通讯错误）"
- },
- "JJSServ.ph_zt_bxzj_sy_bkbd": {
-  "checked_at": "2026-10-31",
-  "reason": "本版本 App 未实现（实测 104 通讯错误）"
- },
- "JJSServ.ph_zt_bxzj_sy_jgbd": {
   "checked_at": "2026-10-31",
   "reason": "本版本 App 未实现（实测 104 通讯错误）"
  },

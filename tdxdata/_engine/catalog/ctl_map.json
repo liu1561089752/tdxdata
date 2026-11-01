@@ -6334,7 +6334,7 @@
   },
   "SNS.queryHotTopicTagList": {
    "ctl": 25,
-   "form": "call",
+   "form": "base",
    "params": [],
    "verified": true
   },

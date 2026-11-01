@@ -161,10 +161,10 @@ def test_tier_for_four_states():
     counts = {}
     for n in ctlmap.names():
         counts[ctlmap.tier_for(n)] = counts.get(ctlmap.tier_for(n), 0) + 1
-    assert counts.get("verified") == 414, counts
-    assert counts.get("dead") == 191, counts
+    assert counts.get("verified") == 421, counts
+    assert counts.get("dead") == 184, counts
     assert counts.get("probe_ok") == 44, counts
-    assert counts.get(None) == 732 - 414 - 191 - 44, counts
+    assert counts.get(None) == 732 - 421 - 184 - 44, counts
 
 
 def test_tier_positive_evidence_beats_dead():
@@ -198,28 +198,29 @@ def test_stats_keeps_flag_semantics_and_adds_evidence_counts():
     assert s["with_params"] == 517
     assert s["verified"] == 537          # ctl_map 的布尔标记（历史口径）
     assert set(s["forms"]) <= {"base", "call", "bare", "obj"}
-    assert s["forms"] == {"base": 717, "call": 12, "bare": 3}
+    assert s["forms"] == {"base": 718, "call": 11, "bare": 3}
     # 新增两个证据计数，与布尔标记分开口径
-    assert s["verified_rows"] == 414
-    assert s["dead"] == 191
+    assert s["verified_rows"] == 421
+    assert s["dead"] == 184
     assert s["form_measured"] == 20
 
 
 def test_catalog_evidence_files_shape():
-    """三份证据文件的条数与字段形状（交付判据：414 / 191 / 20）。"""
+    """三份证据文件的条数与字段形状（交付判据：421 / 184 / 20）。"""
     verified = _sidecar("verified.json")
     dead = _sidecar("dead_cmds.json")
     measured = _sidecar("form_measured.json")
 
-    assert len(verified) == 414
-    assert len(dead) == 191
+    assert len(verified) == 421
+    assert len(dead) == 184
     assert len(measured) == 20
 
     for cmd, rec in verified.items():
         assert set(rec) == {"rows", "cols", "params", "checked_at"}, (cmd, sorted(rec))
         assert isinstance(rec["rows"], int) and rec["rows"] > 0, cmd
         assert isinstance(rec["cols"], int) and rec["cols"] >= 0, cmd
-        assert rec["checked_at"] == "2026-10-31"
+        # 2026-10-31 = 第 1 批（414 条）；2026-11-01 = 真机复验复活的 7 条产品命令
+        assert rec["checked_at"] in {"2026-10-31", "2026-11-01"}, (cmd, rec["checked_at"])
         assert "args_hex" not in json.dumps(rec, ensure_ascii=False), cmd
 
     for cmd, rec in dead.items():
