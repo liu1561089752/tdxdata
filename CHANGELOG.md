@@ -96,6 +96,46 @@
   （① 双源一致 19 条 + ② 重放命中 1 条），`session.body_of` 对这条命令的行为由
   `{"Params": …}` 改为裸发（`tests/test_form_consistency.py` 冻结）。
 
+### 真机复验（2026-11-01）
+
+> 判据来源：`python tools/verify_pending.py --run`（**78 次请求** = A 12×2 + B 47 + C 7；4 台服务器
+> 7615 全通、12–17ms），再逐条 `get(..., allow_dead=True)` 二次复验。退出码 **2** 属设计内行为
+> （4 条探测被限流、走 `ERROR` 分支），**不是**数据结论。下面每个数字都能用这两条复跑出来。
+
+- **C 类：7 条 `dead` 产品命令全部复活 —— `dead_cmds.json` 191 → 184 条、`verified.json` 414 → 421 条**：
+  `not_in_app.json` 那份负证据对这 7 条已过期。**用户可见后果**：这 7 个产品此前 `get()` 直接抛
+  `NotSupportedError`（本地就拦、一个字节都不发），现在正常返回数据 —— 本次改造里用户
+  **能直接感知**到的最大一处。
+
+  | 产品 | 命令 | 行 | 列 |
+  |---|---|---|---|
+  | `zcjj` | `CWServ.ph_jjzt_zcjj` | 4310 | 7 |
+  | `xg_xgjx` | `CWServ.ph_zt_xg_xgjx` | 10 | 8 |
+  | `queryRandom` | `DataAggregation.queryRandom` | 2 | 20 |
+  | `jjs_jgxq` | `JJSServ.ph_datacenter_jjs_hsgt_v3_jgxq` | 1 | 2 |
+  | `north_jg` | `JJSServ.ph_datacenter_jjs_hsgtzt_v3_bsjj_jg` | 8 | 2 |
+  | `bxzj_sy_bkbd` | `JJSServ.ph_zt_bxzj_sy_bkbd` | 1 | 1 |
+  | `bxzj_sy_jgbd` | `JJSServ.ph_zt_bxzj_sy_jgbd` | 1 | 1 |
+
+- **A 类：12 条 `call` 形态命令结算成三档**：
+  - **10 条两种形态都能出数**（带 `CallName` 与不带，行数都 > 0）→ 服务端两种都收，
+    前缀兜底发 `{"Params": …}` **无害，不改**；
+  - **1 条 `SNS.queryHotTopicTagList`：不带 `CallName`（base）4 行、带 `CallName`（call）0 行**
+    → 目录里记的 `form: "call"` 是**错的**，已把 `ctl_map.json` 该命令改为 `base`
+    （运行时本来就按 base 发，**只改元数据**）；
+  - **1 条 `SNS.query_Recommend`：两种形态都是 0 行**（模板参数是 `[]`，疑似需要参数）→
+    **留待后续**，不据此改形态。
+
+- **B 类：47 条 `not_in_app ∧ rows>0` 冲突里，43 条现在重发仍能出行**（最多 **245 行**）→
+  保持 `verified` 正确，`not_in_app.json` 的负证据按作废处理；**4 条探测时被限流**
+  （`DataAggregation.lhbsj` / `queryZST` / `zttz_jhqz` / `zttz_xzgn2`）→ **一条数据都没改**，
+  待更大间隔复验（库内间隔已升到 **12s**）。
+
+- **另有两处"改了就对"的现场确认**：
+  - `CWServ.tzx_filedown` 改裸发后真机 **47 行 × 8 列**（列名如 `$ZQDM` / `$SC` / `zbrq` /
+    `htje` / `htzb` / `fjcxsy` 等）—— 抓包重放那份证据成立；
+  - `get("queryCardInfo")` 真机出数（**4 行 × 4 列**）—— `ctl` 由 30 改 31 的结论成立。
+
 ---
 
 ## [0.3.0] — 2026-10-28

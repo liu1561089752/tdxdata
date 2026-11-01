@@ -246,10 +246,14 @@ def _check_dead_cmd(cmd: str, allow_dead: bool) -> None:
     为什么必须前置：这类命令服务端回的是 104 / 空包，走到发送层只会被重试逻辑
     当成「疑似限流」—— 那是**错方向的重试**（白等 3 轮退避 + 把进程级间隔顶上去）。
 
-    ⚠️ 名单是**负证据**：随包的是 `tdxdata/_engine/catalog/dead_cmds.json`（**191 条**），
+    ⚠️ 名单是**负证据**：随包的是 `tdxdata/_engine/catalog/dead_cmds.json`（**184 条**），
     素材来自**仓库外**的 `F:\\TDX\\raw\\catalog\\not_in_app.json`（2026-10-31 实机快照，
     **未随包分发** —— 想在包里找它找不到是正常的）；生成口径 = 该快照**减去**本地实测
-    `rows>0` 的命令（正向证据优先：与快照冲突的 47 条一律归 `verified`，不在这份名单里）。
+    `rows>0` 的命令（正向证据优先：与快照冲突的命令一律归 `verified`，不在这份名单里）。
+    **2026-11-01 真机复验**：原名单里 7 条**产品命令**实测都有数据（`zcjj` 4310 行、
+    `xg_xgjx` 10 行、`queryRandom` 2 行、`jjs_jgxq` 1 行、`north_jg` 8 行、
+    `bxzj_sy_bkbd` 1 行、`bxzj_sy_jgbd` 1 行），已移出名单（191 → 184，见 CHANGELOG）；
+    所以 dead 档**此后不含任何产品命令**，`get()` 不会再被这道理拦住。
     App 升级后该命令可能已经实现了 —— 所以 `allow_dead=True` 是留给用户的逃生舱：
     名单会过期，"一个字节都不许发"只应该是**默认**行为，不是永久判决。
     """
@@ -1203,9 +1207,10 @@ class Client:
         `allow_dead=True`
         -----------------
         跳过上面的 dead 闸、真的发一次。为什么要有：dead 名单**随包的是**
-        `tdxdata/_engine/catalog/dead_cmds.json`（**191 条**；素材来自**仓库外**的
+        `tdxdata/_engine/catalog/dead_cmds.json`（**184 条**；素材来自**仓库外**的
         `F:\\TDX\\raw\\catalog\\not_in_app.json` —— 2026-10-31 实机快照，**未随包分发**，
-        生成口径 = 该快照**减去**本地实测 `rows>0` 的命令，正向证据优先），
+        生成口径 = 该快照**减去**本地实测 `rows>0` 的命令，正向证据优先。
+        2026-11-01 真机复验：原名单里 7 条产品命令实测都有数据，已移出（191 → 184）），
         App 升级后那条命令可能已经实现了 —— 用户必须能自己解开这个判断。
         跳过后一切照常（服务端说 104 还是 104，只是这次由服务端来说，
         而不是由本地名单替它说）。
@@ -1273,9 +1278,11 @@ class Client:
         （本版本 App 未实现）的命令在**发请求之前**就抛 `NotSupportedError`
         —— 因为服务端对这类命令只会回空包，走到发送层会被重试逻辑误判成"疑似限流"，
         白等 3 轮退避还把进程级间隔顶上去。名单是 **2026-10-31 的负证据快照**
-        （`_engine/catalog/dead_cmds.json`），App 升级后可能已实现，所以要留这个
+        （`_engine/catalog/dead_cmds.json`，184 条），App 升级后可能已实现，所以要留这个
         逃生舱；优先级是 `verified > dead`（有 `rows>0` 正证据的命令一律不拦）。
-        ⚠️ `get()` 走的就是本方法，所以 dead 档的 7 条产品命令也会被这道理拦住。
+        ⚠️ `get()` 走的就是本方法 —— 所以 dead 档的命令同样会被这道理拦住
+        （**2026-11-01 真机复验后 dead 档已不含任何产品命令**：原 7 条产品命令实测
+        都有数据、已移出名单，见 CHANGELOG）。
 
         `cache`（构造时注入）命中时**直接返回、不占限流闸门**；未命中才走 `wait()`。
 
@@ -1479,12 +1486,15 @@ class Client:
         ```
         参数按产品声明里的占位符替换（`@code@` / `#date@` 等）。
 
-        `allow_dead=True`：跳过 dead 档前置拦截。有 **7 条产品命令**
-        （`zcjj` / `xg_xgjx` / `jjs_jgxq` / `north_jg` / `bxzj_sy_bkbd` /
-        `bxzj_sy_jgbd` / `queryRandom`）落在 **2026-10-31 的 dead 名单**里（本地实测
-        回 104 的**负证据快照**，App 升级后可能已实现），默认在发请求前就抛
-        `NotSupportedError`；确实要探测就给 `allow_dead=True`（关键字原样透传给
+        `allow_dead=True`：跳过 dead 档前置拦截。dead 名单是**负证据**
+        （`_engine/catalog/dead_cmds.json`，**184 条**；素材为 2026-10-31 实机快照，
+        生成口径 = 快照**减去**本地实测 `rows>0` 的命令），命中的命令默认在发请求前
+        就抛 `NotSupportedError`；确实要探测就给 `allow_dead=True`（关键字原样透传给
         `call()`，没有第二份发送逻辑）。
+        注：**2026-11-01 真机复验**后，原名单里那 7 条产品命令（`zcjj` / `xg_xgjx` /
+        `queryRandom` / `jjs_jgxq` / `north_jg` / `bxzj_sy_bkbd` / `bxzj_sy_jgbd`）
+        实测都有数据、已移出名单（191 → 184）—— 所以 dead 档**当前不含任何产品命令**，
+        `get()` 正常放行。
 
         语义层（阶段 1）
         ----------------

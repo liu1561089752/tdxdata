@@ -195,33 +195,89 @@ def test_verified_tier_is_never_blocked():
     assert len(c._sess.calls) == 1
 
 
-def test_dead_product_commands_are_blocked_through_get():
-    """products.json 里那 7 条 dead 命令：走 `get()` 也会被同一道闸拦住。
+#: 2026-11-01 **真机复验复活**的 7 条产品命令（原在 dead 名单里，实测都有数据，
+#: 已移出名单 191 → 184 并并入 verified）。行数是 Lead 真机跑的：
+#: `zcjj 4310 行 / xg_xgjx 10 行 / queryRandom 2 行 / jjs_jgxq 1 行 /
+#:  north_jg 8 行 / bzxj_sy_bkbd 1 行 / bzxj_sy_jgbd 1 行`。
+_REVIVED_PRODUCTS = (
+    ("zcjj", "CWServ.ph_jjzt_zcjj"),
+    ("xg_xgjx", "CWServ.ph_zt_xg_xgjx"),
+    ("queryRandom", "DataAggregation.queryRandom"),
+    ("jjs_jgxq", "JJSServ.ph_datacenter_jjs_hsgt_v3_jgxq"),
+    ("north_jg", "JJSServ.ph_datacenter_jjs_hsgtzt_v3_bsjj_jg"),
+    ("bxzj_sy_bkbd", "JJSServ.ph_zt_bxzj_sy_bkbd"),
+    ("bxzj_sy_jgbd", "JJSServ.ph_zt_bxzj_sy_jgbd"),
+)
 
-    这是 `call()` 加闸的**用户可见后果**，必须钉住（别以为只影响 `call_cmd`）。
+
+@pytest.mark.parametrize("name,cmd", _REVIVED_PRODUCTS)
+def test_revived_product_commands_are_no_longer_gated(name, cmd):
+    """这 7 条**不再是 dead**：`get()` 也不许被 dead 闸拦（真机已实测有数据）。
+
+    2026-11-01 真机复验把 dead 名单从 191 条压到 184 条 —— **dead 档此后不含任何
+    产品命令**。这条守的是这个新不变量：一旦有人（或某次重生成）把这 7 条重新加回
+    `dead_cmds.json`，`tier_for` 立刻变回 `dead`、本用例立刻红。
+
+    离线判据不是"取到数据"（假 Session 只能回假包），而是**请求真的发出去了**：
+    `c._sess.calls` 非空 = 没有被本地 dead 闸拦在发请求之前。
     """
-    cmd = "CWServ.ph_jjzt_zcjj"                 # 产品名 `zcjj`
-    assert ctlmap.tier_for(cmd) == "dead"
+    tier = ctlmap.tier_for(cmd)
+    assert tier != "dead", "%s 又被加回 dead 名单了（真机 2026-11-01 实测有数据）" % cmd
+    assert tier == "verified", (
+        "真机实测有数据应落 verified 档（已并入 verified.json），实际 %r" % (tier,))
     c = _client()
     c._load_products()                          # 只读本地 products.json
-    with pytest.raises(errors.NotSupportedError):
-        c.get("zcjj")
-    assert c._sess.calls == [], "dead 产品命令经 get() 发出了请求"
-    assert c._pacer.waits == 0
-
-
-def test_get_allow_dead_really_sends():
-    """`get("zcjj", allow_dead=True)` → 真的发 1 次（逃生舱对产品层也开放）。"""
-    cmd = "CWServ.ph_jjzt_zcjj"
-    assert ctlmap.tier_for(cmd) == "dead"
-    c = _client()
-    c._load_products()
-    ds = c.get("zcjj", allow_dead=True)
-    assert len(c._sess.calls) == 1, "allow_dead=True 应当真的发一次，实际 %d 次" % len(
-        c._sess.calls)
+    ds = c.get(name)                            # 不许因 dead 闸抛错
+    assert c._sess.calls, "%s 的请求没发出去（被本地闸门拦在发送前）" % cmd
     assert c._sess.calls[0][0] == ctlmap.ctl_for(cmd)
     assert c._sess.calls[0][1] == cmd
     assert isinstance(ds, tdxdata.Dataset)
+
+
+def test_get_allow_dead_transparent(monkeypatch):
+    """`allow_dead` **真的透传**到 `call()`（用 monkeypatch 造假 dead 来测管道）。
+
+    为什么要造假 dead：2026-11-01 之后真实名单里**已经没有产品命令**，无法再用
+    真实数据覆盖"`get()` 的 `allow_dead` 关键字有没有透到 `call()`"这条链。
+    所以这里只把 `ctlmap.tier_for` 对**这一条**命令报 `dead`，其余照原函数 ——
+    测的是**管道**，不是数据。
+    """
+    target = "CWServ.ph_jjzt_zcjj"              # 产品名 `zcjj`
+    real_tier_for = ctlmap.tier_for
+
+    def fake_tier_for(cmd):
+        return "dead" if cmd == target else real_tier_for(cmd)
+
+    monkeypatch.setattr(ctlmap, "tier_for", fake_tier_for)
+
+    # ① 默认：被 dead 闸拦在发请求之前（按 dead 闸那条消息判断，不靠异常类）
+    c = _client()
+    c._load_products()
+    with pytest.raises(errors.NotSupportedError) as ei:
+        c.get("zcjj")
+    assert "没有发出" in str(ei.value), "应当是 dead 闸那条消息：%r" % str(ei.value)[:80]
+    assert c._sess.calls == [], "dead 档不许发请求"
+    assert c._pacer.waits == 0
+
+    # ② allow_dead=True：关键字透传到 call()，真的发一次
+    c2 = _client()
+    c2._load_products()
+    ds = c2.get("zcjj", allow_dead=True)
+    assert len(c2._sess.calls) == 1, "allow_dead=True 应当真的发一次，实际 %d 次" % len(
+        c2._sess.calls)
+    assert c2._sess.calls[0][0] == ctlmap.ctl_for(target)
+    assert c2._sess.calls[0][1] == target
+    assert isinstance(ds, tdxdata.Dataset)
+
+
+def test_allow_dead_is_keyword_only_and_defaults_false():
+    """`get()` 的 `allow_dead` 是 **keyword-only 且默认 False**（默认行为不许变）。"""
+    import inspect
+
+    params = inspect.signature(_CLS.get).parameters
+    assert "allow_dead" in params
+    assert params["allow_dead"].default is False
+    assert params["allow_dead"].kind is inspect.Parameter.KEYWORD_ONLY
 
 
 def test_unknown_command_is_not_blocked_by_dead_gate():
