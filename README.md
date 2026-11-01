@@ -397,12 +397,12 @@ tdxdata.ttl_for_cmd("hg_gdp")      # 2592000（秒），可自查某个产品的
 import tdxdata
 
 with tdxdata.Client() as c:
-    t = c.call_cmd("HQServ.ZST")                          # ctl / 请求体形态 / 参数全自动
+    t = c.call_cmd("DataAggregation.queryCyl")            # ctl / 请求体形态 / 参数全自动
     t = c.call_cmd("CWServ.ph_tdxdatacenter_tjcb_gdqk",   # 占位符用 code= / date= 填
                    code="600519", date="2026-10-30")
 ```
 
-* `code=` / `date=` / `extra=` 只填**目录模板里的占位符** —— 只对模板里**真有**占位符的命令生效（如示例二那条；`CWServ.ph_agf10_gsjj` 的模板是 `["00201","600303","0"]`，对它传 `code=` 是空操作）；`params=` 一给就完全用它（模板不参与）。
+* `code=` / `date=` / `extra=` 只填**目录模板里的占位符** —— 只对模板里**真有**占位符的命令生效（如示例二那条；`CWServ.ph_agf10_gsjj` 的模板是 `["00201","600303","0"]`，对它传 `code=` 是空操作）；`params=` 一给就完全用它（模板不参与）。⚠️ 少数命令（`catalog` 里 25 条）的参数是**抓包样本值**：里面的标的代码/日期是抓包当时的现场值，不是通用默认值 —— 要换标的就显式传 `params=`。
 * `{{searchText}}` 是 App 端 JS 模板语法，本库不填 —— 自己给 `extra` 或 `params`。
 * 命令不在目录：抛 `NotSupportedError`（消息里列同前缀的相近命令，不做编辑距离）。
 * `dead` 档（本地实测回 104）：**发请求之前**就抛 `NotSupportedError`，一个字节都不发；名单是 2026-10-31 的负证据快照，确实要试一次就传 `allow_dead=True`。
