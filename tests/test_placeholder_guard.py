@@ -137,7 +137,7 @@ def test_real_send_path_has_no_placeholder_residue():
     # 覆盖度下界：504 条有模板、228 条 None（防"读空 → 空满足"）
     assert len(names) == ctlmap.stats()["total"], len(names)
     assert checked >= 500, "真实发送路径只检查了 %d 条，覆盖面不足" % checked
-    assert checked == 504 and skipped == 228, (checked, skipped)
+    assert checked == 511 and skipped == 228, (checked, skipped)
     assert not residue, "真实发送路径 fill() 后仍残留 %d 条命令的占位符：%s" % (
         len(residue), json.dumps(residue, ensure_ascii=False, sort_keys=True))
     assert braces == _APP_JS_TEMPLATE, (

@@ -163,8 +163,8 @@ def test_tier_for_four_states():
         counts[ctlmap.tier_for(n)] = counts.get(ctlmap.tier_for(n), 0) + 1
     assert counts.get("verified") == 421, counts
     assert counts.get("dead") == 184, counts
-    assert counts.get("probe_ok") == 44, counts
-    assert counts.get(None) == 732 - 421 - 184 - 44, counts
+    assert counts.get("probe_ok") == 46, counts
+    assert counts.get(None) == 739 - 421 - 184 - 46, counts
 
 
 def test_tier_positive_evidence_beats_dead():
@@ -194,11 +194,11 @@ def test_form_measured_for_has_no_fallback():
 def test_stats_keeps_flag_semantics_and_adds_evidence_counts():
     s = ctlmap.stats()
     # 原有键一个不少、口径不变
-    assert s["total"] == 732
-    assert s["with_params"] == 517
+    assert s["total"] == 739
+    assert s["with_params"] == 524
     assert s["verified"] == 537          # ctl_map 的布尔标记（历史口径）
     assert set(s["forms"]) <= {"base", "call", "bare", "obj"}
-    assert s["forms"] == {"base": 718, "call": 11, "bare": 3}
+    assert s["forms"] == {"base": 725, "call": 11, "bare": 3}
     # 新增两个证据计数，与布尔标记分开口径
     assert s["verified_rows"] == 421
     assert s["dead"] == 184
@@ -390,7 +390,7 @@ def test_params_best_for_never_leaks_args_hex_across_all_commands():
             leaked.append(cmd)
     # 517 条有模板 = 492 条第 1 档 + 12 条（4 走 verified、8 解 args_hex）；
     # 剩下 13 条是 protobuf 体 → None。所以非 None 恰好 504 条。
-    assert checked == 504, "返回模板的条数应恰好 504，实测 %d" % checked
+    assert checked == 511, "返回模板的条数应恰好 511，实测 %d" % checked
     assert not leaked, "这些命令的 params_best_for 结果含 args_hex：%s" % leaked
     # 顺带钉死：25 条元数据命令之外，取值与 params_for 完全一致（第 1 档行为不变）
     diff = [c for c in ctlmap.names()

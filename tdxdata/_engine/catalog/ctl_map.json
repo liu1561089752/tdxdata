@@ -6938,6 +6938,69 @@
    "probe_ok": true,
    "probe_cols": 0,
    "probe_shape": ""
+  },
+  "CWServ.ph_datacenter_zdt_ggzdfx": {
+   "ctl": 33,
+   "form": "base",
+   "params": [
+    "dzsjz",
+    "600519",
+    1
+   ],
+   "probe_ok": true,
+   "probe_shape": "ResultSets"
+  },
+  "CWServ.phbkf10_zj": {
+   "ctl": 19,
+   "form": "base",
+   "params": [
+    "00104",
+    "880001"
+   ],
+   "probe_ok": true,
+   "probe_shape": "ResultSets"
+  },
+  "CWServ.phbkf10_cyl": {
+   "ctl": 19,
+   "form": "base",
+   "params": [
+    "00101",
+    "880001",
+    ""
+   ]
+  },
+  "CWServ.phbkf10_ggdb": {
+   "ctl": 19,
+   "form": "base",
+   "params": [
+    "00101",
+    "880001",
+    0
+   ]
+  },
+  "CWServ.phbkf10_ydfx": {
+   "ctl": 19,
+   "form": "base",
+   "params": [
+    "00102",
+    "880001"
+   ]
+  },
+  "CWServ.ph_ggf10_zx": {
+   "ctl": 19,
+   "form": "base",
+   "params": [
+    "00101",
+    "00700"
+   ]
+  },
+  "CWServ.ph_gzf10_zx_gg": {
+   "ctl": 19,
+   "form": "base",
+   "params": [
+    2,
+    "00700"
+   ]
   }
  }
 }
