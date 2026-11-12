@@ -4365,6 +4365,37 @@
     2
    ],
    "domain": "龙虎榜与两融"
+  },
+  "bxzj_ss": {
+   "cmd": "JJSServ.ph_zt_bxzj_ss",
+   "ctl": 23,
+   "params": [
+    "00101",
+    "920091"
+   ],
+   "domain": "涨停与题材"
+  },
+  "bxzj_xq": {
+   "cmd": "JJSServ.ph_zt_bxzj_xq",
+   "ctl": 23,
+   "params": [
+    "00101",
+    "",
+    "920091",
+    0,
+    0,
+    0
+   ],
+   "domain": "涨停与题材"
+  },
+  "jjsph_cyqbgp_cgbh": {
+   "cmd": "JJSServ.ph_datacenter_jjsph_cyqbgp_cgbh",
+   "ctl": 41,
+   "params": [
+    "高盛(亚洲)证券有限公司",
+    "0"
+   ],
+   "domain": "其他"
   }
  },
  "pb_products": {

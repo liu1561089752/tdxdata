@@ -126,7 +126,7 @@ def test_registered_domains_agree_with_domain_of():
     事实源是 products.json 的 `_meta.域分类`：「由 tdxdata/domains.py 的
     domain_of() 生成」。两处漂移过一次（tfp_v2_kzz 被 kzz 兜底卷进新股域、
     xjjj 被 ph_zt 吞进涨停域，评审 SUMMARY §3.2），所以这里把它变成硬门禁：
-    421 条逐条比，任何一条不一致都点名报红。
+    424 条逐条比，任何一条不一致都点名报红。
     """
     pj = json.load(io.open(os.path.join(
         os.path.dirname(os.path.dirname(os.path.abspath(__file__))),
@@ -145,7 +145,7 @@ def test_product_count():
     pj = json.load(io.open(os.path.join(
         os.path.dirname(os.path.dirname(os.path.abspath(__file__))),
         "tdxdata", "data", "products.json"), encoding="utf-8"))
-    assert len(pj["products"]) == 421, len(pj["products"])
+    assert len(pj["products"]) == 424, len(pj["products"])
     assert len(pj["pb_products"]) == 36, len(pj["pb_products"])
 
 

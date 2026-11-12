@@ -45,7 +45,7 @@ def test_ten_clients_open_the_catalog_once(monkeypatch):
     clients = [_bare_client() for _ in range(10)]
     hits = [p for p in opened if p.endswith("products.json")]
     assert len(hits) == 1, "products.json 被打开 %d 次（应为 1）：%s" % (len(hits), hits)
-    assert all(len(c._products) == 421 for c in clients)
+    assert all(len(c._products) == 424 for c in clients)
 
 
 def test_cache_is_shared_not_copied():
@@ -58,9 +58,9 @@ def test_cache_is_shared_not_copied():
 
 
 def test_catalog_content_is_intact():
-    """缓存不许把内容读漏（421 个产品 + 36 个 PB 产品 + ctl 字段都在）。"""
+    """缓存不许把内容读漏（424 个产品 + 36 个 PB 产品 + ctl 字段都在）。"""
     cat = client_mod._catalog()
-    assert len(cat["products"]) == 421
+    assert len(cat["products"]) == 424
     assert len(cat["pb_products"]) == 36
     macro = {k for k, v in cat["products"].items() if v.get("domain") == "宏观"}
     assert len(macro) == 29
@@ -79,7 +79,7 @@ def test_products_view_still_works_after_cache(monkeypatch):
     """`products()` 走的是同一份缓存数据：过滤/计数与直接读 JSON 一致。"""
     c = _bare_client()
     all_products = c.products()
-    assert len(all_products) == 421
+    assert len(all_products) == 424
     assert len(list({p.domain for p in all_products})) == 17
     macro = [p for p in all_products if p.domain == "宏观"]
     assert len(macro) == 29

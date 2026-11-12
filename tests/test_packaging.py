@@ -6,7 +6,7 @@ r"""打包完整性：`pip install` 之后包是否完整可用。
 
 1. 把仓库复制到临时目录，从那里 `pip install --target`
 2. 用**独立子进程**、只挂载安装目录去 import
-3. 断言：版本号与 `pyproject.toml` 一致、421 个产品齐全、子包可导入、
+3. 断言：版本号与 `pyproject.toml` 一致、424 个产品齐全、子包可导入、
    **包内数据文件**（`data/*.json`、`_engine/catalog/*.json`）确实被带上了
 
 约束（硬红线）
@@ -136,12 +136,12 @@ def test_installs_and_imports():
 
 
 def test_products_complete_after_install():
-    """421 个数据中心产品随包走（验的是包内数据文件没漏打）。"""
+    """424 个数据中心产品随包走（验的是包内数据文件没漏打）。"""
     if SKIP_REASON:
         print("跳过：%s" % SKIP_REASON)
         return
     info = _probe_info()
-    assert info["products"] == 421, "产品数 %r ≠ 421（包内数据文件可能没打进去）" % (
+    assert info["products"] == 424, "产品数 %r ≠ 424（包内数据文件可能没打进去）" % (
         info["products"],)
 
 

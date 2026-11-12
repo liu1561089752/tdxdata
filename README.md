@@ -4,8 +4,8 @@
 
 ![Python](https://img.shields.io/badge/python-3.9%2B-blue)
 ![Dependencies](https://img.shields.io/badge/dependencies-0-brightgreen)
-![Tests](https://img.shields.io/badge/tests-367%20passed-success)
-![Products](https://img.shields.io/badge/%E6%95%B0%E6%8D%AE%E4%B8%AD%E5%BF%83%E4%BA%A7%E5%93%81-421-orange)
+![Tests](https://img.shields.io/badge/tests-1762%20passed-success)
+![Products](https://img.shields.io/badge/%E6%95%B0%E6%8D%AE%E4%B8%AD%E5%BF%83%E4%BA%A7%E5%93%81-424-orange)
 ![License](https://img.shields.io/badge/license-MIT-green)
 
 ```python
@@ -23,7 +23,7 @@ with tdxdata.Client() as c:
 
 ## 这个库能做什么
 
-**一句话**：把 A 股的 K 线、分时、逐笔、报价，以及龙虎榜 / 财报 / 资金流等 421 个数据产品，
+**一句话**：把 A 股的 K 线、分时、逐笔、报价，以及龙虎榜 / 财报 / 资金流等 424 个数据产品，
 变成一个 `import` 就能调的 Python 对象。
 
 ### 三个"不需要"
@@ -48,7 +48,7 @@ with tdxdata.Client() as c:
 | 板块清单（6 类）与成分股 | `get_boards()` / `get_board_members()` |
 | 技术指标（EMA / RSI…） | `get_indicators()` |
 | 涨跌停价 | `get_price_limits()` |
-| 龙虎榜 / 财报 / 资金流 / 分红 / 大盘统计…（421 个产品） | `get("产品名")` |
+| 龙虎榜 / 财报 / 资金流 / 分红 / 大盘统计…（424 个产品） | `get("产品名")` |
 | F10 / 财务报表 / 分红融资 | `get_f10()` / `get_finance()` / `get_xdxr()` |
 
 ### 取不到的（会明确抛异常，不返回假数据）
@@ -100,7 +100,7 @@ with tdxdata.Client() as c:
     # ④ 批量报价（含成交量/成交额）
     qs = c.get_quotes(["600519", "000001", "399001", "881007"])
 
-    # ⑤ 数据中心产品（421 个之一）
+    # ⑤ 数据中心产品（424 个之一）
     d = c.get("holiday")
     print(d.table.shape, d.table.cols[:3])
     print(d.rows[0])            # Row 是 dict 语义，可按列名取值
@@ -240,7 +240,7 @@ c.get_bars(("sh", "000300"))         # 沪深300 —— 与深市代码段冲突
 | 涨跌停价 | 主板 ±10%、双创 ±20%、北交所 ±30%、转债 ±20%、基金与 B 股按 0.001 取整 |
 | 板块清单 | 六类：行业一/二/三级 30 / 128 / 345，概念 269，风格 158，地区 32 |
 | 概念板块成分股 | 含入选理由与纳入日期 |
-| 数据中心 | 421 个产品、17 个域：龙虎榜 / 财报 / 资金流 / 分红 / 大盘统计… |
+| 数据中心 | 424 个产品、17 个域：龙虎榜 / 财报 / 资金流 / 分红 / 大盘统计… |
 | 结构化接口 | F10、财务报表、分红融资（语义化英文列名） |
 | 本地缓存 | `Client(cache="auto")`（按命令的**实测**新鲜度给 TTL）或 `Client(cache=TTLCache(ttl=300))`；命中不占限流配额 |
 | 同步 + 异步 | `Client` / `AsyncClient` |
@@ -344,7 +344,7 @@ with tdxdata.Client() as c:
 
 | 方法 | 返回 | 说明 |
 |---|---|---|
-| `products(domain=None)` | `list[ProductInfo]` | 421 个数据产品，可按域过滤 |
+| `products(domain=None)` | `list[ProductInfo]` | 424 个数据产品，可按域过滤 |
 | `domains()` | `list[str]` | 17 个域 |
 | `capabilities(*, instrument=None, available_only=False)` | `Table` | **能力边界表**：品种 × 接口 × 有无 × 依据 × 绕法；静态注册表，**一个请求都不发**；筛完为空抛 `EmptyResult` |
 | `get_bars(symbol, period, count, adjust)` | `list[Bar]` | K 线；`count > 416` 自动翻页 |
@@ -391,7 +391,7 @@ tdxdata.ttl_for_cmd("hg_gdp")      # 2592000（秒），可自查某个产品的
 
 ## 直接调命令目录里的任意命令（`Client.call_cmd`）
 
-产品层 `get()` 只有**421 条**封装好的产品，而命令目录里有**732 条** —— 剩下那 300 多条以前只能手抄 `ctl` 加手拼参数。`call_cmd()` 把这两件事交给目录（`tdxdata.ctlmap`）查表：
+产品层 `get()` 只有**424 条**封装好的产品，而命令目录里有**732 条** —— 剩下那 300 多条以前只能手抄 `ctl` 加手拼参数。`call_cmd()` 把这两件事交给目录（`tdxdata.ctlmap`）查表：
 
 ```python
 import tdxdata
@@ -535,6 +535,12 @@ per-host 桶机制本身工作正常（`hosts_tracked` 0→4），但**桶独立
 所以 `concurrency` 默认就是 `1`：**这不是"优化还没做"，是实测结论。**
 要更快只有两条路：**减少调用次数**，或**跨进程/跨机分摊**（后者需自行验证配额口径）。
 原始输出见阶段 5 实测记录 `reports/refactor/probe/phase5/probe_phase5.out.txt`（仓库外）。
+
+---
+
+## 接口维护总册
+
+维护与扩展命令前**先读** [接口维护总册.md](接口维护总册.md)——它汇总了 7615 协议基础（帧格式 / ctl 通道族语义 / 服务器列表）、457 条已注册接口总表、PB 命令实测详解（列名/参数位/注意）、raw_args 实抓参数体、待登记清单（13 条 catalog-ready + 3 条 JJSServ 新命令 + 74 条未登记），以及 60 条页面声明 params 模板。要给 `products.json` 新增命令或调试现有命令的 ctl / 参数，直接按总册对应章节操作即可。
 
 ---
 
@@ -1205,25 +1211,25 @@ with tdxdata.Client() as c:
 |---|---|---|---|
 | `行情` | 6 | 1.4% | 命中规则 3 条 |
 | `财报` | 22 | 5.2% | 命中规则 10 条 |
-| `F10与个股资料` | 43 | 10.2% | 命中规则 6 条 |
-| `龙虎榜与两融` | 61 | 14.5% | 命中规则 5 条 |
-| `沪深港通` | 23 | 5.5% | 命中规则 2 条 |
-| `涨停与题材` | 28 | 6.7% | 命中规则 1 条 |
+| `F10与个股资料` | 43 | 10.1% | 命中规则 6 条 |
+| `龙虎榜与两融` | 61 | 14.4% | 命中规则 5 条 |
+| `沪深港通` | 23 | 5.4% | 命中规则 2 条 |
+| `涨停与题材` | 30 | 7.1% | 命中规则 1 条 |
 | `板块与行业` | 6 | 1.4% | 命中规则 5 条 |
 | `大宗交易` | 9 | 2.1% | 命中规则 2 条 |
 | `新股与再融资` | 8 | 1.9% | 命中规则 4 条 |
 | `资金与筹码` | 13 | 3.1% | 命中规则 3 条 |
 | `市场统计` | 6 | 1.4% | 命中规则 5 条 |
-| `宏观` | 29 | 6.9% | 命中规则 3 条 |
-| `基金与ETF` | 20 | 4.8% | 命中规则 3 条 |
-| `资讯与AI` | 15 | 3.6% | 命中规则 6 条 |
+| `宏观` | 29 | 6.8% | 命中规则 3 条 |
+| `基金与ETF` | 20 | 4.7% | 命中规则 3 条 |
+| `资讯与AI` | 15 | 3.5% | 命中规则 6 条 |
 | `股东与持股` | 11 | 2.6% | 命中规则 5 条 |
-| `估值` | 20 | 4.8% | 命中规则 1 条 |
-| `其他` | 101 | 24.0% | 命中规则 1 条 |
-| **合计** | 421 | 100.0% | — |
+| `估值` | 20 | 4.7% | 命中规则 1 条 |
+| `其他` | 102 | 24.1% | 命中规则 1 条 |
+| **合计** | 424 | 100.0% | — |
 <!-- END: data_domains -->
 
-### A16 数据中心产品索引（421 个）
+### A16 数据中心产品索引（424 个）
 
 `c.products()` 返回的就是下面这些（按产品名排序）；「命令」列是 `c.call()` 直调时
 要写的 `cmd`，「域」列是 `domains.domain_of(cmd)` 的判定结果：
@@ -1248,9 +1254,11 @@ with tdxdata.Client() as c:
 | `bkld_cnx` | 板块与行业 | 33 | `CWServ.ph_pcwebcall_hy_bkldscnx` |
 | `bklist` | 板块与行业 | 22 | `CWServ.app_bklist_ag` |
 | `bklt` | 板块与行业 | 30 | `CWServ.ph_tdxdatacenter_bklt` |
+| `bxzj_ss` | 涨停与题材 | 23 | `JJSServ.ph_zt_bxzj_ss` |
 | `bxzj_sy_bkbd` | 板块与行业 | 28 | `JJSServ.ph_zt_bxzj_sy_bkbd` |
 | `bxzj_sy_ggbd` | 涨停与题材 | 28 | `JJSServ.ph_zt_bxzj_sy_ggbd` |
 | `bxzj_sy_jgbd` | 涨停与题材 | 28 | `JJSServ.ph_zt_bxzj_sy_jgbd` |
+| `bxzj_xq` | 涨停与题材 | 23 | `JJSServ.ph_zt_bxzj_xq` |
 | `cb_yjgg` | 财报 | 33 | `CWServ.ph_tdxdatacenter_cb_yjgg` |
 | `cb_yjkb` | 财报 | 33 | `CWServ.ph_tdxdatacenter_cb_yjkb` |
 | `cb_yjpd` | 财报 | 33 | `CWServ.ph_tdxdatacenter_cb_yjpd` |
@@ -1410,6 +1418,7 @@ with tdxdata.Client() as c:
 | `jjs_hsgtzt_v3_bsjj_bk` | 沪深港通 | 45 | `JJSServ.ph_datacenter_jjs_hsgtzt_v3_bsjj_bk` |
 | `jjs_jgxq` | 沪深港通 | 40 | `JJSServ.ph_datacenter_jjs_hsgt_v3_jgxq` |
 | `jjs_ss` | 沪深港通 | 38 | `JJSServ.ph_datacenter_jjs_hsgt_v3_ss` |
+| `jjsph_cyqbgp_cgbh` | 其他 | 41 | `JJSServ.ph_datacenter_jjsph_cyqbgp_cgbh` |
 | `jqzs` | 宏观 | 30 | `CWServ.ph_datacenter_hg_jqzs` |
 | `jyfx` | F10与个股资料 | 22 | `CWServ.ph_agf10_jyfx` |
 | `jysj` | F10与个股资料 | 22 | `CWServ.ph_agf10_jysj` |
