@@ -364,12 +364,19 @@ CAPABILITIES: tuple[Capability, ...] = (
         instrument="forex",
         interface="get_quotes",
         available=True,
-        reason="**可用（品种有限）**：市场号 10=外汇（USDCNH 美元兑离岸人民币，回 21 列含 "
-               "OPEN/MAX/MIN/NOW/HqTime）、27=恒生指数（HSI）、12=外盘指数（A_DJI 道琼斯 / "
-               "A_IXIC 纳斯达克 / A_SPX 标普500 / CNY0 富时A50期指）。"
-               "抓包里只有 USDCNH 一个汇率品种，**不要推断其它货币对也存在**",
-        evidence="pb.jsonl：setcode=10 共 10 行（USDCNH）、12 共 43 行、27 共 10 行（HSI 22934.68）",
-        workaround="其他货币对（EURUSD/CNHHKD…）无实测证据；7727 侧仍是笔记证据，未接入",
+        reason="**可用（13 个货币对，2026-11-12 实测枚举）**：市场号 10=外汇，回 21 列含 "
+               "OPEN/CLOSE/NOW/MAX/MIN/HqDate/HqTime/XSFLAG(小数位)/EXT_ZF。实测命中的 13 对："
+               "EURUSD 欧元兑美元 / GBPUSD 英镑兑美元 / USDJPY 美元兑日元 / USDCNH 美元兑离岸人民币 / "
+               "USDCNY 美元兑人民币 / AUDUSD 澳元兑美元 / USDCAD 美元兑加元 / USDCHF 美元兑瑞郎 / "
+               "USDSGD 美元兑新加坡元 / CNHHKD 港元兑人民币? / CNYHKD 人民币兑港元 / USDHKD 美元兑港元 / "
+               "HKDCNY 港元兑人民币。**含交叉盘**（EURUSD/GBPUSD 等不含 USD计价端的组合也回数据）。"
+               "27=恒生指数（HSI）、12=外盘指数（A_DJI 道琼斯 / A_IXIC 纳斯达克 / A_SPX 标普500 / CNY0 富时A50期指）",
+        evidence="2026-11-12 get_quotes 实测 30 候选命中 13（分批防断连）：9 个美元对 + 4 个港币/人民币对；"
+                 "EUR-led 纯交叉盘（EURJPY/EURGBP/EURAUD/GBPJPY/AUDJPY 等 10 个）实测全部 miss。"
+                 "抓包旧证据只有 USDCNH 一个，本次实测推翻「仅 USDCNH」旧结论",
+        workaround="**外汇 K 线/分时无通道**：get_bars 的 symbol 解析不认 fx 前缀（PBCombHQ 只有报价无 K 线）。"
+                   "EX 7727 专用通道仍未接入（笔记证据，31 份 pcap 零帧）。批量探品种要分小批（10 只/批），"
+                   "30 只一批会被服务器重置连接（ConnectionReset 10054）",
     ),
     Capability(
         name="商品期货",
